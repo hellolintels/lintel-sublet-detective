@@ -18,11 +18,6 @@ const Contact = () => {
             <Mail className="mr-2" />
             Contact Us to Learn More
           </Button>
-          <div className="text-gray-300">
-            <p>📩 hello@lintel.tech</p>
-            <p>🌐 www.lintel.tech</p>
-            <p>📍 Based in Glasgow, operating across Scotland</p>
-          </div>
         </div>
       </div>
     </div>
@@ -30,3 +25,4 @@ const Contact = () => {
 };
 
 export default Contact;
+
