@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 
 const Navbar = () => {
   return (
-    <nav className="fixed top-0 w-full z-50 backdrop-blur-lg bg-gray-900/50 border-b border-gray-800">
+    <nav className="fixed top-0 w-full z-50 backdrop-blur-lg bg-black/50 border-b border-gray-800">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Logo />
@@ -15,7 +15,7 @@ const Navbar = () => {
             <Button variant="ghost" className="text-gray-300 hover:text-white">
               Features
             </Button>
-            <Button variant="secondary" className="bg-purple-600 hover:bg-purple-700 text-white">
+            <Button variant="secondary" className="bg-gray-700 hover:bg-gray-600 text-white">
               Contact Us
             </Button>
           </div>

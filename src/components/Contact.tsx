@@ -4,7 +4,7 @@ import { Mail } from "lucide-react";
 
 const Contact = () => {
   return (
-    <div className="py-20 bg-gray-900">
+    <div className="py-20 bg-black">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-3xl font-bold mb-6 text-white">
           Onboarding Now in Scotland
@@ -14,7 +14,7 @@ const Contact = () => {
           Beta onboarding is limited — if you manage rental properties and want to test Lintel, we'd love to hear from you.
         </p>
         <div className="flex flex-col items-center space-y-4">
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg">
+          <Button className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-6 text-lg">
             <Mail className="mr-2" />
             Contact Us to Learn More
           </Button>
