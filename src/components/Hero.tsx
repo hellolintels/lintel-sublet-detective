@@ -17,9 +17,6 @@ const Hero = () => {
             <Button className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-6 text-lg w-full sm:w-auto">
               Contact Us
             </Button>
-            <Button variant="outline" className="border-gray-600 text-gray-300 hover:text-white px-8 py-6 text-lg w-full sm:w-auto">
-              See a Sample Report
-            </Button>
           </div>
         </div>
       </div>
