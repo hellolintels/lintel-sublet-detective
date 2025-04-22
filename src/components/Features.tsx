@@ -25,16 +25,12 @@ const features = [
   {
     title: "Private & Secure",
     description: "No tenant information is shared or stored. Lintel operates as a neutral third party."
-  },
-  {
-    title: "Sample Address Test Available",
-    description: "We offer sample data so you can see how the system works before you commit."
   }
 ];
 
 const Features = () => {
   return (
-    <div className="py-20 bg-black font-sans"> // Add font-sans to ensure Roboto is used
+    <div className="py-20 bg-black font-sans">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl font-bold text-center mb-12 text-white">
           Features
@@ -43,7 +39,7 @@ const Features = () => {
           {features.map((feature, index) => (
             <div 
               key={index} 
-              className={`p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800 ${index === features.length - 1 ? 'md:col-start-2 lg:col-start-auto' : ''}`}
+              className="p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800"
             >
               <div className="flex items-start space-x-3 mb-4">
                 <Check className="w-6 h-6 text-gray-400 flex-shrink-0 mt-1" />

@@ -4,7 +4,7 @@ import { Mail } from "lucide-react";
 
 const Contact = () => {
   return (
-    <div className="py-20 bg-black">
+    <div className="py-20 bg-black" id="contact-section">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-3xl font-bold mb-6 text-white">
           Onboarding Across the UK
