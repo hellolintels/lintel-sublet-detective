@@ -28,7 +28,8 @@ const features = [
   },
   {
     title: "Sample Address Test Available",
-    description: "We offer sample data so you can see how the system works before you commit."
+    description: "We offer sample data so you can see how the system works before you commit.",
+    centered: true
   }
 ];
 
@@ -41,12 +42,17 @@ const Features = () => {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <div key={index} className="p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800">
+            <div 
+              key={index} 
+              className={`p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800 ${feature.centered ? 'col-span-full text-center' : ''}`}
+            >
               <div className="flex items-start space-x-3 mb-4">
                 <Check className="w-6 h-6 text-gray-400 flex-shrink-0 mt-1" />
                 <h3 className="text-xl font-semibold text-white">{feature.title}</h3>
               </div>
-              <p className="text-gray-300 ml-9">{feature.description}</p>
+              <p className={`text-gray-300 ${feature.centered ? 'text-center' : 'ml-9'}`}>
+                {feature.description}
+              </p>
             </div>
           ))}
         </div>
