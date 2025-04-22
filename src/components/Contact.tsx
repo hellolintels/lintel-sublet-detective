@@ -7,10 +7,10 @@ const Contact = () => {
     <div className="py-20 bg-black">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-3xl font-bold mb-6 text-white">
-          Onboarding Now in Scotland
+          Onboarding Across the UK
         </h2>
         <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-          We're currently working with selected agents and housing providers across Scotland.
+          We're currently working with selected agents and housing providers across the United Kingdom.
           Beta onboarding is limited — if you manage rental properties and want to test Lintel, we'd love to hear from you.
         </p>
         <div className="flex flex-col items-center space-y-4">
@@ -25,4 +25,3 @@ const Contact = () => {
 };
 
 export default Contact;
-
