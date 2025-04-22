@@ -1,11 +1,43 @@
 
 import { Button } from "./ui/button";
-import { Mail } from "lucide-react";
+import { Mail, MailPlus } from "lucide-react";
 
 const Contact = () => {
+  // Scroll-to-contact logic for the offer button (no-op inside this section, but handy if reused)
+  const handleOfferClick = () => {
+    const contactSection = document.getElementById("contact-section");
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   return (
     <div className="py-20 bg-black" id="contact-section">
-      <div className="container mx-auto px-4 text-center">
+      <div className="container mx-auto px-4 flex flex-col items-center text-center">
+        {/* Sample Offer Highlight Callout */}
+        <div
+          className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-10 bg-gradient-to-r from-[#9b87f5]/30 via-[#7E69AB]/30 to-[#8B5CF6]/40 border border-[#9b87f5] p-8 shadow-lg animate-fade-in"
+          style={{ fontFamily: 'Roboto, Inter, sans-serif' }}
+        >
+          <div className="flex items-center text-[#9b87f5] mb-2">
+            <MailPlus className="w-7 h-7 mr-2" />
+            <span className="text-xl font-semibold tracking-tight">
+              Try lintels.in For Free
+            </span>
+          </div>
+          <p className="text-lg text-white mb-5 font-normal text-center">
+            Request a free sample scan and receive a report of up to <span className="text-[#9b87f5] font-bold">50 addresses</span> from your portfolio.
+          </p>
+          <Button
+            size="lg"
+            className="bg-[#9b87f5] hover:bg-[#8B5CF6] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
+            onClick={handleOfferClick}
+          >
+            <MailPlus className="mr-2" />
+            Request a Sample Report
+          </Button>
+        </div>
+        {/* Main Contact Content */}
         <h2 className="text-3xl font-bold mb-6 text-white">
           Onboarding Across the UK
         </h2>

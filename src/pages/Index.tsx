@@ -13,7 +13,7 @@ const Index = () => {
       <Hero />
       <Features />
       <HowItWorks />
-      <SampleOffer />
+      {/* Removed the SampleOffer section to integrate as a callout in Contact */}
       <Contact />
     </div>
   );
