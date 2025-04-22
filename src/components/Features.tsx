@@ -1,10 +1,9 @@
-
 import { Check } from "lucide-react";
 
 const features = [
   {
-    title: "Monthly Monitoring",
-    description: "Your portfolio is scanned each month against the biggest subletting platforms."
+    title: "Daily Monitoring",
+    description: "Your portfolio is scanned each day against the biggest subletting platforms."
   },
   {
     title: "Evidence-Based Matching",
