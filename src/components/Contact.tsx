@@ -16,21 +16,21 @@ const Contact = () => {
       <div className="container mx-auto px-4 flex flex-col items-center text-center">
         {/* Sample Offer Highlight Callout */}
         <div
-          className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-10 bg-gradient-to-r from-[#9b87f5]/30 via-[#7E69AB]/30 to-[#8B5CF6]/40 border border-[#9b87f5] p-8 shadow-lg animate-fade-in"
+          className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-10 bg-gradient-to-r from-[hsl(90,50%,40%,0.3)] via-[hsl(90,30%,50%,0.3)] to-[hsl(90,70%,40%,0.4)] border border-[hsl(90,70%,40%)] p-8 shadow-lg animate-fade-in"
           style={{ fontFamily: 'Roboto, Inter, sans-serif' }}
         >
-          <div className="flex items-center text-[#9b87f5] mb-2">
+          <div className="flex items-center text-[hsl(90,70%,40%)] mb-2">
             <MailPlus className="w-7 h-7 mr-2" />
             <span className="text-xl font-semibold tracking-tight">
               Try lintels.in For Free
             </span>
           </div>
           <p className="text-lg text-white mb-5 font-normal text-center">
-            Request a free sample scan and receive a report of up to <span className="text-[#9b87f5] font-bold">50 addresses</span> from your portfolio.
+            Request a free sample scan and receive a report of up to <span className="text-[hsl(90,70%,40%)] font-bold">50 addresses</span> from your portfolio.
           </p>
           <Button
             size="lg"
-            className="bg-[#9b87f5] hover:bg-[#8B5CF6] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
+            className="bg-[hsl(90,70%,40%)] hover:bg-[hsl(90,70%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
             onClick={handleOfferClick}
           >
             <MailPlus className="mr-2" />
