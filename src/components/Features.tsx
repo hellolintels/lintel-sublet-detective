@@ -1,4 +1,3 @@
-
 import { Check } from "lucide-react";
 
 const features = [
@@ -28,8 +27,7 @@ const features = [
   },
   {
     title: "Sample Address Test Available",
-    description: "We offer sample data so you can see how the system works before you commit.",
-    centered: true
+    description: "We offer sample data so you can see how the system works before you commit."
   }
 ];
 
@@ -44,15 +42,13 @@ const Features = () => {
           {features.map((feature, index) => (
             <div 
               key={index} 
-              className={`p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800 ${feature.centered ? 'col-span-full text-center' : ''}`}
+              className={`p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800 ${index === features.length - 1 ? 'col-span-full flex flex-col items-center' : ''}`}
             >
               <div className="flex items-start space-x-3 mb-4">
                 <Check className="w-6 h-6 text-gray-400 flex-shrink-0 mt-1" />
                 <h3 className="text-xl font-semibold text-white">{feature.title}</h3>
               </div>
-              <p className={`text-gray-300 ${feature.centered ? 'text-center' : 'ml-9'}`}>
-                {feature.description}
-              </p>
+              <p className="text-gray-300 text-center">{feature.description}</p>
             </div>
           ))}
         </div>
