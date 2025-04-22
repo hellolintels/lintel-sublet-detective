@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -19,42 +20,39 @@ export default {
     },
     extend: {
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        border: "hsl(90, 50%, 50%)", // Lime-inspired border
+        input: "hsl(90, 50%, 60%)", // Slightly brighter lime input
+        ring: "hsl(90, 70%, 45%)", // Vibrant lime ring
+        background: "hsl(0, 0%, 100%)", // Keeping white background
+        foreground: "hsl(0, 0%, 10%)", // Dark text for contrast
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "hsl(90, 70%, 40%)", // Lime green primary
+          foreground: "hsl(0, 0%, 100%)", // White text on primary
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
+          DEFAULT: "hsl(90, 30%, 85%)", // Soft, pastel lime
+          foreground: "hsl(0, 0%, 20%)", // Dark text on secondary
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(0, 84.2%, 60.2%)", // Keeping red destructive
+          foreground: "hsl(0, 0%, 98%)",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "hsl(90, 20%, 90%)", // Very light lime
+          foreground: "hsl(0, 0%, 45%)", // Muted text
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "hsl(90, 50%, 70%)", // Bright lime accent
+          foreground: "hsl(0, 0%, 10%)", // Dark text on accent
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "hsl(90, 30%, 95%)", // Very light lime popover
+          foreground: "hsl(0, 0%, 10%)",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "hsl(90, 20%, 98%)", // Almost white with lime tint
+          foreground: "hsl(0, 0%, 10%)",
         },
-      },
-      fontFamily: {
-        'sans': ['Roboto', 'Inter', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -79,3 +77,4 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+
