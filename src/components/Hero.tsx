@@ -11,7 +11,7 @@ const Hero = () => {
             Protect your properties from unauthorised subletting
           </h1>
           <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-            Lintel helps agents, landlords and housing providers across the UK detect illegal short-term subletting across their rental portfolios — discreetly and automatically.
+            Lintels.in helps agents, landlords and housing providers across the UK detect illegal short-term subletting across their rental portfolios — discreetly and automatically.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-6 text-lg w-full sm:w-auto">
