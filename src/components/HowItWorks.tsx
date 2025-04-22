@@ -10,7 +10,7 @@ const steps = [
   {
     number: "02",
     title: "We scan major short-let platforms",
-    description: "Each month, we run automated searches across the most active subletting platforms to detect listings that match your properties."
+    description: "We run automated searches daily across the most active subletting platforms to detect listings that match your properties."
   },
   {
     number: "03",
