@@ -34,7 +34,7 @@ const features = [
 
 const Features = () => {
   return (
-    <div className="py-20 bg-black">
+    <div className="py-20 bg-black font-sans"> // Add font-sans to ensure Roboto is used
       <div className="container mx-auto px-4">
         <h2 className="text-3xl font-bold text-center mb-12 text-white">
           Features
