@@ -1,6 +1,6 @@
 
 import { Button } from "./ui/button";
-import { Mail } from "lucide-react";
+import { Mail, Request } from "lucide-react";
 import { ContactForm } from "./ContactForm";
 
 const Contact = () => {
@@ -20,7 +20,18 @@ const Contact = () => {
           <p className="text-sm sm:text-base text-white mb-4 font-normal text-center">
             Request a free sample scan and receive a report of up to <span className="text-[hsl(24,97%,40%)] font-bold">20 addresses</span> from your portfolio.
           </p>
-          <ContactForm />
+          <div className="flex flex-col gap-4 w-full items-center">
+            <ContactForm />
+            <Button 
+              variant="outline"
+              size="lg"
+              className="bg-white hover:bg-gray-100 text-black border-gray-300 w-full sm:w-auto"
+              onClick={() => window.open("https://workspace.google.com/marketplace/app/lintelsin/123456789", "_blank")}
+            >
+              <Request className="mr-2" />
+              Install Google Workspace Add-on
+            </Button>
+          </div>
         </div>
         
         <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-white">
