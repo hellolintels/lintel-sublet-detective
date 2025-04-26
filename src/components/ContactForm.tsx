@@ -134,7 +134,7 @@ export function ContactForm() {
                 <FormItem>
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="+44 XXX XXX XXXX" {...field} />
+                    <Input type="tel" placeholder="07XXX XXXXXX" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
