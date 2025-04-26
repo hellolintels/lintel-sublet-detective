@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -79,17 +78,14 @@ Phone: ${values.phone}
 A CSV file with addresses has been attached to this email.
         `);
         
-        // Create a temporary link to download the file
         const fileURL = URL.createObjectURL(files[0]);
         const tempLink = document.createElement('a');
         tempLink.href = fileURL;
         tempLink.download = 'addresses.csv';
         
-        // Trigger file download
         tempLink.click();
         URL.revokeObjectURL(fileURL);
 
-        // Open email client with pre-filled details
         window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
         
         toast.success("Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.", {
@@ -236,4 +232,3 @@ A CSV file with addresses has been attached to this email.
     </Dialog>
   );
 }
-
