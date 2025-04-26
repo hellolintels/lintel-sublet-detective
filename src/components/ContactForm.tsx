@@ -10,12 +10,16 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_FILE_TYPES = ["text/csv"];
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Full name is required" }),
@@ -23,6 +27,17 @@ const formSchema = z.object({
   company: z.string().min(2, { message: "Company is required" }),
   email: z.string().email({ message: "Invalid email address" }),
   phone: z.string().min(10, { message: "Valid phone number is required" }),
+  addressFile: z
+    .instanceof(FileList)
+    .refine((files) => files?.length === 1, "CSV file is required")
+    .refine(
+      (files) => files?.[0]?.size <= MAX_FILE_SIZE,
+      "Max file size is 5MB"
+    )
+    .refine(
+      (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type),
+      "Only .csv files are accepted"
+    ),
 });
 
 export function ContactForm() {
@@ -122,6 +137,31 @@ export function ContactForm() {
                   <FormControl>
                     <Input type="tel" placeholder="+44 XXX XXX XXXX" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="addressFile"
+              render={({ field: { onChange, value, ...field } }) => (
+                <FormItem>
+                  <FormLabel>Upload Addresses</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => onChange(e.target.files)}
+                        {...field}
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-[hsl(90,70%,40%)] file:text-white hover:file:bg-[hsl(90,70%,35%)]"
+                      />
+                      <Upload className="h-5 w-5 text-gray-500" />
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Upload a CSV file containing street addresses and postcodes
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
