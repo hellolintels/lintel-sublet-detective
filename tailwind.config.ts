@@ -20,17 +20,17 @@ export default {
     },
     extend: {
       colors: {
-        border: "hsl(265, 70%, 50%)", // Purple border
-        input: "hsl(265, 60%, 60%)", // Purple input
-        ring: "hsl(265, 70%, 45%)", // Vibrant purple ring
+        border: "hsl(24, 97%, 50%)", // Bright orange border
+        input: "hsl(24, 90%, 60%)", // Slightly lighter orange input
+        ring: "hsl(24, 100%, 45%)", // Vibrant orange ring
         background: "hsl(0, 0%, 100%)", // Keeping white background
         foreground: "hsl(0, 0%, 10%)", // Dark text for contrast
         primary: {
-          DEFAULT: "hsl(265, 70%, 40%)", // Vibrant purple primary
+          DEFAULT: "hsl(24, 94%, 50%)", // Bright orange primary
           foreground: "hsl(0, 0%, 100%)", // White text on primary
         },
         secondary: {
-          DEFAULT: "hsl(265, 30%, 85%)", // Soft, pastel purple
+          DEFAULT: "hsl(24, 50%, 85%)", // Soft, pastel orange
           foreground: "hsl(0, 0%, 20%)", // Dark text on secondary
         },
         destructive: {
@@ -38,19 +38,19 @@ export default {
           foreground: "hsl(0, 0%, 98%)",
         },
         muted: {
-          DEFAULT: "hsl(265, 20%, 90%)", // Very light purple
+          DEFAULT: "hsl(24, 30%, 90%)", // Very light orange
           foreground: "hsl(0, 0%, 45%)", // Muted text
         },
         accent: {
-          DEFAULT: "hsl(265, 50%, 70%)", // Bright purple accent
+          DEFAULT: "hsl(24, 70%, 70%)", // Bright orange accent
           foreground: "hsl(0, 0%, 10%)", // Dark text on accent
         },
         popover: {
-          DEFAULT: "hsl(265, 30%, 95%)", // Very light purple popover
+          DEFAULT: "hsl(24, 40%, 95%)", // Very light orange popover
           foreground: "hsl(0, 0%, 10%)",
         },
         card: {
-          DEFAULT: "hsl(265, 20%, 98%)", // Almost white with purple tint
+          DEFAULT: "hsl(24, 30%, 98%)", // Almost white with orange tint
           foreground: "hsl(0, 0%, 10%)",
         },
       },
