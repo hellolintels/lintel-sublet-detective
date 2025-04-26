@@ -55,8 +55,34 @@ export function ContactForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast.success("Thank you for your interest. We'll be in touch shortly.");
+    const files = values.addressFile as FileList;
+    if (files && files[0]) {
+      const subject = encodeURIComponent(`Sample request from ${values.company}`);
+      const body = encodeURIComponent(`
+Name: ${values.fullName}
+Position: ${values.position}
+Company: ${values.company}
+Email: ${values.email}
+Phone: ${values.phone}
+
+A CSV file with addresses has been attached to this email.
+      `);
+      
+      // Create a temporary link to download the file
+      const fileURL = URL.createObjectURL(files[0]);
+      const tempLink = document.createElement('a');
+      tempLink.href = fileURL;
+      tempLink.download = 'addresses.csv'; // Suggest a filename
+      
+      // Trigger file download first (the user will need to attach it manually)
+      tempLink.click();
+      URL.revokeObjectURL(fileURL);
+
+      // Open email client with pre-filled details
+      window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
+    }
+
+    toast.success("Please attach the downloaded CSV file to your email");
     setOpen(false);
     form.reset();
   }
