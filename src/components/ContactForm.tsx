@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -13,7 +12,7 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Upload } from "lucide-react";
+import { FileUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -148,19 +147,24 @@ export function ContactForm() {
                 <FormItem>
                   <FormLabel>Upload Addresses</FormLabel>
                   <FormControl>
-                    <div className="flex items-center justify-center w-full">
+                    <div className="relative w-full">
                       <Input
                         type="file"
                         accept=".csv"
                         onChange={(e) => onChange(e.target.files)}
                         {...field}
-                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-[hsl(90,70%,40%)] file:text-white hover:file:bg-[hsl(90,70%,35%)] text-center flex-grow"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                       />
-                      <Upload className="h-5 w-5 text-gray-500 ml-2" />
+                      <div className="flex items-center justify-center w-full border-2 border-dashed border-primary/50 rounded-lg p-4 hover:bg-primary/5 transition-colors">
+                        <FileUp className="mr-2 text-primary" />
+                        <span className="text-sm text-muted-foreground">
+                          Upload up to 20 addresses
+                        </span>
+                      </div>
                     </div>
                   </FormControl>
-                  <FormDescription className="text-center">
-                    Upload up to 20 addresses in a CSV file
+                  <FormDescription className="text-center mt-1">
+                    CSV file with street addresses and postcodes
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
