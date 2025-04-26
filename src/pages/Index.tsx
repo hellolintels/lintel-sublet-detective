@@ -1,19 +1,19 @@
 
 import Navbar from "@/components/Navbar";
-import Hero from "@/components/Hero";
+import { ContactForm } from "@/components/ContactForm";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
-import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <Hero />
+      <div className="pt-24 pb-12 flex justify-center">
+        <ContactForm />
+      </div>
       <Features />
       <HowItWorks />
-      <Contact />
       <Footer />
     </div>
   );
