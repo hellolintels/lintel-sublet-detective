@@ -1,4 +1,3 @@
-
 import { Check } from "lucide-react";
 
 const features = [
@@ -20,7 +19,7 @@ const features = [
   },
   {
     title: "Risk Mitigation",
-    description: "Supports eviction processes, legal reviews, and compliance investigations. Helps prove you're actively managing subletting risk."
+    description: "Support compliance and legal investigations. Helps prove you're actively managing subletting risk."
   },
   {
     title: "Private & Secure",
