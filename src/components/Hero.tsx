@@ -3,20 +3,20 @@ import { Button } from "./ui/button";
 
 const Hero = () => {
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-black to-gray-900 pt-16">
+    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-b from-black to-gray-900 pt-16 px-4 sm:px-6">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient_stops))] from-gray-800/20 via-black to-black"></div>
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto relative z-10">
         <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent leading-tight">
             Protect your rental portfolio.<br className="hidden sm:block" /> Detect unauthorised subletting early.
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 sm:mb-8 leading-relaxed px-2 sm:px-0">
+          <p className="text-sm sm:text-base md:text-xl text-gray-300 mb-6 sm:mb-8 leading-relaxed max-w-3xl mx-auto">
             lintels.in helps agents, landlords and housing providers across the UK detect illegal short-term subletting across their rental portfolios.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 sm:mt-8">
             <Button
               size="lg"
-              className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-6 text-lg rounded-full font-medium transition-colors duration-200"
+              className="w-full sm:w-auto bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-6 sm:px-8 py-6 text-base sm:text-lg rounded-full font-medium transition-colors duration-200 min-h-[3.5rem]"
               onClick={() => {
                 const contactSection = document.getElementById('contact-section');
                 if (contactSection) {
@@ -35,7 +35,7 @@ const Hero = () => {
                   <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                 </svg>
               </div>
-              <span className="ml-2 text-gray-300 text-sm">Now with Google Workspace integration</span>
+              <span className="ml-2 text-gray-300 text-xs sm:text-sm">Now with Google Workspace integration</span>
             </div>
           </div>
         </div>

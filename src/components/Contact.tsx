@@ -1,3 +1,4 @@
+
 import { Button } from "./ui/button";
 import { Mail } from "lucide-react";
 import { ContactForm } from "./ContactForm";
@@ -8,33 +9,30 @@ const Contact = () => {
   };
 
   return (
-    <div className="py-12 sm:py-20 bg-black" id="contact-section">
+    <div className="py-8 sm:py-12 md:py-20 bg-black" id="contact-section">
       <div className="container mx-auto px-4 flex flex-col items-center text-center">
-        <div
-          className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-8 sm:mb-10 bg-gradient-to-r from-[hsl(24,97%,40%,0.3)] via-[hsl(24,90%,50%,0.3)] to-[hsl(24,100%,40%,0.4)] border border-[hsl(24,97%,40%)] p-4 sm:p-8 shadow-lg animate-fade-in"
-          style={{ fontFamily: 'Roboto, Inter, sans-serif' }}
-        >
+        <div className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-6 sm:mb-8 md:mb-10 bg-gradient-to-r from-[hsl(24,97%,40%,0.3)] via-[hsl(24,90%,50%,0.3)] to-[hsl(24,100%,40%,0.4)] border border-[hsl(24,97%,40%)] p-4 sm:p-6 md:p-8 shadow-lg animate-fade-in">
           <div className="flex items-center text-[hsl(24,97%,40%)] mb-2">
-            <span className="text-lg sm:text-xl font-semibold tracking-tight">
+            <span className="text-base sm:text-lg md:text-xl font-semibold tracking-tight">
               Try lintels.in For Free
             </span>
           </div>
-          <p className="text-base sm:text-lg text-white mb-4 sm:mb-5 font-normal text-center">
+          <p className="text-sm sm:text-base text-white mb-4 font-normal text-center">
             Request a free sample scan and receive a report of up to <span className="text-[hsl(24,97%,40%)] font-bold">20 addresses</span> from your portfolio.
           </p>
           <ContactForm />
         </div>
         
-        <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-white">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-white">
           Onboarding Across the UK
         </h2>
-        <p className="text-base sm:text-xl text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto">
+        <p className="text-sm sm:text-base text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto">
           We're currently working with selected agents and housing providers across the United Kingdom.
           Beta onboarding is limited — if you manage rental properties and want to test lintels.in, we'd love to hear from you.
         </p>
-        <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col items-center w-full sm:w-auto">
           <Button 
-            className="bg-gray-700 hover:bg-gray-600 text-white px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg w-full sm:w-auto"
+            className="w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-white px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base min-h-[3rem]"
             onClick={handleEmailClick}
           >
             <Mail className="mr-2" />
