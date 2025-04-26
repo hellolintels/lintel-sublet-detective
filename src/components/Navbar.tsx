@@ -37,9 +37,6 @@ const Navbar = () => {
                     <Button variant="ghost" className="text-gray-300 hover:text-white w-full justify-start">
                       Features
                     </Button>
-                    <Button variant="secondary" className="bg-gray-700 hover:bg-gray-600 text-white w-full justify-center">
-                      Contact Us
-                    </Button>
                   </div>
                 </div>
               )}
@@ -51,9 +48,6 @@ const Navbar = () => {
               </Button>
               <Button variant="ghost" className="text-gray-300 hover:text-white">
                 Features
-              </Button>
-              <Button variant="secondary" className="bg-gray-700 hover:bg-gray-600 text-white">
-                Contact Us
               </Button>
             </div>
           )}
