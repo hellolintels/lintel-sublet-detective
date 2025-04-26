@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -20,17 +19,17 @@ export default {
     },
     extend: {
       colors: {
-        border: "hsl(24, 97%, 50%)", // Bright orange border
-        input: "hsl(24, 90%, 60%)", // Slightly lighter orange input
-        ring: "hsl(24, 100%, 45%)", // Vibrant orange ring
-        background: "hsl(0, 0%, 100%)", // Keeping white background
+        border: "hsl(24, 70%, 50%)", // More subdued orange border
+        input: "hsl(24, 60%, 55%)", // Softer orange input
+        ring: "hsl(24, 80%, 45%)", // Vibrant but not overwhelming orange ring
+        background: "hsl(0, 0%, 100%)", // White background
         foreground: "hsl(0, 0%, 10%)", // Dark text for contrast
         primary: {
-          DEFAULT: "hsl(24, 94%, 50%)", // Bright orange primary
+          DEFAULT: "hsl(24, 85%, 50%)", // Bright but balanced orange primary
           foreground: "hsl(0, 0%, 100%)", // White text on primary
         },
         secondary: {
-          DEFAULT: "hsl(24, 50%, 85%)", // Soft, pastel orange
+          DEFAULT: "hsl(220, 50%, 85%)", // Soft blue secondary
           foreground: "hsl(0, 0%, 20%)", // Dark text on secondary
         },
         destructive: {
@@ -77,4 +76,3 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
-
