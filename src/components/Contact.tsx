@@ -1,6 +1,5 @@
-
 import { Button } from "./ui/button";
-import { Mail, Request } from "lucide-react";
+import { Mail, Download } from "lucide-react";
 import { ContactForm } from "./ContactForm";
 
 const Contact = () => {
@@ -28,7 +27,7 @@ const Contact = () => {
               className="bg-white hover:bg-gray-100 text-black border-gray-300 w-full sm:w-auto"
               onClick={() => window.open("https://workspace.google.com/marketplace/app/lintelsin/123456789", "_blank")}
             >
-              <Request className="mr-2" />
+              <Download className="mr-2" />
               Install Google Workspace Add-on
             </Button>
           </div>
