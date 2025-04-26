@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -64,7 +65,7 @@ export function ContactForm() {
     <Dialog open={open} onOpenChange={setOpen}>
       <Button
         size="lg"
-        className="bg-[hsl(90,70%,40%)] hover:bg-[hsl(90,70%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
+        className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
         onClick={() => setOpen(true)}
       >
         Request a Sample Report

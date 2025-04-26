@@ -9,16 +9,16 @@ const Contact = () => {
       <div className="container mx-auto px-4 flex flex-col items-center text-center">
         {/* Sample Offer Highlight Callout */}
         <div
-          className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-10 bg-gradient-to-r from-[hsl(90,50%,40%,0.3)] via-[hsl(90,30%,50%,0.3)] to-[hsl(90,70%,40%,0.4)] border border-[hsl(90,70%,40%)] p-8 shadow-lg animate-fade-in"
+          className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-10 bg-gradient-to-r from-[hsl(24,97%,40%,0.3)] via-[hsl(24,90%,50%,0.3)] to-[hsl(24,100%,40%,0.4)] border border-[hsl(24,97%,40%)] p-8 shadow-lg animate-fade-in"
           style={{ fontFamily: 'Roboto, Inter, sans-serif' }}
         >
-          <div className="flex items-center text-[hsl(90,70%,40%)] mb-2">
+          <div className="flex items-center text-[hsl(24,97%,40%)] mb-2">
             <span className="text-xl font-semibold tracking-tight">
               Try lintels.in For Free
             </span>
           </div>
           <p className="text-lg text-white mb-5 font-normal text-center">
-            Request a free sample scan and receive a report of up to <span className="text-[hsl(90,70%,40%)] font-bold">20 addresses</span> from your portfolio.
+            Request a free sample scan and receive a report of up to <span className="text-[hsl(24,97%,40%)] font-bold">20 addresses</span> from your portfolio.
           </p>
           <ContactForm />
         </div>

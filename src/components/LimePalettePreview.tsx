@@ -41,4 +41,3 @@ const LimePalettePreview = () => (
 );
 
 export default LimePalettePreview;
-
