@@ -1,4 +1,27 @@
 
+const steps = [
+  {
+    number: "01",
+    title: "Setup Your Portfolio",
+    description: "Send us your property addresses through our secure portal - we handle everything else."
+  },
+  {
+    number: "02",
+    title: "Daily Monitoring",
+    description: "Our system runs automated searches across major subletting platforms to identify potential matches."
+  },
+  {
+    number: "03",
+    title: "Evidence Collection",
+    description: "When we find a match, we capture detailed evidence including screenshots, links and listing details."
+  },
+  {
+    number: "04",
+    title: "Receive Reports",
+    description: "Get clear, actionable reports with all the evidence you need to take appropriate action."
+  }
+];
+
 const HowItWorks = () => {
   return (
     <div className="py-8 sm:py-12 md:py-20 bg-gradient-to-b from-black to-gray-900">
