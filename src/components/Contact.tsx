@@ -26,7 +26,7 @@ const Contact = () => {
             </span>
           </div>
           <p className="text-lg text-white mb-5 font-normal text-center">
-            Request a free sample scan and receive a report of up to <span className="text-[hsl(90,70%,40%)] font-bold">50 addresses</span> from your portfolio.
+            Request a free sample scan and receive a report of up to <span className="text-[hsl(90,70%,40%)] font-bold">20 addresses</span> from your portfolio.
           </p>
           <Button
             size="lg"
