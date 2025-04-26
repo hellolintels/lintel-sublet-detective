@@ -22,11 +22,21 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["text/csv"];
 
 const formSchema = z.object({
-  fullName: z.string().min(2, { message: "Full name is required" }),
-  position: z.string().min(2, { message: "Position is required" }),
-  company: z.string().min(2, { message: "Company is required" }),
-  email: z.string().email({ message: "Invalid email address" }),
-  phone: z.string().min(10, { message: "Valid phone number is required" }),
+  fullName: z.string()
+    .min(2, { message: "Full name must be at least 2 characters" })
+    .regex(/^[a-zA-Z\s-']+$/, { message: "Name can only contain letters, spaces, hyphens and apostrophes" }),
+  position: z.string()
+    .min(2, { message: "Position must be at least 2 characters" })
+    .regex(/^[a-zA-Z\s-']+$/, { message: "Position can only contain letters, spaces and hyphens" }),
+  company: z.string()
+    .min(2, { message: "Company name must be at least 2 characters" })
+    .regex(/^[\w\s-'&.]+$/, { message: "Company name contains invalid characters" }),
+  email: z.string()
+    .min(1, { message: "Email is required" })
+    .email({ message: "Please enter a valid email address" }),
+  phone: z.string()
+    .min(10, { message: "Phone number must be at least 10 digits" })
+    .regex(/^[0-9+\s()-]+$/, { message: "Please enter a valid phone number" }),
   addressFile: z
     .instanceof(FileList)
     .refine((files) => files?.length === 1, "CSV file is required")
