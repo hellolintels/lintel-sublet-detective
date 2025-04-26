@@ -4,6 +4,10 @@ import { Mail } from "lucide-react";
 import { ContactForm } from "./ContactForm";
 
 const Contact = () => {
+  const handleEmailClick = () => {
+    window.location.href = "mailto:jamie@lintels.in";
+  };
+
   return (
     <div className="py-20 bg-black" id="contact-section">
       <div className="container mx-auto px-4 flex flex-col items-center text-center">
@@ -31,7 +35,10 @@ const Contact = () => {
           Beta onboarding is limited — if you manage rental properties and want to test lintels.in, we'd love to hear from you.
         </p>
         <div className="flex flex-col items-center space-y-4">
-          <Button className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-6 text-lg">
+          <Button 
+            className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-6 text-lg"
+            onClick={handleEmailClick}
+          >
             <Mail className="mr-2" />
             Contact Us to Learn More
           </Button>
