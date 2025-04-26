@@ -8,7 +8,7 @@ const Hero = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-            Protect your properties from unauthorised subletting
+            Protect your rental portfolio.<br className="hidden sm:block" /> Detect unauthorised subletting early.
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 sm:mb-8 leading-relaxed px-2 sm:px-0">
             lintels.in helps agents, landlords and housing providers across the UK detect illegal short-term subletting across their rental portfolios.

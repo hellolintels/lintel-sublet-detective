@@ -92,7 +92,9 @@ A CSV file with addresses has been attached to this email.
         // Open email client with pre-filled details
         window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
         
-        toast.success("Great! The team will send back your sample report within 48 hours");
+        toast.success("Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.", {
+          duration: 6000
+        });
         setOpen(false);
         form.reset();
       } else {
