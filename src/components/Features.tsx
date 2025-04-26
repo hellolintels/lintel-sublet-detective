@@ -24,7 +24,7 @@ const features = [
   },
   {
     title: "Private & Secure",
-    description: "No tenant information is shared or stored. Lintel operates as a neutral third party."
+    description: "No tenant information is shared or stored. We operate as a neutral third party."
   }
 ];
 
