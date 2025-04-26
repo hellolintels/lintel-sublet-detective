@@ -2,12 +2,19 @@
 import Logo from "./Logo";
 import { Button } from "./ui/button";
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const isMobile = useIsMobile();
+  
+  // Close menu when switching from mobile to desktop view
+  useEffect(() => {
+    if (!isMobile) {
+      setMenuOpen(false);
+    }
+  }, [isMobile]);
   
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
@@ -24,6 +31,7 @@ const Navbar = () => {
                 size="icon" 
                 onClick={toggleMenu}
                 className="text-gray-300 hover:text-white"
+                aria-label="Toggle menu"
               >
                 <Menu className="h-6 w-6" />
               </Button>
