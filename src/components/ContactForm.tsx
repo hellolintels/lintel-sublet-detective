@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -147,18 +148,18 @@ export function ContactForm() {
                 <FormItem>
                   <FormLabel>Upload Addresses</FormLabel>
                   <FormControl>
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center w-full">
                       <Input
                         type="file"
                         accept=".csv"
                         onChange={(e) => onChange(e.target.files)}
                         {...field}
-                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-[hsl(90,70%,40%)] file:text-white hover:file:bg-[hsl(90,70%,35%)] text-center"
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-[hsl(90,70%,40%)] file:text-white hover:file:bg-[hsl(90,70%,35%)] text-center flex-grow"
                       />
-                      <Upload className="h-5 w-5 text-gray-500" />
+                      <Upload className="h-5 w-5 text-gray-500 ml-2" />
                     </div>
                   </FormControl>
-                  <FormDescription>
+                  <FormDescription className="text-center">
                     Upload up to 20 addresses in a CSV file
                   </FormDescription>
                   <FormMessage />
