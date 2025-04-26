@@ -13,11 +13,7 @@ const Hero = () => {
           <p className="text-xl text-gray-300 mb-8 leading-relaxed">
             lintels.in helps agents, landlords and housing providers across the UK detect illegal short-term subletting across their rental portfolios.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-6 text-lg w-full sm:w-auto">
-              Contact Us
-            </Button>
-          </div>
+          {/* Removed the Contact Us button from the top half */}
         </div>
       </div>
     </div>
