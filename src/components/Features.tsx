@@ -30,16 +30,16 @@ const features = [
 
 const Features = () => {
   return (
-    <div className="py-8 sm:py-12 md:py-20 bg-black font-sans">
-      <div className="container mx-auto px-4">
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-6 sm:mb-8 md:mb-12 text-white">
+    <div className="py-12 sm:py-16 md:py-24 bg-black font-sans px-4 sm:px-6">
+      <div className="container mx-auto">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-8 sm:mb-10 md:mb-16 text-white">
           Features
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 md:gap-10">
           {features.map((feature, index) => (
             <div 
               key={index} 
-              className="p-4 sm:p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800"
+              className="p-6 sm:p-8 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800"
             >
               <div className="flex items-start space-x-3 mb-2 sm:mb-3">
                 <Check className="w-5 h-5 text-gray-400 flex-shrink-0 mt-1" />

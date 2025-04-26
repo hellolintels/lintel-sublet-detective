@@ -1,4 +1,3 @@
-
 const steps = [
   {
     number: "01",
@@ -24,14 +23,14 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <div className="py-8 sm:py-12 md:py-20 bg-gradient-to-b from-black to-gray-900">
-      <div className="container mx-auto px-4">
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-6 sm:mb-8 md:mb-12 text-white">
+    <div className="py-12 sm:py-16 md:py-24 bg-gradient-to-b from-black to-gray-900 px-4 sm:px-6">
+      <div className="container mx-auto">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-8 sm:mb-10 md:mb-16 text-white">
           How It Works
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 md:gap-10">
           {steps.map((step) => (
-            <div key={step.number} className="relative p-4 sm:p-6 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800">
+            <div key={step.number} className="relative p-6 sm:p-8 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-800">
               <div className="text-2xl sm:text-3xl font-bold text-gray-700 mb-3">
                 {step.number}
               </div>
@@ -42,7 +41,7 @@ const HowItWorks = () => {
             </div>
           ))}
         </div>
-        <p className="text-sm sm:text-base text-gray-300 text-center mt-6 sm:mt-8">
+        <p className="text-sm sm:text-base text-gray-300 text-center mt-8 sm:mt-10">
           No integrations. No learning curve. Just results.
         </p>
       </div>

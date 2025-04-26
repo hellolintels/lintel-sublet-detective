@@ -1,4 +1,3 @@
-
 import { Button } from "./ui/button";
 import { Mail, Download } from "lucide-react";
 import { ContactForm } from "./ContactForm";
@@ -9,8 +8,8 @@ const Contact = () => {
   };
 
   return (
-    <div className="py-8 sm:py-12 md:py-20 bg-black" id="contact-section">
-      <div className="container mx-auto px-4 flex flex-col items-center text-center">
+    <div className="py-12 sm:py-16 md:py-24 bg-black px-4 sm:px-6" id="contact-section">
+      <div className="container mx-auto flex flex-col items-center text-center">
         <div className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl mb-6 sm:mb-8 md:mb-10 bg-gradient-to-r from-[hsl(24,97%,40%,0.3)] via-[hsl(24,90%,50%,0.3)] to-[hsl(24,100%,40%,0.4)] border border-[hsl(24,97%,40%)] p-4 sm:p-6 md:p-8 shadow-lg animate-fade-in">
           <div className="flex items-center text-[hsl(24,97%,40%)] mb-2">
             <span className="text-base sm:text-lg md:text-xl font-semibold tracking-tight">
