@@ -55,10 +55,11 @@ export function ContactForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    const files = values.addressFile as FileList;
-    if (files && files[0]) {
-      const subject = encodeURIComponent(`Sample request from ${values.company}`);
-      const body = encodeURIComponent(`
+    try {
+      const files = values.addressFile as FileList;
+      if (files && files[0]) {
+        const subject = encodeURIComponent(`Sample request from ${values.company}`);
+        const body = encodeURIComponent(`
 Name: ${values.fullName}
 Position: ${values.position}
 Company: ${values.company}
@@ -66,25 +67,30 @@ Email: ${values.email}
 Phone: ${values.phone}
 
 A CSV file with addresses has been attached to this email.
-      `);
-      
-      // Create a temporary link to download the file
-      const fileURL = URL.createObjectURL(files[0]);
-      const tempLink = document.createElement('a');
-      tempLink.href = fileURL;
-      tempLink.download = 'addresses.csv'; // Suggest a filename
-      
-      // Trigger file download first (the user will need to attach it manually)
-      tempLink.click();
-      URL.revokeObjectURL(fileURL);
+        `);
+        
+        // Create a temporary link to download the file
+        const fileURL = URL.createObjectURL(files[0]);
+        const tempLink = document.createElement('a');
+        tempLink.href = fileURL;
+        tempLink.download = 'addresses.csv';
+        
+        // Trigger file download
+        tempLink.click();
+        URL.revokeObjectURL(fileURL);
 
-      // Open email client with pre-filled details
-      window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
+        // Open email client with pre-filled details
+        window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
+        
+        toast.success("Your message has been sent. The team will be in touch. Thanks!");
+        setOpen(false);
+        form.reset();
+      } else {
+        throw new Error("No file selected");
+      }
+    } catch (error) {
+      toast.error("Sorry that didn't work. Please try again or email jamie@lintels.in directly");
     }
-
-    toast.success("Please attach the downloaded CSV file to your email");
-    setOpen(false);
-    form.reset();
   }
 
   return (
