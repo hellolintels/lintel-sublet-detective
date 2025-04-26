@@ -82,14 +82,14 @@ A CSV file with addresses has been attached to this email.
         // Open email client with pre-filled details
         window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
         
-        toast.success("Your message has been sent. The team will be in touch. Thanks!");
+        toast.success("Great! The team will send back your sample report within 48 hours");
         setOpen(false);
         form.reset();
       } else {
         throw new Error("No file selected");
       }
     } catch (error) {
-      toast.error("Sorry that didn't work. Please try again or email jamie@lintels.in directly");
+      toast.error("Sorry that didn't work. Please try again or email support@lintels.in attaching the sample CSV");
     }
   }
 
