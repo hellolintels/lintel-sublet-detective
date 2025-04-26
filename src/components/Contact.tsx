@@ -1,16 +1,9 @@
 
 import { Button } from "./ui/button";
-import { Mail, MailPlus } from "lucide-react";
+import { Mail } from "lucide-react";
+import { ContactForm } from "./ContactForm";
 
 const Contact = () => {
-  // Scroll-to-contact logic for the offer button (no-op inside this section, but handy if reused)
-  const handleOfferClick = () => {
-    const contactSection = document.getElementById("contact-section");
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  };
-
   return (
     <div className="py-20 bg-black" id="contact-section">
       <div className="container mx-auto px-4 flex flex-col items-center text-center">
@@ -20,7 +13,6 @@ const Contact = () => {
           style={{ fontFamily: 'Roboto, Inter, sans-serif' }}
         >
           <div className="flex items-center text-[hsl(90,70%,40%)] mb-2">
-            <MailPlus className="w-7 h-7 mr-2" />
             <span className="text-xl font-semibold tracking-tight">
               Try lintels.in For Free
             </span>
@@ -28,14 +20,7 @@ const Contact = () => {
           <p className="text-lg text-white mb-5 font-normal text-center">
             Request a free sample scan and receive a report of up to <span className="text-[hsl(90,70%,40%)] font-bold">20 addresses</span> from your portfolio.
           </p>
-          <Button
-            size="lg"
-            className="bg-[hsl(90,70%,40%)] hover:bg-[hsl(90,70%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
-            onClick={handleOfferClick}
-          >
-            <MailPlus className="mr-2" />
-            Request a Sample Report
-          </Button>
+          <ContactForm />
         </div>
         {/* Main Contact Content */}
         <h2 className="text-3xl font-bold mb-6 text-white">
