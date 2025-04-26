@@ -13,7 +13,7 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Upload } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -107,13 +107,24 @@ A CSV file with addresses has been attached to this email.
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        size="lg"
-        className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
-        onClick={() => setOpen(true)}
-      >
-        Request a Sample Report
-      </Button>
+      <div className="flex flex-col gap-4 w-full items-center">
+        <Button
+          size="lg"
+          className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
+          onClick={() => setOpen(true)}
+        >
+          Request a Sample Report
+        </Button>
+        <Button 
+          variant="outline"
+          size="lg"
+          className="bg-white hover:bg-gray-100 text-black border-gray-300 w-full sm:w-auto"
+          onClick={() => window.open("https://workspace.google.com/marketplace/app/lintelsin/123456789", "_blank")}
+        >
+          <Download className="mr-2" />
+          Install Google Workspace Add-on
+        </Button>
+      </div>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
@@ -225,3 +236,4 @@ A CSV file with addresses has been attached to this email.
     </Dialog>
   );
 }
+
