@@ -24,7 +24,7 @@ const PALETTE = [
 const LimePalettePreview = () => (
   <div className="py-10 bg-white text-black dark:bg-black dark:text-white border-b border-muted">
     <div className="container mx-auto px-4">
-      <h2 className="text-2xl font-bold mb-6 text-center">Lime Color Palette Preview</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center">Purple Color Palette Preview</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {PALETTE.map((color) => (
           <div
@@ -41,3 +41,4 @@ const LimePalettePreview = () => (
 );
 
 export default LimePalettePreview;
+
