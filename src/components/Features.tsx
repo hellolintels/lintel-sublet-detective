@@ -1,4 +1,3 @@
-
 import { Check } from "lucide-react";
 
 const features = [
@@ -30,7 +29,7 @@ const features = [
 
 const Features = () => {
   return (
-    <div className="py-12 sm:py-16 md:py-24 bg-black font-sans px-4 sm:px-6">
+    <div id="features-section" className="py-12 sm:py-16 md:py-24 bg-black font-sans px-4 sm:px-6">
       <div className="container mx-auto">
         <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-8 sm:mb-10 md:mb-16 text-white">
           Features

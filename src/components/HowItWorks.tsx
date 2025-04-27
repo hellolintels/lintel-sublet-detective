@@ -23,7 +23,7 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <div className="py-12 sm:py-16 md:py-24 bg-gradient-to-b from-black to-gray-900 px-4 sm:px-6">
+    <div id="how-it-works" className="py-12 sm:py-16 md:py-24 bg-gradient-to-b from-black to-gray-900 px-4 sm:px-6">
       <div className="container mx-auto">
         <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-center mb-8 sm:mb-10 md:mb-16 text-white">
           How It Works
