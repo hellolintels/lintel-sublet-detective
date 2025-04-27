@@ -2,8 +2,15 @@
 import { Button } from "./ui/button";
 
 const Hero = () => {
+  const scrollToContact = () => {
+    const contactSection = document.getElementById('contact-section');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-b from-black to-gray-900 pt-16 px-4 sm:px-6">
+    <div className="relative w-full min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-b from-black to-gray-900 pt-16 px-4 sm:px-6">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient_stops))] from-gray-800/20 via-black to-black"></div>
       <div className="container mx-auto relative z-10">
         <div className="text-center max-w-4xl mx-auto">
@@ -17,12 +24,7 @@ const Hero = () => {
             <Button
               size="lg"
               className="w-full sm:w-auto bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-6 sm:px-8 py-6 text-base sm:text-lg rounded-full font-medium transition-colors duration-200 min-h-[3.5rem]"
-              onClick={() => {
-                const contactSection = document.getElementById('contact-section');
-                if (contactSection) {
-                  contactSection.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
+              onClick={scrollToContact}
             >
               Request a Sample Report
             </Button>

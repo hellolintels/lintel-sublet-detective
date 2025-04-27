@@ -49,21 +49,21 @@ const Navbar = () => {
                   <div className="flex flex-col space-y-2">
                     <Button 
                       variant="ghost" 
-                      className="text-gray-300 hover:text-white w-full justify-start"
+                      className="text-gray-300 hover:text-white w-full justify-start text-left"
                       onClick={() => scrollToSection('how-it-works')}
                     >
                       How it Works
                     </Button>
                     <Button 
                       variant="ghost" 
-                      className="text-gray-300 hover:text-white w-full justify-start"
+                      className="text-gray-300 hover:text-white w-full justify-start text-left"
                       onClick={() => scrollToSection('features-section')}
                     >
                       Features
                     </Button>
                     <Button 
                       variant="ghost" 
-                      className="text-gray-300 hover:text-white w-full justify-start"
+                      className="text-gray-300 hover:text-white w-full justify-start text-left"
                       onClick={() => scrollToSection('contact-section')}
                     >
                       Contact
