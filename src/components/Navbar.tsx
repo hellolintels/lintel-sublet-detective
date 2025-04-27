@@ -11,10 +11,22 @@ const Navbar = () => {
   const isMobile = useIsMobile();
   
   useEffect(() => {
+    // Handle resize events
     if (!isMobile) {
       setMenuOpen(false);
     }
-  }, [isMobile]);
+    
+    // Prevent body scroll when menu is open on mobile
+    if (menuOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isMobile, menuOpen]);
   
   const scrollToSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
