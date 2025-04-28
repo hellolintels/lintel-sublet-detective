@@ -7,7 +7,7 @@ const steps = [
   },
   {
     number: "02",
-    title: "Daily Monitoring",
+    title: "Monitoring",
     description: "Our system runs automated searches across major subletting platforms to identify potential matches."
   },
   {
