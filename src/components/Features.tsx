@@ -3,8 +3,8 @@ import { Check } from "lucide-react";
 
 const features = [
   {
-    title: "Daily Monitoring",
-    description: "We run automated searches daily across the biggest subletting platforms to scan your portfolio."
+    title: "Monitoring",
+    description: "We run automated searches across the biggest subletting platforms to scan your portfolio."
   },
   {
     title: "Evidence-Based Matching",
