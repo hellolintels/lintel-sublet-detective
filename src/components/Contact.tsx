@@ -25,13 +25,6 @@ const Contact = () => {
           </div>
         </div>
         
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 text-white">
-          Onboarding Across the UK
-        </h2>
-        <p className="text-sm sm:text-base text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto">
-          We're currently working with selected agents and housing providers across the United Kingdom.
-          Beta onboarding is limited — if you manage rental properties and want to test lintels.in, we'd love to hear from you.
-        </p>
         <div className="flex flex-col items-center w-full sm:w-auto">
           <Button 
             className="w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-white px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base min-h-[3rem]"
