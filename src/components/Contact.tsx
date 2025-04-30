@@ -24,16 +24,6 @@ const Contact = () => {
             <ContactForm />
           </div>
         </div>
-        
-        <div className="flex flex-col items-center w-full sm:w-auto">
-          <Button 
-            className="w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-white px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base min-h-[3rem]"
-            onClick={handleEmailClick}
-          >
-            <Mail className="mr-2" />
-            Contact Us to Learn More
-          </Button>
-        </div>
       </div>
     </div>
   );
