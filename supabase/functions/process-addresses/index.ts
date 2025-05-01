@@ -134,14 +134,15 @@ async function handleInitialProcess(supabase, contact) {
         
       // Send notification about too many addresses
       await sendEmail(
-        "jamie@lintels.in", 
-        `[Lintels] Too Many Addresses from ${contact.full_name}`,
+        contact.email,
+        "Your Lintels Address Submission Exceeds Limit",
         `
         <div>
           <h1>Address Submission Exceeds Limit</h1>
-          <p>A submission from ${contact.full_name} (${contact.email}) contains ${rowCount} addresses, which exceeds the 20 address limit for sample reports.</p>
-          <p>Company: ${contact.company}</p>
-          <p>The customer should be notified to submit a file with fewer addresses.</p>
+          <p>Hello ${contact.full_name},</p>
+          <p>Your submission contains ${rowCount} addresses, which exceeds the 20 address limit for sample reports.</p>
+          <p>Please submit a file with fewer addresses to receive a sample report.</p>
+          <p>Thank you for your interest in Lintels.</p>
         </div>
         `
       );
@@ -175,8 +176,8 @@ async function handleInitialProcess(supabase, contact) {
   
   console.log(`Updated contact status to 'pending_approval'`);
   
-  // Send approval request email to admin
-  const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
+  // Send approval request email to admin (jamie@lintels.in)
+  const approvalUrl = `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/process-addresses`;
   
   await sendEmail(
     "jamie@lintels.in", 
@@ -186,7 +187,8 @@ async function handleInitialProcess(supabase, contact) {
       <h1>New Address Processing Request</h1>
       <p>A new submission has been received from ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
       <p>The file contains addresses that need to be processed.</p>
-      <p>To approve this request, please access the Admin Dashboard.</p>
+      <p>To approve this request, please click the link below:</p>
+      <p><a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}">Approve Processing</a></p>
     </div>
     `
   );
@@ -244,7 +246,15 @@ async function handleApproveProcessing(supabase, contact, reportId) {
   const newReportId = report[0]?.id;
   console.log(`Created report with ID: ${newReportId || 'unknown'}`);
   
-  // Send notification that processing is complete
+  // Update contact status to processed
+  await supabase
+    .from("contacts")
+    .update({ status: "processed" })
+    .eq("id", contact.id);
+  
+  // Send notification that processing is complete to jamie@lintels.in
+  const viewReportUrl = `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/process-addresses?action=send_results&contact_id=${contact.id}&report_id=${newReportId}`;
+  
   await sendEmail(
     "jamie@lintels.in", 
     `[Lintels] Address Processing Complete for ${contact.full_name}`,
@@ -257,16 +267,11 @@ async function handleApproveProcessing(supabase, contact, reportId) {
         <li>Properties analyzed: ${reportData.properties_count}</li>
         <li>Matches found: ${reportData.matches_count}</li>
       </ul>
-      <p>The report is now available in the Admin Dashboard.</p>
+      <p>To send this report to the client, please click the link below:</p>
+      <p><a href="${viewReportUrl}">Send Report to Client</a></p>
     </div>
     `
   );
-  
-  // Update contact status to processed
-  await supabase
-    .from("contacts")
-    .update({ status: "processed" })
-    .eq("id", contact.id);
   
   return new Response(
     JSON.stringify({

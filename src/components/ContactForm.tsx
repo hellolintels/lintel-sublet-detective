@@ -185,7 +185,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       form.reset();
       
       toast.success(
-        "Thank you for your submission! Our team will review your request and process your addresses shortly. You'll receive the report via email once it's ready.", 
+        "Thank you for your submission! We'll review your addresses and send you a sample report via email shortly.", 
         { duration: 6000 }
       );
     } catch (error) {
@@ -328,7 +328,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
                       </div>
                     </FormControl>
                     <FormDescription className="text-center mt-1">
-                      CSV or Excel file with street addresses and postcodes (columns should be labeled "Street address" and "Postcode")
+                      CSV or Excel file with street addresses and postcodes (max 20 rows)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
