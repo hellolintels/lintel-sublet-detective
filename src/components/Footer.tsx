@@ -18,8 +18,8 @@ const Footer = () => {
           </div>
           
           <Button
-            variant="outline"
-            className="flex items-center border-gray-700 hover:bg-gray-900 hover:text-[hsl(24,97%,40%)]"
+            variant="ghost"
+            className="text-gray-300 hover:text-[hsl(24,97%,40%)] hover:bg-transparent transition-colors"
             onClick={() => window.location.href = "mailto:hello@lintels.in"}
           >
             <Mail className="mr-2 h-4 w-4" />
