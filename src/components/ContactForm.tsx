@@ -82,10 +82,10 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         company: values.company,
         email: values.email,
         phone: values.phone,
-        form_type: "sample",
+        form_type: formType,
       };
 
-      // Handle file data for sample form type
+      // Handle file data
       if (values.addressFile && values.addressFile[0]) {
         const file = values.addressFile[0];
         contactData.file_name = file.name;
@@ -120,49 +120,22 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       if (data && data[0]) {
         try {
           // This will trigger the processing edge function
-          await supabase.functions.invoke('process-addresses', {
+          const processingResponse = await supabase.functions.invoke('process-addresses', {
             body: {
               fileId: data[0].file_name,
               contactId: data[0].id,
-              emails: ['jamie@lintels.in']
+              emails: [values.email, 'jamie@lintels.in'] // Send to both the user and admin
             }
           });
           
-          console.log("Processing started");
+          console.log("Processing started:", processingResponse);
         } catch (processingError) {
           console.error("Error starting processing:", processingError);
           // Continue with the form submission even if processing fails
-          // We'll handle it separately
         }
       }
 
-      // Also send an email notification
-      let subject, body;
-
-      const files = values.addressFile as FileList;
-      if (files && files[0]) {
-        const fileURL = URL.createObjectURL(files[0]);
-        const tempLink = document.createElement('a');
-        tempLink.href = fileURL;
-        tempLink.download = 'addresses.csv';
-        tempLink.click();
-        URL.revokeObjectURL(fileURL);
-      }
-
-      subject = encodeURIComponent(`Sample request from ${values.company}`);
-      body = encodeURIComponent(`
-Name: ${values.fullName}
-Position: ${values.position}
-Company: ${values.company}
-Email: ${values.email}
-Phone: ${values.phone}
-
-A CSV file with addresses has been attached to this email.
-      `);
-      
-      window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
-      
-      toast.success("Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.", {
+      toast.success("Thank you for your submission! We're processing your addresses and will send a detailed report within 48 hours.", {
         duration: 6000
       });
       
@@ -170,7 +143,7 @@ A CSV file with addresses has been attached to this email.
       form.reset();
     } catch (error) {
       console.error("Form submission error:", error);
-      toast.error("Sorry that didn't work. Please try again or email support@lintels.in");
+      toast.error("Sorry, something went wrong. Please try again or contact support@lintels.in");
     } finally {
       setIsSubmitting(false);
     }
@@ -285,7 +258,7 @@ A CSV file with addresses has been attached to this email.
                       </div>
                     </FormControl>
                     <FormDescription className="text-center mt-1">
-                      CSV or Excel file with street addresses and postcodes
+                      CSV or Excel file with street addresses and postcodes (columns should be labeled "Street address" and "Postcode")
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

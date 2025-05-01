@@ -17,6 +17,12 @@ type Property = {
   url?: string;
 };
 
+type MatchResult = {
+  platform: string;
+  status: 'match' | 'investigate' | 'no_match';
+  listing?: Property;
+};
+
 interface ProcessRequest {
   fileId: string;
   contactId: string;
@@ -62,71 +68,69 @@ function cleanPostcode(postcode: string): string {
   return cleaned;
 }
 
-// Function to compare two properties and determine if they're the same location
-function compareProperties(prop1: Property, prop2: Property): boolean {
-  // If postcodes don't match at all, they're different properties
-  if (!prop1.postcode || !prop2.postcode) return false;
-  
-  const cleanedPostcode1 = cleanPostcode(prop1.postcode);
-  const cleanedPostcode2 = cleanPostcode(prop2.postcode);
-  
-  // If postcodes don't match, they're different properties
-  if (cleanedPostcode1 !== cleanedPostcode2) return false;
-  
-  // If addresses are provided, compare them as well for more accuracy
-  if (prop1.address && prop2.address) {
-    const cleanedAddr1 = cleanAddress(prop1.address);
-    const cleanedAddr2 = cleanAddress(prop2.address);
-    
-    // Simple string matching - can be improved with fuzzy matching
-    if (cleanedAddr1 === cleanedAddr2) return true;
-    
-    // Check if one address contains the other (for partial matches)
-    if (cleanedAddr1.includes(cleanedAddr2) || cleanedAddr2.includes(cleanedAddr1)) return true;
-    
-    // Here you could implement more sophisticated matching like:
-    // - Levenshtein distance for typos
-    // - Token-based matching (comparing individual parts of addresses)
-    // - Geocoding to compare actual coordinates
-    
-    return false;
-  }
-  
-  // If no address info, just rely on postcode match
-  return true;
-}
-
-// Function to find matches between user properties and platform listings
-function findMatches(userProperties: Property[], platformListings: Property[]): Record<string, Property[]> {
-  const matches: Record<string, Property[]> = {};
-  
-  // For each property the user submitted
-  for (const userProp of userProperties) {
-    const key = `${cleanAddress(userProp.address)}_${cleanPostcode(userProp.postcode)}`;
-    matches[key] = [];
-    
-    // Find all matching properties from platform listings
-    for (const listing of platformListings) {
-      if (compareProperties(userProp, listing)) {
-        matches[key].push(listing);
-      }
-    }
-  }
-  
-  return matches;
-}
-
-// Mock function to get platform listings (in production this would fetch from a database)
-async function getPlatformListings(supabase: any): Promise<Property[]> {
-  // In production, this would fetch real data from a database or API
-  // For now, we'll return an empty array as we don't have actual listings yet
+// Mock functions to simulate platform database lookups
+// In a real implementation, these would query actual platform databases
+async function findAirbnbListings(postcode: string): Promise<Property[]> {
+  // This is a mock function - in reality, you would query a database of Airbnb listings
+  console.log(`Searching for Airbnb listings with postcode: ${postcode}`);
+  // Return an empty array for now as we don't have actual data
   return [];
+}
+
+async function findSpareroomListings(postcode: string): Promise<Property[]> {
+  // Mock function for Spareroom
+  console.log(`Searching for Spareroom listings with postcode: ${postcode}`);
+  return [];
+}
+
+async function findGumtreeListings(postcode: string): Promise<Property[]> {
+  // Mock function for Gumtree
+  console.log(`Searching for Gumtree listings with postcode: ${postcode}`);
+  return [];
+}
+
+// Function to perform matching against all platforms
+async function performMatching(property: Property): Promise<Record<string, MatchResult>> {
+  const results: Record<string, MatchResult> = {};
+  const cleanedPostcode = cleanPostcode(property.postcode);
   
-  // Example of how this would work with real data:
-  // const { data, error } = await supabase
-  //   .from('platform_listings')
-  //   .select('*');
-  // return data || [];
+  // Check Airbnb
+  const airbnbListings = await findAirbnbListings(cleanedPostcode);
+  if (airbnbListings.length === 0) {
+    results.airbnb = { platform: 'airbnb', status: 'no_match' };
+  } else {
+    results.airbnb = { 
+      platform: 'airbnb', 
+      status: 'investigate',
+      listing: airbnbListings[0] // Just take the first one for simplicity
+    };
+  }
+  
+  // Check Spareroom
+  const spareroomListings = await findSpareroomListings(cleanedPostcode);
+  if (spareroomListings.length === 0) {
+    results.spareroom = { platform: 'spareroom', status: 'no_match' };
+  } else {
+    results.spareroom = { 
+      platform: 'spareroom', 
+      status: 'investigate',
+      listing: spareroomListings[0]
+    };
+  }
+  
+  // Check Gumtree
+  const gumtreeListings = await findGumtreeListings(cleanedPostcode);
+  if (gumtreeListings.length === 0) {
+    results.gumtree = { platform: 'gumtree', status: 'no_match' };
+  } else {
+    results.gumtree = { 
+      platform: 'gumtree', 
+      status: 'investigate',
+      listing: gumtreeListings[0]
+    };
+  }
+  
+  return results;
 }
 
 // Function to process CSV data
@@ -144,10 +148,8 @@ function processCSV(csvData: string): Property[] {
     // Map the CSV data to our Property type
     return (results.data as any[]).map(row => {
       const property: Property = {
-        address: row.address || row.Address || '',
+        address: row.address || row.Address || row['Street address'] || '',
         postcode: row.postcode || row.Postcode || row.postal_code || row.PostalCode || '',
-        price: row.price ? parseFloat(row.price) : undefined,
-        bedrooms: row.bedrooms ? parseInt(row.bedrooms) : undefined
       };
       return property;
     }).filter(p => p.address || p.postcode); // Filter out rows with no address or postcode
@@ -158,69 +160,80 @@ function processCSV(csvData: string): Property[] {
 }
 
 // Function to generate HTML report
-function generateHTMLReport(matches: Record<string, Property[]>): string {
+function generateHTMLReport(properties: Property[], matchResults: Record<string, Record<string, MatchResult>>): string {
   let html = `
     <!DOCTYPE html>
     <html>
     <head>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; }
-        .property { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .match { margin-left: 20px; padding: 10px; background-color: #f9f9f9; margin-bottom: 10px; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; position: sticky; top: 0; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .property { margin-bottom: 40px; }
         h1 { color: #333366; }
-        h2 { color: #666; }
-        .platform { font-weight: bold; color: #333; }
-        .price { color: #009900; font-weight: bold; }
-        .no-matches { color: #cc0000; font-style: italic; }
+        h2 { color: #666; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .no-match { color: #cc0000; }
+        .investigate { color: #ff6600; font-weight: bold; }
+        .match { color: #009900; font-weight: bold; }
+        .summary { margin-top: 30px; border-top: 2px solid #ccc; padding-top: 20px; }
       </style>
     </head>
     <body>
       <h1>Lintels Property Match Report</h1>
-      <p>The following report shows potential matches for your properties:</p>
+      <p>The following report shows potential matches for your properties across multiple platforms:</p>
+      
+      <table>
+        <tr>
+          <th>Address</th>
+          <th>Postcode</th>
+          <th>Airbnb</th>
+          <th>Spareroom</th>
+          <th>Gumtree</th>
+        </tr>
   `;
   
-  let totalMatches = 0;
-  let propertiesWithMatches = 0;
+  // Track statistics
+  let stats = {
+    airbnb: { investigate: 0, no_match: 0 },
+    spareroom: { investigate: 0, no_match: 0 },
+    gumtree: { investigate: 0, no_match: 0 }
+  };
   
-  Object.keys(matches).forEach(key => {
-    const [address, postcode] = key.split('_');
-    const propertyMatches = matches[key];
+  properties.forEach((property, index) => {
+    const results = matchResults[index] || {};
+    
+    // Update statistics
+    Object.entries(results).forEach(([platform, result]) => {
+      if (stats[platform]) {
+        stats[platform][result.status]++;
+      }
+    });
     
     html += `
-      <div class="property">
-        <h2>Property: ${address || 'N/A'}, ${postcode || 'N/A'}</h2>
+      <tr>
+        <td>${property.address || 'N/A'}</td>
+        <td>${property.postcode || 'N/A'}</td>
+        <td class="${results.airbnb?.status || 'no-match'}">${results.airbnb?.status === 'investigate' ? 'INVESTIGATE' : 'NO MATCH'}</td>
+        <td class="${results.spareroom?.status || 'no-match'}">${results.spareroom?.status === 'investigate' ? 'INVESTIGATE' : 'NO MATCH'}</td>
+        <td class="${results.gumtree?.status || 'no-match'}">${results.gumtree?.status === 'investigate' ? 'INVESTIGATE' : 'NO MATCH'}</td>
+      </tr>
     `;
-    
-    if (propertyMatches && propertyMatches.length > 0) {
-      propertiesWithMatches++;
-      totalMatches += propertyMatches.length;
-      
-      html += `<p>Found ${propertyMatches.length} potential match(es):</p>`;
-      
-      propertyMatches.forEach(match => {
-        html += `
-          <div class="match">
-            <p class="platform">Platform: ${match.platform || 'Unknown'}</p>
-            <p>Address: ${match.address || 'N/A'}</p>
-            <p>Postcode: ${match.postcode || 'N/A'}</p>
-            ${match.price ? `<p class="price">Price: £${match.price}</p>` : ''}
-            ${match.bedrooms ? `<p>Bedrooms: ${match.bedrooms}</p>` : ''}
-            ${match.url ? `<p><a href="${match.url}" target="_blank">View Listing</a></p>` : ''}
-          </div>
-        `;
-      });
-    } else {
-      html += `<p class="no-matches">No matches found for this property.</p>`;
-    }
-    
-    html += `</div>`;
   });
   
   html += `
-      <div style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px;">
-        <p>Summary: Found ${totalMatches} match(es) across ${propertiesWithMatches} properties.</p>
-        <p>Report generated by Lintels on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+      </table>
+      
+      <div class="summary">
+        <h2>Summary</h2>
+        <p><strong>Total Properties Checked:</strong> ${properties.length}</p>
+        <p><strong>Airbnb:</strong> ${stats.airbnb.investigate} properties to investigate, ${stats.airbnb.no_match} with no matches</p>
+        <p><strong>Spareroom:</strong> ${stats.spareroom.investigate} properties to investigate, ${stats.spareroom.no_match} with no matches</p>
+        <p><strong>Gumtree:</strong> ${stats.gumtree.investigate} properties to investigate, ${stats.gumtree.no_match} with no matches</p>
       </div>
+      
+      <p>Report generated by Lintels on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
     </body>
     </html>
   `;
@@ -279,32 +292,37 @@ serve(async (req) => {
     }
     
     // Process the CSV data
-    const userProperties = processCSV(csvData);
+    const properties = processCSV(csvData);
     
-    if (userProperties.length === 0) {
+    if (properties.length === 0) {
       return new Response(
         JSON.stringify({ error: "No valid properties found in CSV" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    // Get platform listings
-    const platformListings = await getPlatformListings(supabaseAdmin);
+    // Perform matching for each property
+    const matchResults: Record<string, Record<string, MatchResult>> = {};
     
-    // Find matches
-    const matches = findMatches(userProperties, platformListings);
+    for (let i = 0; i < properties.length; i++) {
+      matchResults[i] = await performMatching(properties[i]);
+    }
     
     // Generate HTML report
-    const htmlReport = generateHTMLReport(matches);
+    const htmlReport = generateHTMLReport(properties, matchResults);
     
-    // Store the report in Supabase
+    // Store the report in Supabase (we need to create a reports table)
     const { data: reportData, error: reportError } = await supabaseAdmin
       .from('reports')
       .insert({
         contact_id: contactId,
         html_content: htmlReport,
-        properties_count: userProperties.length,
-        matches_count: Object.values(matches).flat().length,
+        properties_count: properties.length,
+        matches_count: Object.values(matchResults)
+          .reduce((acc, platformResults) => 
+            acc + Object.values(platformResults)
+              .filter(result => result.status === 'investigate')
+              .length, 0),
         status: 'completed'
       })
       .select()
@@ -320,14 +338,11 @@ serve(async (req) => {
       .update({ status: 'processed' })
       .eq('id', contactId);
     
-    // Here you would typically call another function to email the report
-    // This would involve setting up an email service like Resend, SendGrid, etc.
-    
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Address processing completed", 
-        properties_processed: userProperties.length,
+        properties_processed: properties.length,
         report_id: reportData?.id || null
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
