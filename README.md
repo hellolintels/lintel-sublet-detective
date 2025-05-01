@@ -7,7 +7,7 @@
 ## Deployment Strategy
 
 This project uses a dual-branch strategy:
-- `test-env`: For development and testing of new features
+- `test-env`: For development and testing of new features (Updated: May 1, 2025)
 - `main`: Production branch, only updated after approval
 
 ### Deployment Hooks
