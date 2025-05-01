@@ -75,7 +75,7 @@ const Login = () => {
         <CardHeader className="space-y-1 flex flex-col items-center">
           <Logo />
           <CardTitle className="text-2xl text-white mt-4">
-            Sign in to Lintels
+            Sign in to lintels.in
           </CardTitle>
           <CardDescription className="text-gray-400">
             Enter your credentials to access the admin portal
