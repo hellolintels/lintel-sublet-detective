@@ -14,7 +14,6 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated, user } = useAuth();
@@ -49,34 +48,19 @@ const Login = () => {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        // Sign up flow
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Registration successful",
-          description: "Please check your email for verification link.",
-        });
+      // Login flow
+      await login(email, password);
+      
+      // Check if the user is an admin and redirect accordingly
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.email === "jamie@lintels.in") {
+        navigate("/admin", { replace: true });
       } else {
-        // Login flow
-        await login(email, password);
-        
-        // Check if the user is an admin and redirect accordingly
-        const { data } = await supabase.auth.getUser();
-        if (data.user?.email === "jamie@lintels.in") {
-          navigate("/admin", { replace: true });
-        } else {
-          navigate(from, { replace: true });
-        }
+        navigate(from, { replace: true });
       }
     } catch (error) {
       toast({
-        title: isSignUp ? "Registration failed" : "Login failed",
+        title: "Login failed",
         description: error instanceof Error ? error.message : "An error occurred.",
         variant: "destructive",
       });
@@ -91,10 +75,10 @@ const Login = () => {
         <CardHeader className="space-y-1 flex flex-col items-center">
           <Logo />
           <CardTitle className="text-2xl text-white mt-4">
-            {isSignUp ? "Create an account" : "Sign in to Lintels"}
+            Sign in to Lintels
           </CardTitle>
           <CardDescription className="text-gray-400">
-            {isSignUp ? "Enter your details to create an account" : "Enter your credentials to access the admin portal"}
+            Enter your credentials to access the admin portal
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleAuth}>
@@ -130,22 +114,8 @@ const Login = () => {
               className="w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]" 
               disabled={loading}
             >
-              {loading ? 
-                (isSignUp ? "Creating account..." : "Signing in...") : 
-                (isSignUp ? "Create account" : "Sign in")
-              }
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
-            
-            <div className="text-center text-sm text-gray-400">
-              {isSignUp ? "Already have an account?" : "Don't have an account?"} 
-              <button 
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)} 
-                className="text-[hsl(24,97%,40%)] hover:underline ml-1"
-              >
-                {isSignUp ? "Sign in" : "Create one"}
-              </button>
-            </div>
           </CardFooter>
         </form>
       </Card>
