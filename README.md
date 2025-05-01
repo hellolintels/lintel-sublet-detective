@@ -1,4 +1,3 @@
-
 # Welcome to your Lovable project
 
 ## Project info
@@ -10,6 +9,11 @@
 This project uses a dual-branch strategy:
 - `test-env`: For development and testing of new features
 - `main`: Production branch, only updated after approval
+
+### Deployment Hooks
+
+The project is configured with the following Vercel deploy hooks:
+- `test-env` branch: https://api.vercel.com/v1/integrations/deploy/prj_VyxsOHe5OnNHCZuVvoIBnXof0taC/VIR[...] 
 
 ## How can I edit this code?
 
@@ -78,3 +82,21 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+Now let's create a GitHub workflow file that will trigger the deploy hook when changes are pushed to the `test-env` branch:
+
+<lov-write file_path=".github/workflows/deploy-test-env.yml">
+name: Deploy Test Environment
+
+on:
+  push:
+    branches:
+      - test-env
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Deployment
+        run: |
+          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_VyxsOHe5OnNHCZuVvoIBnXof0taC/VIR[...]"
