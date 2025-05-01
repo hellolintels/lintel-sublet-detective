@@ -138,7 +138,7 @@ const Login = () => {
           <CardFooter className="flex flex-col space-y-4">
             <Button 
               type="submit" 
-              className="w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]" 
+              className="w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-center" 
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign in"}
@@ -146,7 +146,7 @@ const Login = () => {
             <Button 
               type="button" 
               variant="ghost" 
-              className="text-gray-400 hover:text-white flex items-center"
+              className="text-gray-400 hover:text-white w-full flex items-center justify-center"
               onClick={handleGoBack}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
