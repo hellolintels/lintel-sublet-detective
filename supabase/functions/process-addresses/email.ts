@@ -1,4 +1,5 @@
 
+
 // Email handling module using SendGrid
 
 /**
@@ -26,7 +27,7 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
     // IMPORTANT: This email MUST be verified in your SendGrid account
     // If you want to use a different email, please verify it in SendGrid first
     // and then set the SENDGRID_FROM_EMAIL environment variable
-    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in";
+    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "jamie@lintels.in";
     console.log(`Using sender email: ${fromEmail}`);
     
     // Prepare the SendGrid request
@@ -126,3 +127,4 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
     };
   }
 }
+
