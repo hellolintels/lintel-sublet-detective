@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +46,18 @@ const contactFormSchema = z.object({
       "Max file size is 5MB"
     )
     .refine(
-      (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type),
+      (files) => {
+        // Check if the file type is accepted or if it ends with .csv/.xlsx (for browsers that don't properly set mime type)
+        const file = files?.[0];
+        if (!file) return false;
+        
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+          return true;
+        }
+        
+        return ACCEPTED_FILE_TYPES.includes(file.type);
+      },
       "Only Excel and CSV files are accepted"
     ),
 });
@@ -75,6 +86,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
   async function onSubmit(values: z.infer<typeof contactFormSchema>) {
     try {
       setIsSubmitting(true);
+      console.log("Form submission started with values:", values);
 
       // Prepare data for Supabase
       const contactData: any = {
@@ -90,23 +102,42 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       if (values.addressFile && values.addressFile[0]) {
         const file = values.addressFile[0];
         contactData.file_name = file.name;
-        contactData.file_type = file.type;
+        contactData.file_type = file.type || `application/${file.name.split('.').pop()}`;
+        
+        console.log("Processing file:", file.name, "size:", file.size, "type:", contactData.file_type);
         
         // Convert file to base64 for storage
         const reader = new FileReader();
-        const fileBase64 = await new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const base64String = reader.result as string;
-            resolve(base64String);
-          };
-          reader.readAsDataURL(file);
-        });
-        
-        // Store the base64 data without the prefix
-        contactData.file_data = fileBase64.split(',')[1];
+        try {
+          const fileBase64 = await new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => {
+              const base64String = reader.result as string;
+              resolve(base64String);
+            };
+            reader.onerror = () => {
+              reject(new Error("Failed to read file"));
+            };
+            reader.readAsDataURL(file);
+          });
+          
+          // Store the base64 data without the prefix
+          contactData.file_data = fileBase64.split(',')[1];
+          console.log("File converted to base64 successfully");
+        } catch (fileError) {
+          console.error("Error converting file to base64:", fileError);
+          toast.error("Unable to process your file. Please try a different file format.");
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        console.error("No file selected or file is invalid");
+        toast.error("Please select a valid CSV or Excel file");
+        setIsSubmitting(false);
+        return;
       }
 
       // Insert into Supabase
+      console.log("Submitting contact data to Supabase");
       const { data, error } = await supabase
         .from('contacts')
         .insert([contactData])
@@ -116,6 +147,8 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         console.error("Supabase error:", error);
         throw new Error(error.message);
       }
+
+      console.log("Contact successfully created:", data);
 
       // Store the submission ID for potential follow-up
       if (data && data[0]) {
@@ -130,6 +163,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           console.log(`Sending report to emails: ${emails.join(', ')}`);
           
           // This will trigger the processing edge function with specified emails
+          console.log("Invoking process-addresses function");
           const processingResponse = await supabase.functions.invoke('process-addresses', {
             body: {
               fileId: data[0].file_name,
@@ -138,7 +172,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
             }
           });
           
-          console.log("Processing started:", processingResponse);
+          console.log("Processing function response:", processingResponse);
           
           // Check if processing was successful
           if (processingResponse.error) {
@@ -187,6 +221,9 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Upload your addresses to get a detailed report on potential AirBnb and other short-term lettings.
+            </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
@@ -268,14 +305,19 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
                         <Input
                           type="file"
                           accept=".csv,.xls,.xlsx"
-                          onChange={(e) => onChange(e.target.files)}
+                          onChange={(e) => {
+                            console.log("File selected:", e.target.files);
+                            onChange(e.target.files);
+                          }}
                           {...field}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
                         <div className="flex items-center justify-center w-full border-2 border-dashed border-primary/50 rounded-lg p-4 hover:bg-primary/5 transition-colors">
                           <Upload className="mr-2 text-primary" />
                           <span className="text-sm text-muted-foreground">
-                            Upload addresses (CSV or Excel)
+                            {value && (value as FileList).length > 0 
+                              ? `Selected: ${(value as FileList)[0].name}`
+                              : "Upload addresses (CSV or Excel)"}
                           </span>
                         </div>
                       </div>
