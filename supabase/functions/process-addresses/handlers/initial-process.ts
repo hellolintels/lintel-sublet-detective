@@ -126,7 +126,26 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
   
   console.log(`Updated contact status to 'pending_approval'`);
   
-  // Send approval request email to admin (jamie@lintels.in)
+  // Send new submission notification email to admin
+  console.log("Sending new submission notification to admin");
+  const adminNotificationResult = await sendEmail(
+    "jamie@lintels.in", 
+    `[Lintels] New Address File Submitted by ${contact.full_name}`,
+    `
+    <div>
+      <h1>New Address File Submitted</h1>
+      <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
+      <p>File name: ${contact.file_name || "Unnamed file"}</p>
+      <p>File contains ${rowCount} addresses.</p>
+      <p>Please log in to the admin dashboard to review and approve or reject this submission.</p>
+      <p><a href="${supabaseUrl.replace('/functions/v1/process-addresses', '')}/auth/login">Login to Admin Dashboard</a></p>
+    </div>
+    `
+  );
+  
+  console.log("Admin notification email result:", adminNotificationResult);
+  
+  // Also send approval request email with direct link (existing functionality)
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   
   console.log("Sending approval email to jamie@lintels.in");
