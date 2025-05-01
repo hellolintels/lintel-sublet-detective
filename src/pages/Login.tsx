@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,22 @@ const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   
   // Get redirect path from location state or default to dashboard
   const from = (location.state as any)?.from?.pathname || "/dashboard";
+  
+  // Redirect already authenticated users
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Redirect admin users to the admin dashboard
+      if (user?.email === "jamie@lintels.in") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate, from]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +65,14 @@ const Login = () => {
       } else {
         // Login flow
         await login(email, password);
-        navigate(from, { replace: true });
+        
+        // Check if the user is an admin and redirect accordingly
+        const { data } = await supabase.auth.getUser();
+        if (data.user?.email === "jamie@lintels.in") {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate(from, { replace: true });
+        }
       }
     } catch (error) {
       toast({
