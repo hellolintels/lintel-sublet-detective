@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Checkbox } from "./ui/checkbox";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
@@ -50,7 +49,6 @@ const contactFormSchema = z.object({
       (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type),
       "Only Excel and CSV files are accepted"
     ),
-  applyForBeta: z.boolean().default(false).optional(),
 });
 
 interface ContactFormProps {
@@ -70,7 +68,6 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       company: "",
       email: "",
       phone: "",
-      applyForBeta: formType === "beta" || false,
     },
   });
 
@@ -85,7 +82,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         company: values.company,
         email: values.email,
         phone: values.phone,
-        form_type: values.applyForBeta ? "sample_and_beta" : "sample",
+        form_type: "sample",
       };
 
       // Handle file data for sample form type
@@ -131,25 +128,20 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         URL.revokeObjectURL(fileURL);
       }
 
-      subject = encodeURIComponent(`${values.applyForBeta ? "Sample request and Beta access" : "Sample request"} from ${values.company}`);
+      subject = encodeURIComponent(`Sample request from ${values.company}`);
       body = encodeURIComponent(`
 Name: ${values.fullName}
 Position: ${values.position}
 Company: ${values.company}
 Email: ${values.email}
 Phone: ${values.phone}
-${values.applyForBeta ? "Also requesting beta access: Yes" : ""}
 
 A CSV file with addresses has been attached to this email.
       `);
       
       window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
       
-      let successMessage = values.applyForBeta 
-        ? "Thank you! We've received your sample report request and beta access application. We'll review it and get back to you shortly."
-        : "Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.";
-      
-      toast.success(successMessage, {
+      toast.success("Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.", {
         duration: 6000
       });
       
@@ -275,29 +267,6 @@ A CSV file with addresses has been attached to this email.
                       CSV or Excel file with street addresses and postcodes
                     </FormDescription>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="applyForBeta"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Apply for Beta Access
-                      </FormLabel>
-                      <FormDescription>
-                        I would also like to apply for beta access to the platform
-                      </FormDescription>
-                    </div>
                   </FormItem>
                 )}
               />
