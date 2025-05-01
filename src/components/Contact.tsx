@@ -12,7 +12,7 @@ const Contact = () => {
             </span>
           </div>
           <p className="text-sm sm:text-base text-white mb-4 font-normal text-center">
-            Request a free sample scan and receive a report of up to <span className="text-[hsl(24,97%,40%)] font-bold">20 addresses</span> from your portfolio.
+            Upload your addresses to receive a free sample report that matches your list to potential sublets
           </p>
           <div className="flex flex-col gap-4 w-full items-center">
             <ContactForm />
