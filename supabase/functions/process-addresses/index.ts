@@ -24,24 +24,45 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
   }
 }
 
-// Count rows in a CSV-like string
-function countAddressRows(fileData: string): number {
+// Count rows in a CSV-like string - with improved handling of file data
+function countAddressRows(fileData: string | null | undefined): number {
   if (!fileData) return 0;
-  // Convert base64 to string if it's base64 encoded
-  let dataString;
+  
+  let dataString: string;
+  
+  // First, try to safely decode the file data if it's base64 encoded
   try {
-    dataString = atob(fileData);
+    // Check if the data actually looks like base64 before trying to decode it
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (base64Regex.test(fileData)) {
+      try {
+        dataString = atob(fileData);
+        console.log("Successfully decoded base64 data");
+      } catch (e) {
+        console.error("Error in base64 decoding:", e);
+        dataString = fileData; // Fall back to using the raw data
+      }
+    } else {
+      console.log("File data doesn't appear to be base64 encoded, using as is");
+      dataString = fileData;
+    }
   } catch (e) {
-    console.error("Error decoding base64:", e);
-    dataString = fileData;
+    console.error("Exception during base64 check/decode:", e);
+    dataString = String(fileData); // Convert to string as a last resort
   }
   
-  console.log(`Decoded file data (first 100 chars): ${dataString.substring(0, 100)}`);
+  console.log(`Processing file data (first 100 chars): ${dataString.substring(0, 100)}`);
   
-  // Count lines, excluding header
-  const lines = dataString.split('\n');
-  console.log(`File contains ${lines.length} lines (including header)`);
-  return Math.max(0, lines.length - 1); // Subtract 1 for header
+  // More robust line counting
+  try {
+    const lines = dataString.split('\n');
+    const lineCount = Math.max(0, lines.length - 1); // Subtract 1 for header
+    console.log(`File contains ${lines.length} lines (including header), counted ${lineCount} data rows`);
+    return lineCount;
+  } catch (error) {
+    console.error("Error counting lines:", error);
+    return 0; // Return 0 as a safe default
+  }
 }
 
 serve(async (req) => {
@@ -124,6 +145,9 @@ serve(async (req) => {
 });
 
 async function handleInitialProcess(supabase, contact, supabaseUrl) {
+  console.log("Starting initial process for contact:", contact.id);
+  console.log("Contact has file data:", !!contact.file_data);
+  
   // Check if the address file has too many rows
   if (contact.file_data) {
     const rowCount = countAddressRows(contact.file_data);
@@ -182,6 +206,9 @@ async function handleInitialProcess(supabase, contact, supabaseUrl) {
   
   // Send approval request email to admin (jamie@lintels.in)
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
+  
+  console.log("Sending approval email to jamie@lintels.in");
+  console.log("Using approval URL:", approvalUrl);
   
   const emailResult = await sendEmail(
     "jamie@lintels.in", 

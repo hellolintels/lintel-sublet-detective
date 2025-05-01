@@ -125,9 +125,13 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         // Convert file to base64 for storage
         try {
           const fileBase64 = await readFileAsBase64(file);
+          console.log("File converted to base64, length:", fileBase64.length);
+          
           // Store the base64 data without the prefix
-          contactData.file_data = fileBase64.split(',')[1];
-          console.log("File converted to base64 successfully");
+          const base64Data = fileBase64.split(',')[1];
+          console.log("Base64 data extracted, length:", base64Data.length);
+          
+          contactData.file_data = base64Data;
         } catch (fileError) {
           console.error("Error converting file to base64:", fileError);
           toast.error("Unable to process your file. Please try a different file format.");
@@ -158,6 +162,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       if (data && data.length > 0) {
         // Trigger the edge function to process the addresses
         try {
+          console.log("Calling process-addresses edge function");
           const functionResponse = await supabase.functions.invoke("process-addresses", {
             body: { 
               contactId: data[0].id,
@@ -167,12 +172,22 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           
           if (functionResponse.error) {
             console.error("Edge function error:", functionResponse.error);
+            toast.error("There was an issue processing your request. Our team has been notified.");
             // Continue without failing - the report can be processed manually
           } else {
             console.log("Address processing initiated successfully", functionResponse.data);
+            
+            // Check if the email was sent
+            if (functionResponse.data && functionResponse.data.email_sent) {
+              console.log("Confirmation email was sent successfully");
+            } else {
+              console.warn("Email sending might have failed:", functionResponse.data);
+              // Still continue as this is just a warning
+            }
           }
         } catch (functionCallError) {
           console.error("Failed to call edge function:", functionCallError);
+          toast.error("There was an issue processing your request. Our team has been notified.");
           // Continue without failing
         }
       }
@@ -200,9 +215,15 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
   const readFileAsBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to convert file to base64"));
+        }
+      };
       reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
     });
   };
 
