@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -153,6 +154,25 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       }
 
       console.log("Contact successfully created:", data);
+      
+      if (data && data.length > 0) {
+        // Trigger the edge function to process the addresses
+        try {
+          const { error: functionError } = await supabase.functions.invoke("process-addresses", {
+            body: { contactId: data[0].id }
+          });
+          
+          if (functionError) {
+            console.error("Edge function error:", functionError);
+            // Continue without failing - the report can be processed manually
+          } else {
+            console.log("Address processing initiated successfully");
+          }
+        } catch (functionCallError) {
+          console.error("Failed to call edge function:", functionCallError);
+          // Continue without failing
+        }
+      }
       
       // Close dialog and reset the form
       if (onOpenChange) {
