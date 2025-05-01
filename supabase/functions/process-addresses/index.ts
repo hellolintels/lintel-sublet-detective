@@ -32,11 +32,15 @@ function countAddressRows(fileData: string): number {
   try {
     dataString = atob(fileData);
   } catch (e) {
+    console.error("Error decoding base64:", e);
     dataString = fileData;
   }
   
+  console.log(`Decoded file data (first 100 chars): ${dataString.substring(0, 100)}`);
+  
   // Count lines, excluding header
   const lines = dataString.split('\n');
+  console.log(`File contains ${lines.length} lines (including header)`);
   return Math.max(0, lines.length - 1); // Subtract 1 for header
 }
 
@@ -89,10 +93,10 @@ serve(async (req) => {
     // Different actions based on the request type
     switch (action) {
       case "initial_process":
-        return await handleInitialProcess(supabase, contact);
+        return await handleInitialProcess(supabase, contact, supabaseUrl);
       
       case "approve_processing":
-        return await handleApproveProcessing(supabase, contact, reportId);
+        return await handleApproveProcessing(supabase, contact, reportId, supabaseUrl);
       
       case "send_results":
         return await handleSendResults(supabase, contact, reportId);
@@ -119,7 +123,7 @@ serve(async (req) => {
   }
 });
 
-async function handleInitialProcess(supabase, contact) {
+async function handleInitialProcess(supabase, contact, supabaseUrl) {
   // Check if the address file has too many rows
   if (contact.file_data) {
     const rowCount = countAddressRows(contact.file_data);
@@ -177,9 +181,9 @@ async function handleInitialProcess(supabase, contact) {
   console.log(`Updated contact status to 'pending_approval'`);
   
   // Send approval request email to admin (jamie@lintels.in)
-  const approvalUrl = `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/process-addresses`;
+  const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   
-  await sendEmail(
+  const emailResult = await sendEmail(
     "jamie@lintels.in", 
     `[Lintels] New Address Request from ${contact.full_name}`,
     `
@@ -193,11 +197,14 @@ async function handleInitialProcess(supabase, contact) {
     `
   );
   
+  console.log("Email send result:", emailResult);
+  
   return new Response(
     JSON.stringify({
       message: "Address data submitted for approval",
       contact_id: contact.id,
-      status: "pending_approval"
+      status: "pending_approval",
+      email_sent: emailResult.success
     }),
     { 
       headers: { 
@@ -208,7 +215,7 @@ async function handleInitialProcess(supabase, contact) {
   );
 }
 
-async function handleApproveProcessing(supabase, contact, reportId) {
+async function handleApproveProcessing(supabase, contact, reportId, supabaseUrl) {
   // Update contact status to processing
   const { error: updateError } = await supabase
     .from("contacts")
@@ -253,7 +260,7 @@ async function handleApproveProcessing(supabase, contact, reportId) {
     .eq("id", contact.id);
   
   // Send notification that processing is complete to jamie@lintels.in
-  const viewReportUrl = `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/process-addresses?action=send_results&contact_id=${contact.id}&report_id=${newReportId}`;
+  const viewReportUrl = `${supabaseUrl}/functions/v1/process-addresses?action=send_results&contact_id=${contact.id}&report_id=${newReportId}`;
   
   await sendEmail(
     "jamie@lintels.in", 

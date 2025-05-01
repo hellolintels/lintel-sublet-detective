@@ -158,18 +158,18 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       if (data && data.length > 0) {
         // Trigger the edge function to process the addresses
         try {
-          const { error: functionError } = await supabase.functions.invoke("process-addresses", {
+          const functionResponse = await supabase.functions.invoke("process-addresses", {
             body: { 
               contactId: data[0].id,
               action: "initial_process"
             }
           });
           
-          if (functionError) {
-            console.error("Edge function error:", functionError);
+          if (functionResponse.error) {
+            console.error("Edge function error:", functionResponse.error);
             // Continue without failing - the report can be processed manually
           } else {
-            console.log("Address processing initiated successfully");
+            console.log("Address processing initiated successfully", functionResponse.data);
           }
         } catch (functionCallError) {
           console.error("Failed to call edge function:", functionCallError);
