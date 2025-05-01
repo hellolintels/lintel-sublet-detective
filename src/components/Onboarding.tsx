@@ -1,4 +1,6 @@
 
+import ApplyForBeta from "./ApplyForBeta";
+
 const Onboarding = () => {
   return (
     <div id="onboarding-section" className="w-full py-12 sm:py-16 md:py-24 bg-gradient-to-b from-gray-900 to-black px-4 sm:px-6">
@@ -13,19 +15,7 @@ const Onboarding = () => {
             lintels.in, we'd love to hear from you.
           </p>
         </div>
-        <a 
-          href="#contact-section" 
-          className="inline-flex items-center justify-center px-6 py-3 rounded-md bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors text-sm sm:text-base"
-          onClick={(e) => {
-            e.preventDefault();
-            const contactSection = document.getElementById('contact-section');
-            if (contactSection) {
-              contactSection.scrollIntoView({ behavior: 'smooth' });
-            }
-          }}
-        >
-          Contact Us to Learn More
-        </a>
+        <ApplyForBeta />
       </div>
     </div>
   );
