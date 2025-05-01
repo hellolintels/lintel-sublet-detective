@@ -18,11 +18,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "./ui/checkbox";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
 
-const formSchema = z.object({
+const contactFormSchema = z.object({
   fullName: z.string()
     .min(2, { message: "Full name must be at least 2 characters" })
     .regex(/^[a-zA-Z\s-']+$/, { message: "Name can only contain letters, spaces, hyphens and apostrophes" }),
@@ -49,52 +50,30 @@ const formSchema = z.object({
       (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type),
       "Only Excel and CSV files are accepted"
     ),
-});
-
-const betaFormSchema = z.object({
-  fullName: z.string()
-    .min(2, { message: "Full name must be at least 2 characters" })
-    .regex(/^[a-zA-Z\s-']+$/, { message: "Name can only contain letters, spaces, hyphens and apostrophes" }),
-  position: z.string()
-    .min(2, { message: "Position must be at least 2 characters" })
-    .regex(/^[a-zA-Z\s-']+$/, { message: "Position can only contain letters, spaces and hyphens" }),
-  company: z.string()
-    .min(2, { message: "Company name must be at least 2 characters" })
-    .regex(/^[\w\s-'&.]+$/, { message: "Company name contains invalid characters" }),
-  email: z.string()
-    .min(1, { message: "Email is required" })
-    .email({ message: "Please enter a valid email address" }),
-  phone: z.string()
-    .min(10, { message: "Phone number must be at least 10 digits" })
-    .regex(/^[0-9+\s()-]+$/, { message: "Please enter a valid phone number" }),
-  addressFile: z
-    .instanceof(FileList)
-    .optional(),
+  applyForBeta: z.boolean().default(false).optional(),
 });
 
 interface ContactFormProps {
-  formType?: "sample" | "beta";
   onOpenChange?: (open: boolean) => void;
 }
 
-export function ContactForm({ formType = "sample", onOpenChange }: ContactFormProps) {
+export function ContactForm({ onOpenChange }: ContactFormProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const currentSchema = formType === "beta" ? betaFormSchema : formSchema;
-
-  const form = useForm<z.infer<typeof currentSchema>>({
-    resolver: zodResolver(currentSchema),
+  const form = useForm<z.infer<typeof contactFormSchema>>({
+    resolver: zodResolver(contactFormSchema),
     defaultValues: {
       fullName: "",
       position: "",
       company: "",
       email: "",
       phone: "",
+      applyForBeta: false,
     },
   });
 
-  async function onSubmit(values: z.infer<typeof currentSchema>) {
+  async function onSubmit(values: z.infer<typeof contactFormSchema>) {
     try {
       setIsSubmitting(true);
 
@@ -105,11 +84,11 @@ export function ContactForm({ formType = "sample", onOpenChange }: ContactFormPr
         company: values.company,
         email: values.email,
         phone: values.phone,
-        form_type: formType,
+        form_type: values.applyForBeta ? "sample_and_beta" : "sample",
       };
 
       // Handle file data for sample form type
-      if (formType === "sample" && values.addressFile && values.addressFile[0]) {
+      if (values.addressFile && values.addressFile[0]) {
         const file = values.addressFile[0];
         contactData.file_name = file.name;
         contactData.file_type = file.type;
@@ -141,57 +120,39 @@ export function ContactForm({ formType = "sample", onOpenChange }: ContactFormPr
       // Also send an email notification
       let subject, body;
 
-      if (formType === "beta") {
-        subject = encodeURIComponent(`Beta access request from ${values.company}`);
-        body = encodeURIComponent(`
+      const files = values.addressFile as FileList;
+      if (files && files[0]) {
+        const fileURL = URL.createObjectURL(files[0]);
+        const tempLink = document.createElement('a');
+        tempLink.href = fileURL;
+        tempLink.download = 'addresses.csv';
+        tempLink.click();
+        URL.revokeObjectURL(fileURL);
+      }
+
+      subject = encodeURIComponent(`${values.applyForBeta ? "Sample request and Beta access" : "Sample request"} from ${values.company}`);
+      body = encodeURIComponent(`
 Name: ${values.fullName}
 Position: ${values.position}
 Company: ${values.company}
 Email: ${values.email}
 Phone: ${values.phone}
-
-This user is requesting beta access to the platform.
-        `);
-      } else {
-        const files = values.addressFile as FileList;
-        if (files && files[0]) {
-          const fileURL = URL.createObjectURL(files[0]);
-          const tempLink = document.createElement('a');
-          tempLink.href = fileURL;
-          tempLink.download = 'addresses.csv';
-          tempLink.click();
-          URL.revokeObjectURL(fileURL);
-        }
-
-        subject = encodeURIComponent(`Sample request from ${values.company}`);
-        body = encodeURIComponent(`
-Name: ${values.fullName}
-Position: ${values.position}
-Company: ${values.company}
-Email: ${values.email}
-Phone: ${values.phone}
+${values.applyForBeta ? "Also requesting beta access: Yes" : ""}
 
 A CSV file with addresses has been attached to this email.
-        `);
-      }
+      `);
       
       window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
       
-      let successMessage = formType === "beta" 
-        ? "Thank you! We've received your application for beta access. We'll review it and get back to you shortly."
+      let successMessage = values.applyForBeta 
+        ? "Thank you! We've received your sample report request and beta access application. We'll review it and get back to you shortly."
         : "Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.";
       
       toast.success(successMessage, {
         duration: 6000
       });
       
-      // Close dialog if it's the beta form
-      if (formType === "beta" && onOpenChange) {
-        onOpenChange(false);
-      } else {
-        setOpen(false);
-      }
-      
+      setOpen(false);
       form.reset();
     } catch (error) {
       console.error("Form submission error:", error);
@@ -201,9 +162,9 @@ A CSV file with addresses has been attached to this email.
     }
   }
 
-  const renderForm = () => {
-    if (formType === "sample") {
-      return (
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <div id="contact-section" className="flex flex-col gap-4 w-full items-center py-8">
         <Button
           size="lg"
           className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
@@ -211,24 +172,12 @@ A CSV file with addresses has been attached to this email.
         >
           Request a Sample Report
         </Button>
-      );
-    }
-
-    return null;
-  };
-
-  return (
-    <Dialog open={formType === "sample" ? open : true} onOpenChange={formType === "sample" ? setOpen : undefined}>
-      <div className="flex flex-col gap-4 w-full items-center">
-        {formType === "sample" && renderForm()}
       </div>
-      {(open || formType === "beta") && (
-        <DialogContent className={formType === "sample" ? "sm:max-w-[500px]" : ""}>
-          {formType === "sample" && (
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
-            </DialogHeader>
-          )}
+      {open && (
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
+          </DialogHeader>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -298,41 +247,62 @@ A CSV file with addresses has been attached to this email.
                 )}
               />
               
-              {formType === "sample" && (
-                <FormField
-                  control={form.control}
-                  name="addressFile"
-                  render={({ field: { onChange, value, ...field } }) => (
-                    <FormItem>
-                      <FormLabel>Upload Addresses</FormLabel>
-                      <FormControl>
-                        <div className="relative w-full">
-                          <Input
-                            type="file"
-                            accept=".csv,.xls,.xlsx"
-                            onChange={(e) => onChange(e.target.files)}
-                            {...field}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                          />
-                          <div className="flex items-center justify-center w-full border-2 border-dashed border-primary/50 rounded-lg p-4 hover:bg-primary/5 transition-colors">
-                            <Upload className="mr-2 text-primary" />
-                            <span className="text-sm text-muted-foreground">
-                              Upload addresses (CSV or Excel)
-                            </span>
-                          </div>
+              <FormField
+                control={form.control}
+                name="addressFile"
+                render={({ field: { onChange, value, ...field } }) => (
+                  <FormItem>
+                    <FormLabel>Upload Addresses</FormLabel>
+                    <FormControl>
+                      <div className="relative w-full">
+                        <Input
+                          type="file"
+                          accept=".csv,.xls,.xlsx"
+                          onChange={(e) => onChange(e.target.files)}
+                          {...field}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="flex items-center justify-center w-full border-2 border-dashed border-primary/50 rounded-lg p-4 hover:bg-primary/5 transition-colors">
+                          <Upload className="mr-2 text-primary" />
+                          <span className="text-sm text-muted-foreground">
+                            Upload addresses (CSV or Excel)
+                          </span>
                         </div>
-                      </FormControl>
-                      <FormDescription className="text-center mt-1">
-                        CSV or Excel file with street addresses and postcodes
+                      </div>
+                    </FormControl>
+                    <FormDescription className="text-center mt-1">
+                      CSV or Excel file with street addresses and postcodes
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="applyForBeta"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Apply for Beta Access
+                      </FormLabel>
+                      <FormDescription>
+                        I would also like to apply for beta access to the platform
                       </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+                    </div>
+                  </FormItem>
+                )}
+              />
               
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : (formType === "beta" ? "Apply for Beta Access" : "Submit Request")}
+                {isSubmitting ? "Submitting..." : "Submit Request"}
               </Button>
             </form>
           </Form>
