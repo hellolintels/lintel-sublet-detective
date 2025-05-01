@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 
 const Login = () => {
@@ -57,30 +56,25 @@ const Login = () => {
     try {
       console.log("Attempting login with:", email);
       
-      // Try direct Supabase auth to see detailed errors
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // Use our login method from auth context
+      await login(email, password);
       
-      if (error) {
-        console.error("Supabase auth error:", error);
-        throw error;
-      }
-      
-      console.log("Login successful:", data);
-      
-      // Check if the user is an admin and redirect accordingly
-      if (data.user?.email === "jamie@lintels.in") {
-        console.log("Admin user detected, redirecting to admin");
-        navigate("/admin", { replace: true });
-      } else {
-        console.log("Regular user, redirecting to:", from);
-        navigate(from, { replace: true });
-      }
+      // If login is successful, the useEffect will handle redirection
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Invalid credentials. Please check your email and password.";
+      
+      let errorMessage = "Invalid credentials. Please check your email and password.";
+      
+      // Special handling for known errors
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // More user-friendly message for email not confirmed
+        if (error.message === "Email not confirmed") {
+          errorMessage = "Your email has not been confirmed yet. Please check your inbox for a confirmation link or contact support.";
+        }
+      }
+      
       setLoginError(errorMessage);
       
       toast({
