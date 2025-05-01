@@ -137,15 +137,13 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
       <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
       <p>File name: ${contact.file_name || "Unnamed file"}</p>
       <p>File contains ${rowCount} addresses.</p>
-      <p>Please log in to the admin dashboard to review and approve or reject this submission.</p>
-      <p><a href="${supabaseUrl.replace('/functions/v1/process-addresses', '')}/auth/login">Login to Admin Dashboard</a></p>
     </div>
     `
   );
   
   console.log("Admin notification email result:", adminNotificationResult);
   
-  // Also send approval request email with direct link (existing functionality)
+  // Send approval request email with direct link
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   
   console.log("Sending approval email to jamie@lintels.in");
@@ -158,7 +156,7 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
     <div>
       <h1>New Address Processing Request</h1>
       <p>A new submission has been received from ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
-      <p>The file contains addresses that need to be processed.</p>
+      <p>The file contains ${rowCount} addresses that need to be processed.</p>
       <p>To approve this request, please click the link below:</p>
       <p><a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}">Approve Processing</a></p>
     </div>
