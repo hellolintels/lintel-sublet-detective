@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -69,7 +69,6 @@ interface ContactFormProps {
 export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof contactFormSchema>>({
     resolver: zodResolver(contactFormSchema),
@@ -81,6 +80,22 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       phone: "",
     },
   });
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+    }
+  }, [open, form]);
+  
+  // Handle external open/close changes
+  useEffect(() => {
+    if (onOpenChange) {
+      return () => {
+        form.reset();
+      };
+    }
+  }, [onOpenChange, form]);
 
   async function onSubmit(values: z.infer<typeof contactFormSchema>) {
     try {
@@ -138,12 +153,8 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       }
 
       console.log("Contact successfully created:", data);
-
-      // Store the submission ID for potential follow-up
-      if (data && data[0]) {
-        setSubmissionId(data[0].id);
-      }
       
+      // Close dialog and reset the form
       if (onOpenChange) {
         onOpenChange(false);
       }
@@ -173,7 +184,12 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (!newOpen) {
+        form.reset();
+      }
+    }}>
       <div id="contact-section" className="flex flex-col gap-4 w-full items-center py-8">
         <Button
           size="lg"
