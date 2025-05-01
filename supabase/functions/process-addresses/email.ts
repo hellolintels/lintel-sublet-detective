@@ -1,8 +1,8 @@
 
-// Email handling module
+// Email handling module using SendGrid
 
 /**
- * Enhanced email sending function with guaranteed delivery for critical emails
+ * Enhanced email sending function with SendGrid integration
  * @param to Email address of the recipient
  * @param subject Subject line of the email
  * @param htmlContent HTML content of the email
@@ -16,32 +16,94 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
     console.log(`CONTENT LENGTH: ${htmlContent.length} characters`);
     console.log(`CONTENT PREVIEW: ${htmlContent.substring(0, 100)}...`);
     
-    // In a production environment, this would call an email API like SendGrid, Mailgun, or AWS SES
-    // For now, we're using enhanced logging to debug the email delivery process
+    // Get the SendGrid API key from environment variables
+    const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
+    
+    if (!sendgridApiKey) {
+      throw new Error("SendGrid API key is not configured");
+    }
+    
+    // Prepare the SendGrid request
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sendgridApiKey}`
+      },
+      body: JSON.stringify({
+        personalizations: [
+          {
+            to: [{ email: to }]
+          }
+        ],
+        from: { email: "notifications@lintels.in", name: "Lintels" },
+        subject: subject,
+        content: [
+          {
+            type: "text/html",
+            value: htmlContent
+          }
+        ]
+      })
+    });
     
     // Special handling for admin emails to ensure delivery
     if (to === "jamie@lintels.in") {
       console.log(`CRITICAL ADMIN EMAIL TO: ${to}`);
       console.log(`ADMIN EMAIL SUBJECT: ${subject}`);
-      console.log(`ADMIN EMAIL FULL CONTENT: ${htmlContent}`);
       
       // Generate a unique tracking ID for this admin email
       const emailId = `admin_email_${Date.now()}`;
       console.log(`ADMIN EMAIL TRACKING ID: ${emailId}`);
       
-      // In production, this would implement additional retry logic and priority queuing
-      console.log(`ADMIN EMAIL ${emailId} - Setting maximum priority for delivery`);
+      // Log the SendGrid response status for admin emails
+      console.log(`ADMIN EMAIL ${emailId} - SendGrid Response Status: ${response.status}`);
       
-      // Log the full HTML content for admin emails to help with debugging
-      console.log("ADMIN EMAIL HTML CONTENT START ---");
-      console.log(htmlContent);
-      console.log("ADMIN EMAIL HTML CONTENT END ---");
+      // If the response is not successful, retry once more
+      if (!response.ok) {
+        console.log(`ADMIN EMAIL ${emailId} - First attempt failed with status ${response.status}, retrying...`);
+        
+        // Wait 2 seconds before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Retry the request
+        const retryResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sendgridApiKey}`
+          },
+          body: JSON.stringify({
+            personalizations: [
+              {
+                to: [{ email: to }],
+                subject: `${subject} [RETRY]`
+              }
+            ],
+            from: { email: "urgent@lintels.in", name: "Lintels URGENT" },
+            content: [
+              {
+                type: "text/html",
+                value: htmlContent
+              }
+            ]
+          })
+        });
+        
+        console.log(`ADMIN EMAIL ${emailId} - Retry attempt response status: ${retryResponse.status}`);
+      }
     }
     
-    // In production, return actual delivery status from email API
+    // Check if the request was successful
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("SendGrid API error:", errorText);
+      throw new Error(`SendGrid API returned ${response.status}: ${errorText}`);
+    }
+    
     return { 
       success: true, 
-      messageId: `msg_${Date.now()}`,
+      messageId: `sendgrid_${Date.now()}`,
       recipient: to,
       subject: subject
     };
@@ -52,7 +114,7 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
     console.error("Error details:", error);
     return { 
       success: false, 
-      error,
+      error: error instanceof Error ? error.message : String(error),
       recipient: to,
       subject: subject
     };
