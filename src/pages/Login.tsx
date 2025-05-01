@@ -15,6 +15,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated, user } = useAuth();
@@ -24,11 +25,15 @@ const Login = () => {
   
   // Redirect already authenticated users
   useEffect(() => {
+    console.log("Auth state:", { isAuthenticated, user });
+    
     if (isAuthenticated) {
       // Redirect admin users to the admin dashboard
       if (user?.email === "jamie@lintels.in") {
+        console.log("Redirecting admin to /admin");
         navigate("/admin", { replace: true });
       } else {
+        console.log("Redirecting user to:", from);
         navigate(from, { replace: true });
       }
     }
@@ -36,6 +41,7 @@ const Login = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
     
     if (!email || !password) {
       toast({
@@ -49,20 +55,37 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Login flow
-      await login(email, password);
+      console.log("Attempting login with:", email);
+      
+      // Try direct Supabase auth to see detailed errors
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        console.error("Supabase auth error:", error);
+        throw error;
+      }
+      
+      console.log("Login successful:", data);
       
       // Check if the user is an admin and redirect accordingly
-      const { data } = await supabase.auth.getUser();
       if (data.user?.email === "jamie@lintels.in") {
+        console.log("Admin user detected, redirecting to admin");
         navigate("/admin", { replace: true });
       } else {
+        console.log("Regular user, redirecting to:", from);
         navigate(from, { replace: true });
       }
     } catch (error) {
+      console.error("Login error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Invalid credentials. Please check your email and password.";
+      setLoginError(errorMessage);
+      
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -112,6 +135,11 @@ const Login = () => {
                 required
               />
             </div>
+            {loginError && (
+              <div className="text-sm text-red-500 pt-2">
+                {loginError}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button 

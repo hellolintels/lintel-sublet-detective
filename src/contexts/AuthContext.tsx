@@ -22,9 +22,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    console.log("Auth Provider initialized");
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
+        console.log("Auth state changed:", event, newSession?.user?.email);
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setIsAuthenticated(!!newSession);
@@ -47,6 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Existing session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setIsAuthenticated(!!currentSession);
@@ -60,9 +64,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const login = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      console.log("Login attempt:", email);
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        console.error("Login error:", error);
+        throw error;
+      }
+      
+      console.log("Login successful:", data.user?.email);
     } catch (error) {
+      console.error("Login exception:", error);
       if (error instanceof Error) {
         toast({
           title: "Login failed",
@@ -76,9 +88,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const logout = async () => {
     try {
+      console.log("Logout attempt");
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      console.log("Logout successful");
     } catch (error) {
+      console.error("Logout error:", error);
       if (error instanceof Error) {
         toast({
           title: "Logout failed",
