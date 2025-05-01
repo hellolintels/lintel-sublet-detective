@@ -1,6 +1,4 @@
 
-import ApplyForBeta from "./ApplyForBeta";
-
 const Onboarding = () => {
   return (
     <div id="onboarding-section" className="w-full py-12 sm:py-16 md:py-24 bg-gradient-to-b from-gray-900 to-black px-4 sm:px-6">
@@ -15,7 +13,12 @@ const Onboarding = () => {
             lintels.in, we'd love to hear from you.
           </p>
         </div>
-        <ApplyForBeta />
+        <a 
+          href="mailto:contact@lintels.in"
+          className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200 bg-gray-700 hover:bg-gray-600 text-white"
+        >
+          Contact Us
+        </a>
       </div>
     </div>
   );
