@@ -106,13 +106,34 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       }
 
       // Insert into Supabase
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('contacts')
-        .insert([contactData]);
+        .insert([contactData])
+        .select();
 
       if (error) {
         console.error("Supabase error:", error);
         throw new Error(error.message);
+      }
+
+      // Trigger background processing if insertion was successful
+      if (data && data[0]) {
+        try {
+          // This will trigger the processing edge function
+          await supabase.functions.invoke('process-addresses', {
+            body: {
+              fileId: data[0].file_name,
+              contactId: data[0].id,
+              emails: ['jamie@lintels.in']
+            }
+          });
+          
+          console.log("Processing started");
+        } catch (processingError) {
+          console.error("Error starting processing:", processingError);
+          // Continue with the form submission even if processing fails
+          // We'll handle it separately
+        }
       }
 
       // Also send an email notification
