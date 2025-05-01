@@ -1,3 +1,4 @@
+
 # Welcome to your Lovable project
 
 ## Project info
@@ -7,7 +8,7 @@
 ## Deployment Strategy
 
 This project uses a dual-branch strategy:
-- `test-env`: For development and testing of new features (Updated: May 1, 2025)
+- `test-env`: For development and testing of new features (Updated: May 1, 2025 - Test Update)
 - `main`: Production branch, only updated after approval
 
 ### Deployment Hooks
