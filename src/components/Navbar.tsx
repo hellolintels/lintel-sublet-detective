@@ -1,45 +1,14 @@
+
 import React, { useState } from "react";
 import { Link, NavLink as RouterNavLink } from "react-router-dom";
-import { useMediaQuery } from 'react-responsive';
-import { styled } from 'styled-components';
+import { useIsMobile } from "@/hooks/use-mobile";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
-
-const NavLink = styled(RouterNavLink)`
-  &.active {
-    font-weight: bold;
-    color: hsl(24,97%,40%);
-  }
-  
-  &:hover {
-    color: hsl(24,97%,40%);
-    transition: color 0.3s ease;
-  }
-`;
-
-const MobileNavLink = styled(Link)`
-  display: block;
-  padding: 10px 15px;
-  text-decoration: none;
-  color: white;
-  border-bottom: 1px solid #444;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background-color: #111;
-  }
-`;
-
-const useMobile = () => {
-  return useMediaQuery({ maxWidth: 768 });
-};
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.email === "jamie@lintels.in";
 
@@ -52,15 +21,42 @@ const Navbar = () => {
           </Link>
           
           <nav className="hidden md:flex items-center space-x-6">
-            <NavLink to="/" exact>Home</NavLink>
+            <RouterNavLink 
+              to="/" 
+              className={({ isActive }) => cn(
+                "hover:text-[hsl(24,97%,40%)] transition-colors",
+                isActive && "font-bold text-[hsl(24,97%,40%)]"
+              )}
+            >
+              Home
+            </RouterNavLink>
+            
             {isAuthenticated && (
               <>
-                <NavLink to="/dashboard">Dashboard</NavLink>
+                <RouterNavLink 
+                  to="/dashboard"
+                  className={({ isActive }) => cn(
+                    "hover:text-[hsl(24,97%,40%)] transition-colors",
+                    isActive && "font-bold text-[hsl(24,97%,40%)]"
+                  )}
+                >
+                  Dashboard
+                </RouterNavLink>
+                
                 {isAdmin && (
-                  <NavLink to="/admin">Admin</NavLink>
+                  <RouterNavLink 
+                    to="/admin"
+                    className={({ isActive }) => cn(
+                      "hover:text-[hsl(24,97%,40%)] transition-colors",
+                      isActive && "font-bold text-[hsl(24,97%,40%)]"
+                    )}
+                  >
+                    Admin
+                  </RouterNavLink>
                 )}
               </>
             )}
+            
             {!isAuthenticated ? (
               <Link 
                 to="/login"
@@ -99,15 +95,36 @@ const Navbar = () => {
       {isOpen && isMobile && (
         <div className="md:hidden p-4 border-t border-gray-800 bg-black">
           <div className="flex flex-col space-y-4">
-            <MobileNavLink to="/" onClick={() => setIsOpen(false)}>Home</MobileNavLink>
+            <Link 
+              to="/" 
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2 text-white hover:bg-gray-900 border-b border-gray-800"
+            >
+              Home
+            </Link>
+            
             {isAuthenticated && (
               <>
-                <MobileNavLink to="/dashboard" onClick={() => setIsOpen(false)}>Dashboard</MobileNavLink>
+                <Link 
+                  to="/dashboard" 
+                  onClick={() => setIsOpen(false)}
+                  className="block px-4 py-2 text-white hover:bg-gray-900 border-b border-gray-800"
+                >
+                  Dashboard
+                </Link>
+                
                 {isAdmin && (
-                  <MobileNavLink to="/admin" onClick={() => setIsOpen(false)}>Admin</MobileNavLink>
+                  <Link 
+                    to="/admin" 
+                    onClick={() => setIsOpen(false)}
+                    className="block px-4 py-2 text-white hover:bg-gray-900 border-b border-gray-800"
+                  >
+                    Admin
+                  </Link>
                 )}
               </>
             )}
+            
             {!isAuthenticated ? (
               <Link 
                 to="/login"
