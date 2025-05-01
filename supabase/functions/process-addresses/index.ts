@@ -26,20 +26,30 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
 
 // Count rows in a CSV-like string - with improved handling of file data
 function countAddressRows(fileData: string | null | undefined): number {
-  if (!fileData) return 0;
+  console.log("countAddressRows called with fileData type:", typeof fileData);
+  if (!fileData) {
+    console.log("No file data provided");
+    return 0;
+  }
   
   let dataString: string;
   
   // First, try to safely decode the file data if it's base64 encoded
   try {
+    console.log("Processing file data, first 20 chars:", fileData.substring(0, 20));
+    console.log("File data length:", fileData.length);
+    
     // Check if the data actually looks like base64 before trying to decode it
-    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    // More permissive regex pattern that only checks for valid base64 characters
+    const base64Regex = /^[A-Za-z0-9+/=]*$/;
     if (base64Regex.test(fileData)) {
       try {
+        console.log("File data appears to be base64, attempting to decode");
         dataString = atob(fileData);
-        console.log("Successfully decoded base64 data");
+        console.log("Successfully decoded base64 data, length after decode:", dataString.length);
       } catch (e) {
         console.error("Error in base64 decoding:", e);
+        console.log("Falling back to using raw data");
         dataString = fileData; // Fall back to using the raw data
       }
     } else {
@@ -48,16 +58,22 @@ function countAddressRows(fileData: string | null | undefined): number {
     }
   } catch (e) {
     console.error("Exception during base64 check/decode:", e);
+    console.log("Falling back to string conversion as last resort");
     dataString = String(fileData); // Convert to string as a last resort
   }
   
-  console.log(`Processing file data (first 100 chars): ${dataString.substring(0, 100)}`);
-  
   // More robust line counting
   try {
+    console.log("Splitting data into lines");
     const lines = dataString.split('\n');
+    console.log(`File contains ${lines.length} lines`);
+    
+    // Log a few sample lines for debugging
+    if (lines.length > 0) console.log("First line:", lines[0]);
+    if (lines.length > 1) console.log("Second line:", lines[1]);
+    
     const lineCount = Math.max(0, lines.length - 1); // Subtract 1 for header
-    console.log(`File contains ${lines.length} lines (including header), counted ${lineCount} data rows`);
+    console.log(`Counted ${lineCount} data rows (excluding header)`);
     return lineCount;
   } catch (error) {
     console.error("Error counting lines:", error);
@@ -146,14 +162,63 @@ serve(async (req) => {
 
 async function handleInitialProcess(supabase, contact, supabaseUrl) {
   console.log("Starting initial process for contact:", contact.id);
+  console.log("Contact email:", contact.email);
   console.log("Contact has file data:", !!contact.file_data);
+  console.log("Contact file type:", contact.file_type);
+  console.log("Contact file name:", contact.file_name);
   
-  // Check if the address file has too many rows
+  let rowCount = 0;
+  let countingError = null;
+  
+  // Check if the address file has too many rows - with improved error handling
   if (contact.file_data) {
-    const rowCount = countAddressRows(contact.file_data);
-    console.log(`Address file contains ${rowCount} rows`);
+    try {
+      rowCount = countAddressRows(contact.file_data);
+      console.log(`Address file contains ${rowCount} rows`);
+    } catch (error) {
+      countingError = error;
+      console.error("Error counting rows in file data:", error);
+      
+      // Update status to indicate processing error
+      await supabase
+        .from("contacts")
+        .update({ status: "processing_error" })
+        .eq("id", contact.id);
+        
+      // Even if row counting fails, still try to send a notification about the issue
+      await sendEmail(
+        "jamie@lintels.in",
+        `[Lintels] Error Processing Submission from ${contact.full_name}`,
+        `
+        <div>
+          <h1>Error Processing Submission</h1>
+          <p>There was an error processing the submission from ${contact.full_name} (${contact.email}):</p>
+          <p>Error: ${error.message || "Unknown error"}</p>
+          <p>You may need to manually check the file format.</p>
+        </div>
+        `
+      );
+      
+      // Don't throw here - return a response indicating the issue
+      return new Response(
+        JSON.stringify({
+          message: "Error processing address file, but notification sent",
+          status: "error",
+          contact_id: contact.id,
+        }),
+        { 
+          headers: { 
+            ...corsHeaders,
+            "Content-Type": "application/json" 
+          } 
+        }
+      );
+    }
     
+    // Handle case where too many addresses are provided
     if (rowCount > 20) {
+      console.log("Too many addresses detected, sending notification");
+      
       // Update status to indicate too many addresses
       await supabase
         .from("contacts")
@@ -161,7 +226,7 @@ async function handleInitialProcess(supabase, contact, supabaseUrl) {
         .eq("id", contact.id);
         
       // Send notification about too many addresses
-      await sendEmail(
+      const emailResult = await sendEmail(
         contact.email,
         "Your Lintels Address Submission Exceeds Limit",
         `
@@ -175,11 +240,14 @@ async function handleInitialProcess(supabase, contact, supabaseUrl) {
         `
       );
       
+      console.log("Email sending result for too many addresses:", emailResult);
+      
       return new Response(
         JSON.stringify({
           message: "Address file contains too many rows (limit: 20)",
           status: "error",
           contact_id: contact.id,
+          email_sent: emailResult.success
         }),
         { 
           headers: { 
@@ -189,9 +257,12 @@ async function handleInitialProcess(supabase, contact, supabaseUrl) {
         }
       );
     }
+  } else {
+    console.log("No file data found in contact record");
   }
   
   // Set contact status to pending approval
+  console.log("Updating contact status to pending_approval");
   const { error: updateError } = await supabase
     .from("contacts")
     .update({ status: "pending_approval" })
