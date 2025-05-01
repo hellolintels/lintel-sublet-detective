@@ -1,51 +1,31 @@
 
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
+  const { logout, user } = useAuth();
 
-  useEffect(() => {
-    // Check if the user is authenticated
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      navigate("/login");
-      return;
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Error during logout:", error);
     }
-    
-    // This is where you would validate the token with Supabase after integration
-    // For now, we'll just simulate a loading state
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [navigate]);
-
-  const handleLogout = () => {
-    // Remove the auth token and redirect to login
-    localStorage.removeItem("auth_token");
-    navigate("/login");
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[hsl(24,97%,40%)]"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
       <div className="container mx-auto pt-20 px-4">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+            {user?.email && (
+              <p className="text-gray-400 mt-1">Welcome, {user.email}</p>
+            )}
+          </div>
           <Button 
             variant="destructive" 
             onClick={handleLogout}
@@ -62,7 +42,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-400">
-                After connecting to Supabase, this will allow for CSV uploads of property data.
+                Upload CSV files containing your property portfolio data for analysis.
               </p>
               <Button className="mt-4 w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]">
                 Upload Data
@@ -77,7 +57,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-400">
-                After connecting to Supabase, this will show your scan reports and results.
+                Access detailed reports and analytics about your property portfolio.
               </p>
               <Button className="mt-4 w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]">
                 View Reports
@@ -92,7 +72,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-400">
-                After connecting to Supabase, this will display analytics and metrics.
+                Visualize key metrics and insights about your rental portfolio.
               </p>
               <Button className="mt-4 w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]">
                 View Analytics

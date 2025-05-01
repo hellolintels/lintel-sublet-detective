@@ -1,42 +1,97 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
+import { toast } from "@/components/ui/use-toast";
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (token: string) => void;
-  logout: () => void;
-  checkAuth: () => boolean;
+  user: User | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
   
-  // Check authentication on initial load
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      setIsAuthenticated(true);
-    }
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        setIsAuthenticated(!!newSession);
+        
+        if (event === 'SIGNED_IN') {
+          toast({
+            title: "Signed in successfully",
+            description: `Welcome${newSession?.user?.email ? ` ${newSession.user.email}` : ''}!`,
+          });
+        }
+        
+        if (event === 'SIGNED_OUT') {
+          toast({
+            title: "Signed out successfully",
+            description: "You have been signed out.",
+          });
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setIsAuthenticated(!!currentSession);
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
   
-  const login = (token: string) => {
-    localStorage.setItem("auth_token", token);
-    setIsAuthenticated(true);
+  const login = async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (error) {
+      if (error instanceof Error) {
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      throw error;
+    }
   };
   
-  const logout = () => {
-    localStorage.removeItem("auth_token");
-    setIsAuthenticated(false);
-  };
-  
-  const checkAuth = () => {
-    return localStorage.getItem("auth_token") !== null;
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      if (error instanceof Error) {
+        toast({
+          title: "Logout failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      throw error;
+    }
   };
   
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, session, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

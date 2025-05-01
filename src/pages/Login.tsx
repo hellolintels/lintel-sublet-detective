@@ -1,21 +1,28 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/Logo";
-import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const location = useLocation();
+  const { login } = useAuth();
+  
+  // Get redirect path from location state or default to dashboard
+  const from = (location.state as any)?.from?.pathname || "/dashboard";
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
@@ -30,28 +37,28 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // This is a placeholder for Supabase authentication
-      // After connecting to Supabase, replace this with:
-      // const { error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      // For now, we'll use a simple email check for the admin (secure this with Supabase later)
-      if (email === "jamie@lintels.in" && password === "admin") {
-        // Store a temporary token to simulate login
-        localStorage.setItem("auth_token", "temp-token");
-        
-        toast({
-          title: "Success",
-          description: "Logged in successfully!",
+      if (isSignUp) {
+        // Sign up flow
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
         });
         
-        navigate("/dashboard");
+        if (error) throw error;
+        
+        toast({
+          title: "Registration successful",
+          description: "Please check your email for verification link.",
+        });
       } else {
-        throw new Error("Invalid email or password");
+        // Login flow
+        await login(email, password);
+        navigate(from, { replace: true });
       }
     } catch (error) {
       toast({
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "An error occurred during login.",
+        title: isSignUp ? "Registration failed" : "Login failed",
+        description: error instanceof Error ? error.message : "An error occurred.",
         variant: "destructive",
       });
     } finally {
@@ -64,12 +71,14 @@ const Login = () => {
       <Card className="w-full max-w-md bg-black border border-gray-800">
         <CardHeader className="space-y-1 flex flex-col items-center">
           <Logo />
-          <CardTitle className="text-2xl text-white mt-4">Sign in to Lintels</CardTitle>
+          <CardTitle className="text-2xl text-white mt-4">
+            {isSignUp ? "Create an account" : "Sign in to Lintels"}
+          </CardTitle>
           <CardDescription className="text-gray-400">
-            Enter your credentials to access the admin portal
+            {isSignUp ? "Enter your details to create an account" : "Enter your credentials to access the admin portal"}
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleAuth}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white">Email</Label>
@@ -96,14 +105,28 @@ const Login = () => {
               />
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col space-y-4">
             <Button 
               type="submit" 
               className="w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]" 
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? 
+                (isSignUp ? "Creating account..." : "Signing in...") : 
+                (isSignUp ? "Create account" : "Sign in")
+              }
             </Button>
+            
+            <div className="text-center text-sm text-gray-400">
+              {isSignUp ? "Already have an account?" : "Don't have an account?"} 
+              <button 
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)} 
+                className="text-[hsl(24,97%,40%)] hover:underline ml-1"
+              >
+                {isSignUp ? "Sign in" : "Create one"}
+              </button>
+            </div>
           </CardFooter>
         </form>
       </Card>
