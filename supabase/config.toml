@@ -59,3 +59,10 @@ backend = "postgres"
 
 [experimental]
 minimal_apis = false
+
+[functions]
+enabled = true
+serve_port = 54321
+
+[functions.process-addresses]
+verify_jwt = false

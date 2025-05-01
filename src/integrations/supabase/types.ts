@@ -54,6 +54,44 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          contact_id: string
+          created_at: string
+          html_content: string
+          id: string
+          matches_count: number
+          properties_count: number
+          status: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          html_content: string
+          id?: string
+          matches_count?: number
+          properties_count?: number
+          status?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          html_content?: string
+          id?: string
+          matches_count?: number
+          properties_count?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -59,6 +59,7 @@ interface ContactFormProps {
 export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof contactFormSchema>>({
     resolver: zodResolver(contactFormSchema),
@@ -116,6 +117,11 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         throw new Error(error.message);
       }
 
+      // Store the submission ID for potential follow-up
+      if (data && data[0]) {
+        setSubmissionId(data[0].id);
+      }
+
       // Trigger background processing if insertion was successful
       if (data && data[0]) {
         try {
@@ -133,15 +139,25 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           });
           
           console.log("Processing started:", processingResponse);
+          
+          // Check if processing was successful
+          if (processingResponse.error) {
+            console.error("Processing error:", processingResponse.error);
+            toast.error("We encountered an issue processing your addresses. Our team has been notified and will handle your request manually.", {
+              duration: 6000
+            });
+          } else {
+            toast.success("Thank you for your submission! We're processing your addresses and will send a detailed report within 48 hours.", {
+              duration: 6000
+            });
+          }
         } catch (processingError) {
           console.error("Error starting processing:", processingError);
-          // Continue with the form submission even if processing fails
+          toast.error("We encountered an issue starting the processing. Our team has been notified and will follow up with you directly.", {
+            duration: 6000
+          });
         }
       }
-
-      toast.success("Thank you for your submission! We're processing your addresses and will send a detailed report within 48 hours.", {
-        duration: 6000
-      });
       
       if (onOpenChange) {
         onOpenChange(false);
