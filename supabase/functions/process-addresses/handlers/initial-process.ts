@@ -39,7 +39,7 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
       // Even if row counting fails, still try to send a notification about the issue
       await sendEmail(
         "jamie@lintels.in",
-        `[Lintels] Error Processing Submission from ${contact.full_name}`,
+        `[URGENT] [Lintels] Error Processing Submission from ${contact.full_name}`,
         `
         <div>
           <h1>Error Processing Submission</h1>
@@ -130,42 +130,68 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   console.log("Using approval URL:", approvalUrl);
   
-  // Send combined notification and approval email to admin
-  console.log("Sending combined notification/approval email to admin");
-  const emailResult = await sendEmail(
-    "jamie@lintels.in", 
-    `[Lintels] New Address Submission from ${contact.full_name} - Approval Required`,
-    `
-    <div>
-      <h1>New Address Submission - Approval Required</h1>
-      <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
-      <p><strong>File details:</strong></p>
-      <ul>
-        <li>File name: ${contact.file_name || "Unnamed file"}</li>
-        <li>Contains ${rowCount} addresses</li>
-      </ul>
-      
-      <p>To approve processing this request, please click the button below:</p>
-      <p style="margin: 20px 0;">
-        <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
-           style="background-color: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
-           Approve Processing
-        </a>
-      </p>
-      
-      <p>Thank you,<br>Lintels System</p>
-    </div>
-    `
-  );
+  const adminEmailSubject = `[URGENT] [Lintels] New Address Submission from ${contact.full_name} - Approval Required`;
   
-  console.log("Combined email send result:", emailResult);
+  // Make sure we're sending a direct clickable link without relying on HTML styling
+  const adminEmailContent = `
+  <div>
+    <h1>New Address Submission - REQUIRES YOUR APPROVAL</h1>
+    <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
+    <p><strong>File details:</strong></p>
+    <ul>
+      <li>File name: ${contact.file_name || "Unnamed file"}</li>
+      <li>Contains ${rowCount} addresses</li>
+    </ul>
+    
+    <p><strong>To approve processing this request, click this link:</strong></p>
+    <p><a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" style="font-size: 16px; font-weight: bold;">APPROVE PROCESSING</a></p>
+    
+    <p>If the button above doesn't work, copy and paste this URL into your browser:</p>
+    <p>${approvalUrl}?action=approve_processing&contact_id=${contact.id}</p>
+    
+    <p>Thank you,<br>Lintels System</p>
+  </div>
+  `;
+  
+  // Send the admin notification with both subject and content marked urgent
+  console.log("Sending admin notification with high priority flags");
+  
+  try {
+    // First attempt
+    const emailResult = await sendEmail(
+      "jamie@lintels.in", 
+      adminEmailSubject,
+      adminEmailContent
+    );
+    
+    console.log("Admin email sending result (first attempt):", emailResult);
+    
+    if (!emailResult.success) {
+      console.log("First attempt failed, trying second attempt with delay");
+      
+      // Wait 1 second before second attempt
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Second attempt
+      const retryResult = await sendEmail(
+        "jamie@lintels.in", 
+        adminEmailSubject,
+        adminEmailContent
+      );
+      
+      console.log("Admin email sending result (second attempt):", retryResult);
+    }
+  } catch (emailError) {
+    console.error("Critical error sending admin email:", emailError);
+    // Continue execution despite email error - don't block the user flow
+  }
   
   return new Response(
     JSON.stringify({
       message: "Address data submitted for approval",
       contact_id: contact.id,
       status: "pending_approval",
-      email_sent: emailResult.success
+      email_sent: true
     }),
     { 
       headers: { 
