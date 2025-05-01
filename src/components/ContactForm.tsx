@@ -17,6 +17,7 @@ import { Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
@@ -77,6 +78,7 @@ interface ContactFormProps {
 
 export function ContactForm({ formType = "sample" }: ContactFormProps) {
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const currentSchema = formType === "beta" ? betaFormSchema : formSchema;
 
@@ -93,7 +95,50 @@ export function ContactForm({ formType = "sample" }: ContactFormProps) {
 
   async function onSubmit(values: z.infer<typeof currentSchema>) {
     try {
-      let subject, body, successMessage;
+      setIsSubmitting(true);
+
+      // Prepare data for Supabase
+      const contactData: any = {
+        full_name: values.fullName,
+        position: values.position,
+        company: values.company,
+        email: values.email,
+        phone: values.phone,
+        form_type: formType,
+      };
+
+      // Handle file data for sample form type
+      if (formType === "sample" && values.addressFile && values.addressFile[0]) {
+        const file = values.addressFile[0];
+        contactData.file_name = file.name;
+        contactData.file_type = file.type;
+        
+        // Convert file to base64 for storage
+        const reader = new FileReader();
+        const fileBase64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64String = reader.result as string;
+            resolve(base64String);
+          };
+          reader.readAsDataURL(file);
+        });
+        
+        // Store the base64 data without the prefix
+        contactData.file_data = fileBase64.split(',')[1];
+      }
+
+      // Insert into Supabase
+      const { error } = await supabase
+        .from('contacts')
+        .insert([contactData]);
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw new Error(error.message);
+      }
+
+      // Also send an email notification
+      let subject, body;
 
       if (formType === "beta") {
         subject = encodeURIComponent(`Beta access request from ${values.company}`);
@@ -106,7 +151,6 @@ Phone: ${values.phone}
 
 This user is requesting beta access to the platform.
         `);
-        successMessage = "Thank you! We've received your application for beta access. We'll review it and get back to you shortly.";
       } else {
         const files = values.addressFile as FileList;
         if (files && files[0]) {
@@ -128,18 +172,25 @@ Phone: ${values.phone}
 
 A CSV file with addresses has been attached to this email.
         `);
-        successMessage = "Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.";
       }
       
       window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
       
+      let successMessage = formType === "beta" 
+        ? "Thank you! We've received your application for beta access. We'll review it and get back to you shortly."
+        : "Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.";
+      
       toast.success(successMessage, {
         duration: 6000
       });
+      
       setOpen(false);
       form.reset();
     } catch (error) {
+      console.error("Form submission error:", error);
       toast.error("Sorry that didn't work. Please try again or email support@lintels.in");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -273,8 +324,8 @@ A CSV file with addresses has been attached to this email.
                 />
               )}
               
-              <Button type="submit" className="w-full">
-                {formType === "beta" ? "Apply for Beta Access" : "Submit Request"}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : (formType === "beta" ? "Apply for Beta Access" : "Submit Request")}
               </Button>
             </form>
           </Form>
