@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -96,6 +95,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         email: values.email,
         phone: values.phone,
         form_type: formType,
+        status: "new", // New status for pending approval
       };
 
       // Handle file data
@@ -142,42 +142,6 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       // Store the submission ID for potential follow-up
       if (data && data[0]) {
         setSubmissionId(data[0].id);
-        
-        // Trigger background processing if insertion was successful
-        try {
-          // Always include jamie@lintels.in in email recipients
-          const emails = [values.email, 'jamie@lintels.in'];
-          console.log(`Sending report to emails: ${emails.join(', ')}`);
-          
-          // This will trigger the processing edge function with specified emails
-          console.log("Invoking process-addresses function");
-          const processingResponse = await supabase.functions.invoke('process-addresses', {
-            body: {
-              fileId: data[0].file_name,
-              contactId: data[0].id,
-              emails: emails // Always include both the user's email and jamie@lintels.in
-            }
-          });
-          
-          console.log("Processing function response:", processingResponse);
-          
-          // Check if processing was successful
-          if (processingResponse.error) {
-            console.error("Processing error:", processingResponse.error);
-            toast.error("We encountered an issue processing your addresses. Our team has been notified and will handle your request manually.", {
-              duration: 6000
-            });
-          } else {
-            toast.success("Thank you for your submission! We're processing your addresses and will send a detailed report within 48 hours.", {
-              duration: 6000
-            });
-          }
-        } catch (processingError) {
-          console.error("Error starting processing:", processingError);
-          toast.error("We encountered an issue starting the processing. Our team has been notified and will follow up with you directly.", {
-            duration: 6000
-          });
-        }
       }
       
       if (onOpenChange) {
@@ -185,6 +149,11 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       }
       setOpen(false);
       form.reset();
+      
+      toast.success(
+        "Thank you for your submission! Our team will review your request and process your addresses shortly. You'll receive the report via email once it's ready.", 
+        { duration: 6000 }
+      );
     } catch (error) {
       console.error("Form submission error:", error);
       toast.error("Sorry, something went wrong. Please try again or contact support@lintels.in");

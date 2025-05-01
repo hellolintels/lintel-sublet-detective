@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,11 +8,168 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+
+// Define the contact request type
+interface ContactRequest {
+  id: string;
+  full_name: string;
+  company: string;
+  email: string;
+  created_at: string;
+  status: string;
+  file_name: string;
+}
+
+// Define the report type
+interface Report {
+  id: string;
+  contact_id: string;
+  properties_count: number;
+  matches_count: number;
+  created_at: string;
+  status: string;
+}
 
 const AdminDashboard = () => {
   const { logout, user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<ContactRequest[]>([]);
+  const [processedReports, setProcessedReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load all contact requests when the dashboard loads
+  useEffect(() => {
+    fetchPendingRequests();
+    fetchProcessedReports();
+  }, []);
+
+  const fetchPendingRequests = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setPendingRequests(data || []);
+    } catch (error) {
+      console.error("Error fetching contact requests:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch contact requests",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchProcessedReports = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setProcessedReports(data || []);
+    } catch (error) {
+      console.error("Error fetching processed reports:", error);
+    }
+  };
+
+  const handleApproveRequest = async (contactId: string) => {
+    try {
+      // Update the contact status to "approved"
+      const { error: updateError } = await supabase
+        .from('contacts')
+        .update({ status: 'approved' })
+        .eq('id', contactId);
+        
+      if (updateError) throw updateError;
+      
+      // Call the process-addresses function with the contact ID
+      const { error: functionError } = await supabase.functions.invoke('process-addresses', {
+        body: {
+          contactId: contactId,
+          emails: ['jamie@lintels.in'] // Admin email
+        }
+      });
+      
+      if (functionError) throw functionError;
+      
+      toast({
+        title: "Request approved",
+        description: "The request has been approved and processing has started",
+      });
+      
+      // Refresh the requests list
+      fetchPendingRequests();
+    } catch (error) {
+      console.error("Error approving request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to approve request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReviewResults = async (reportId: string, contactId: string) => {
+    try {
+      // Update the report status to "reviewed"
+      const { error: updateError } = await supabase
+        .from('reports')
+        .update({ status: 'reviewed' })
+        .eq('id', reportId);
+        
+      if (updateError) throw updateError;
+      
+      // Get the contact email
+      const { data: contactData, error: contactError } = await supabase
+        .from('contacts')
+        .select('email')
+        .eq('id', contactId)
+        .single();
+        
+      if (contactError) throw contactError;
+      
+      if (contactData) {
+        // Call the process-addresses function to send the email with results
+        const { error: functionError } = await supabase.functions.invoke('process-addresses', {
+          body: {
+            contactId: contactId,
+            reportId: reportId,
+            action: 'send_results',
+            emails: [contactData.email, 'jamie@lintels.in'] // Include both client and admin
+          }
+        });
+        
+        if (functionError) throw functionError;
+      }
+      
+      toast({
+        title: "Results sent",
+        description: "The results have been sent to the client",
+      });
+      
+      // Refresh the reports list
+      fetchProcessedReports();
+    } catch (error) {
+      console.error("Error sending results:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send results",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -67,6 +224,21 @@ const AdminDashboard = () => {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'new':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">New</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Processing</Badge>;
+      case 'processed':
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Processed</Badge>;
+      case 'reviewed':
+        return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">Reviewed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
@@ -84,6 +256,110 @@ const AdminDashboard = () => {
           >
             Logout
           </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-6 mb-8">
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-white">Pending Approval Requests</CardTitle>
+              <CardDescription className="text-gray-400">
+                Review and approve incoming address list requests
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4 text-gray-400">Loading requests...</div>
+              ) : pendingRequests.length === 0 ? (
+                <div className="text-center py-4 text-gray-400">No pending requests</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Company</TableHead>
+                        <TableHead>File</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingRequests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>{request.full_name}</TableCell>
+                          <TableCell>{request.company}</TableCell>
+                          <TableCell>{request.file_name}</TableCell>
+                          <TableCell>{getStatusBadge(request.status)}</TableCell>
+                          <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {request.status === 'new' && (
+                              <Button 
+                                size="sm"
+                                className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]"
+                                onClick={() => handleApproveRequest(request.id)}
+                              >
+                                Approve
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-white">Processed Reports</CardTitle>
+              <CardDescription className="text-gray-400">
+                Review reports and send them to clients
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {processedReports.length === 0 ? (
+                <div className="text-center py-4 text-gray-400">No processed reports yet</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Properties</TableHead>
+                        <TableHead>Matches</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {processedReports.map((report) => (
+                        <TableRow key={report.id}>
+                          <TableCell>{report.properties_count}</TableCell>
+                          <TableCell>{report.matches_count}</TableCell>
+                          <TableCell>{getStatusBadge(report.status)}</TableCell>
+                          <TableCell>{new Date(report.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {report.status === 'processed' && (
+                              <Button 
+                                size="sm"
+                                className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]"
+                                onClick={() => handleReviewResults(report.id, report.contact_id)}
+                              >
+                                Review & Send
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -112,21 +388,6 @@ const AdminDashboard = () => {
                   {uploading ? "Uploading..." : "Upload Address List"}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader>
-              <CardTitle className="text-white">Download Reports</CardTitle>
-              <CardDescription className="text-gray-400">Access processed address lists</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-400 mb-4">
-                Download processed reports before sending them to clients.
-              </p>
-              <Button className="w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]">
-                View Available Reports
-              </Button>
             </CardContent>
           </Card>
         </div>
