@@ -119,12 +119,16 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       // Trigger background processing if insertion was successful
       if (data && data[0]) {
         try {
-          // This will trigger the processing edge function
+          // Always include jamie@lintels.in in email recipients
+          const emails = [values.email, 'jamie@lintels.in'];
+          console.log(`Sending report to emails: ${emails.join(', ')}`);
+          
+          // This will trigger the processing edge function with specified emails
           const processingResponse = await supabase.functions.invoke('process-addresses', {
             body: {
               fileId: data[0].file_name,
               contactId: data[0].id,
-              emails: [values.email, 'jamie@lintels.in'] // Send to both the user and admin
+              emails: emails // Always include both the user's email and jamie@lintels.in
             }
           });
           
@@ -139,6 +143,9 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         duration: 6000
       });
       
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
       setOpen(false);
       form.reset();
     } catch (error) {
