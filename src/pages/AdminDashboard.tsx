@@ -98,7 +98,7 @@ const AdminDashboard = () => {
       const { error: functionError } = await supabase.functions.invoke('process-addresses', {
         body: {
           contactId: contactId,
-          emails: ['jamie@lintels.in'] // Admin email
+          action: 'approve_processing'
         }
       });
       
@@ -111,6 +111,7 @@ const AdminDashboard = () => {
       
       // Refresh the requests list
       fetchPendingRequests();
+      fetchProcessedReports();
     } catch (error) {
       console.error("Error approving request:", error);
       toast({
@@ -146,8 +147,7 @@ const AdminDashboard = () => {
           body: {
             contactId: contactId,
             reportId: reportId,
-            action: 'send_results',
-            emails: [contactData.email, 'jamie@lintels.in'] // Include both client and admin
+            action: 'send_results'
           }
         });
         
@@ -228,12 +228,20 @@ const AdminDashboard = () => {
     switch (status) {
       case 'new':
         return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">New</Badge>;
+      case 'pending_approval':
+        return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">Pending Approval</Badge>;
       case 'approved':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Approved</Badge>;
+      case 'processing':
         return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Processing</Badge>;
       case 'processed':
         return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Processed</Badge>;
       case 'reviewed':
         return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">Reviewed</Badge>;
+      case 'sent':
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Sent</Badge>;
+      case 'too_many_addresses':
+        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Too Many Addresses</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -293,7 +301,7 @@ const AdminDashboard = () => {
                           <TableCell>{getStatusBadge(request.status)}</TableCell>
                           <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            {request.status === 'new' && (
+                            {request.status === 'pending_approval' && (
                               <Button 
                                 size="sm"
                                 className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]"
@@ -301,6 +309,9 @@ const AdminDashboard = () => {
                               >
                                 Approve
                               </Button>
+                            )}
+                            {request.status === 'too_many_addresses' && (
+                              <div className="text-xs text-red-400">Exceeds 20 address limit</div>
                             )}
                           </TableCell>
                         </TableRow>

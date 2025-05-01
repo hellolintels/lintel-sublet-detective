@@ -159,7 +159,10 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         // Trigger the edge function to process the addresses
         try {
           const { error: functionError } = await supabase.functions.invoke("process-addresses", {
-            body: { contactId: data[0].id }
+            body: { 
+              contactId: data[0].id,
+              action: "initial_process"
+            }
           });
           
           if (functionError) {
