@@ -126,44 +126,39 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
   
   console.log(`Updated contact status to 'pending_approval'`);
   
-  // Send new submission notification email to admin
-  console.log("Sending new submission notification to admin");
-  const adminNotificationResult = await sendEmail(
-    "jamie@lintels.in", 
-    `[Lintels] New Address File Submitted by ${contact.full_name}`,
-    `
-    <div>
-      <h1>New Address File Submitted</h1>
-      <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
-      <p>File name: ${contact.file_name || "Unnamed file"}</p>
-      <p>File contains ${rowCount} addresses.</p>
-    </div>
-    `
-  );
-  
-  console.log("Admin notification email result:", adminNotificationResult);
-  
-  // Send approval request email with direct link
+  // Create approval URL for the link
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
-  
-  console.log("Sending approval email to jamie@lintels.in");
   console.log("Using approval URL:", approvalUrl);
   
+  // Send combined notification and approval email to admin
+  console.log("Sending combined notification/approval email to admin");
   const emailResult = await sendEmail(
     "jamie@lintels.in", 
-    `[Lintels] New Address Request from ${contact.full_name}`,
+    `[Lintels] New Address Submission from ${contact.full_name} - Approval Required`,
     `
     <div>
-      <h1>New Address Processing Request</h1>
-      <p>A new submission has been received from ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
-      <p>The file contains ${rowCount} addresses that need to be processed.</p>
-      <p>To approve this request, please click the link below:</p>
-      <p><a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}">Approve Processing</a></p>
+      <h1>New Address Submission - Approval Required</h1>
+      <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
+      <p><strong>File details:</strong></p>
+      <ul>
+        <li>File name: ${contact.file_name || "Unnamed file"}</li>
+        <li>Contains ${rowCount} addresses</li>
+      </ul>
+      
+      <p>To approve processing this request, please click the button below:</p>
+      <p style="margin: 20px 0;">
+        <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
+           style="background-color: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
+           Approve Processing
+        </a>
+      </p>
+      
+      <p>Thank you,<br>Lintels System</p>
     </div>
     `
   );
   
-  console.log("Email send result:", emailResult);
+  console.log("Combined email send result:", emailResult);
   
   return new Response(
     JSON.stringify({
