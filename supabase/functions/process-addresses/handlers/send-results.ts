@@ -15,6 +15,8 @@ export async function handleSendResults(
   contact: any,
   reportId: string | undefined
 ) {
+  console.log(`Starting send results for contact: ${contact.id}, report: ${reportId}`);
+  
   if (!reportId) {
     throw new Error("Report ID is required for sending results");
   }
@@ -48,41 +50,65 @@ export async function handleSendResults(
     throw updateError;
   }
   
+  console.log("Updated report status to 'sent'");
+  
   // Send email with report link to client
-  await sendEmail(
+  const clientEmailResult = await sendEmail(
     contact.email, 
     "Your Lintels Sample Report is Ready",
     `
-    <div>
-      <h1>Your Sample Report is Ready</h1>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
+      <h1 style="color: #2196F3; text-align: center;">Your Sample Report is Ready</h1>
+      
       <p>Hello ${contact.full_name},</p>
+      
       <p>Thank you for submitting your addresses to Lintels. We have analyzed your property data and found:</p>
-      <ul>
-        <li>${report.properties_count} properties analyzed</li>
-        <li>${report.matches_count} potential short-term rental matches found</li>
-      </ul>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <ul>
+          <li><strong>${report.properties_count}</strong> properties analyzed</li>
+          <li><strong>${report.matches_count}</strong> potential short-term rental matches found</li>
+        </ul>
+      </div>
+      
       <p>This sample report demonstrates the capabilities of our full service.</p>
+      
       <p>For the full report and detailed analysis of all your properties, please contact us at <a href="mailto:info@lintels.in">info@lintels.in</a>.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://lintels.in/contact" 
+           style="background-color: #2196F3; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+          Get Full Analysis
+        </a>
+      </div>
     </div>
     `
   );
   
+  console.log("Client email result:", clientEmailResult);
+  
   // Send confirmation to admin
-  await sendEmail(
+  const adminEmailResult = await sendEmail(
     "jamie@lintels.in", 
     `[Lintels] Report Sent to ${contact.full_name}`,
     `
-    <div>
-      <h1>Report Sent Successfully</h1>
-      <p>The sample report for ${contact.full_name} (${contact.email}) has been sent.</p>
-      <p>Report details:</p>
-      <ul>
-        <li>Properties analyzed: ${report.properties_count}</li>
-        <li>Matches found: ${report.matches_count}</li>
-      </ul>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
+      <h1 style="color: #2196F3; text-align: center;">Report Sent Successfully</h1>
+      
+      <p>The sample report for <strong>${contact.full_name}</strong> (${contact.email}) has been sent.</p>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="margin-top: 0;">Report details:</h3>
+        <ul>
+          <li>Properties analyzed: ${report.properties_count}</li>
+          <li>Matches found: ${report.matches_count}</li>
+        </ul>
+      </div>
     </div>
     `
   );
+  
+  console.log("Admin confirmation email result:", adminEmailResult);
   
   return new Response(
     JSON.stringify({

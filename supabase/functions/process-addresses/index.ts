@@ -13,6 +13,27 @@ serve(async (req) => {
   }
   
   try {
+    // Extract the request parameters - handle both JSON body and URL parameters
+    let contactId, action = "initial_process", reportId;
+    
+    // Check if this is a GET request (direct link from email)
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      contactId = url.searchParams.get("contact_id");
+      action = url.searchParams.get("action") || "initial_process";
+      reportId = url.searchParams.get("report_id");
+      
+      console.log("Processing GET request with params:", { contactId, action, reportId });
+    } else {
+      // Handle POST request with JSON body
+      const requestData = await req.json();
+      contactId = requestData.contactId;
+      action = requestData.action || "initial_process";
+      reportId = requestData.reportId;
+      
+      console.log("Processing POST request with data:", requestData);
+    }
+    
     // Create a Supabase client with the service role key
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -23,10 +44,6 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log("Created Supabase client with service role");
-    
-    // Parse the request body
-    const requestData = await req.json();
-    const { contactId, action = "initial_process", reportId } = requestData;
     
     if (!contactId) {
       throw new Error("Contact ID is required");

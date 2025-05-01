@@ -126,38 +126,52 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
   
   console.log(`Updated contact status to 'pending_approval'`);
   
-  // Create approval URL for the link
+  // Create approval URL for the link - use the full URL to ensure proper linking
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   console.log("Using approval URL:", approvalUrl);
   
   const adminEmailSubject = `[URGENT] [Lintels] New Address Submission from ${contact.full_name} - Approval Required`;
   
-  // Make sure we're sending a direct clickable link without relying on HTML styling
+  // Create a clear and highly visible admin notification
   const adminEmailContent = `
-  <div>
-    <h1>New Address Submission - REQUIRES YOUR APPROVAL</h1>
-    <p>A new address file has been submitted by ${contact.full_name} (${contact.email}) at ${contact.company}.</p>
-    <p><strong>File details:</strong></p>
-    <ul>
-      <li>File name: ${contact.file_name || "Unnamed file"}</li>
-      <li>Contains ${rowCount} addresses</li>
-    </ul>
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #FF5722; border-radius: 5px;">
+    <h1 style="color: #FF5722; text-align: center;">⚠️ URGENT ACTION REQUIRED ⚠️</h1>
+    <h2 style="color: #333;">New Address Submission Needs Approval</h2>
     
-    <p><strong>To approve processing this request, click this link:</strong></p>
-    <p><a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" style="font-size: 16px; font-weight: bold;">APPROVE PROCESSING</a></p>
+    <p style="font-size: 16px;">A new address file has been submitted by <strong>${contact.full_name}</strong> (${contact.email}) at ${contact.company}.</p>
+    
+    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+      <h3 style="margin-top: 0;">File Details:</h3>
+      <ul>
+        <li>File name: ${contact.file_name || "Unnamed file"}</li>
+        <li>Contains ${rowCount} addresses</li>
+      </ul>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
+         style="background-color: #FF5722; color: white; padding: 15px 25px; text-decoration: none; font-weight: bold; font-size: 18px; border-radius: 5px; display: inline-block;">
+        APPROVE PROCESSING
+      </a>
+    </div>
     
     <p>If the button above doesn't work, copy and paste this URL into your browser:</p>
-    <p>${approvalUrl}?action=approve_processing&contact_id=${contact.id}</p>
+    <p style="background-color: #f5f5f5; padding: 10px; word-break: break-all; font-family: monospace;">
+      ${approvalUrl}?action=approve_processing&contact_id=${contact.id}
+    </p>
     
-    <p>Thank you,<br>Lintels System</p>
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;" />
+    
+    <p style="color: #777; font-size: 14px;">
+      This is an automated message from the Lintels system. Please do not reply to this email.
+    </p>
   </div>
   `;
   
-  // Send the admin notification with both subject and content marked urgent
-  console.log("Sending admin notification with high priority flags");
+  console.log("Sending URGENT admin notification email");
   
   try {
-    // First attempt
+    // First attempt to send admin email
     const emailResult = await sendEmail(
       "jamie@lintels.in", 
       adminEmailSubject,
@@ -172,14 +186,37 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
       // Wait 1 second before second attempt
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Second attempt
+      // Second attempt with backup method
       const retryResult = await sendEmail(
         "jamie@lintels.in", 
-        adminEmailSubject,
+        adminEmailSubject + " [RETRY]",
         adminEmailContent
       );
       
       console.log("Admin email sending result (second attempt):", retryResult);
+      
+      // If still failing, try a third attempt with minimal formatting
+      if (!retryResult.success) {
+        console.log("Second attempt failed, trying third attempt with minimal formatting");
+        
+        const fallbackContent = `
+        URGENT: New address submission from ${contact.full_name} (${contact.email})
+        
+        File: ${contact.file_name || "Unnamed file"}
+        Addresses: ${rowCount}
+        
+        To approve processing, visit:
+        ${approvalUrl}?action=approve_processing&contact_id=${contact.id}
+        `;
+        
+        const fallbackResult = await sendEmail(
+          "jamie@lintels.in",
+          "CRITICAL: ADDRESS SUBMISSION REQUIRES APPROVAL",
+          fallbackContent
+        );
+        
+        console.log("Admin email sending result (third attempt):", fallbackResult);
+      }
     }
   } catch (emailError) {
     console.error("Critical error sending admin email:", emailError);

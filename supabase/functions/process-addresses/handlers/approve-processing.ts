@@ -17,6 +17,8 @@ export async function handleApproveProcessing(
   reportId: string | undefined,
   supabaseUrl: string
 ) {
+  console.log(`Starting approve processing for contact: ${contact.id}`);
+  
   // Update contact status to processing
   const { error: updateError } = await supabase
     .from("contacts")
@@ -60,26 +62,65 @@ export async function handleApproveProcessing(
     .update({ status: "processed" })
     .eq("id", contact.id);
   
-  // Send notification that processing is complete to jamie@lintels.in
+  // Create a direct link to send results
   const viewReportUrl = `${supabaseUrl}/functions/v1/process-addresses?action=send_results&contact_id=${contact.id}&report_id=${newReportId}`;
   
-  await sendEmail(
+  // Send notification that processing is complete
+  const emailResult = await sendEmail(
     "jamie@lintels.in", 
     `[Lintels] Address Processing Complete for ${contact.full_name}`,
     `
-    <div>
-      <h1>Address Processing Complete</h1>
-      <p>The address processing for ${contact.full_name} (${contact.email}) is now complete.</p>
-      <p>Report details:</p>
-      <ul>
-        <li>Properties analyzed: ${reportData.properties_count}</li>
-        <li>Matches found: ${reportData.matches_count}</li>
-      </ul>
-      <p>To send this report to the client, please click the link below:</p>
-      <p><a href="${viewReportUrl}">Send Report to Client</a></p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #4CAF50; border-radius: 5px;">
+      <h1 style="color: #4CAF50; text-align: center;">Address Processing Complete</h1>
+      
+      <p style="font-size: 16px;">The address processing for <strong>${contact.full_name}</strong> (${contact.email}) is now complete.</p>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="margin-top: 0;">Report Details:</h3>
+        <ul>
+          <li>Properties analyzed: ${reportData.properties_count}</li>
+          <li>Matches found: ${reportData.matches_count}</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${viewReportUrl}" 
+           style="background-color: #4CAF50; color: white; padding: 15px 25px; text-decoration: none; font-weight: bold; font-size: 18px; border-radius: 5px; display: inline-block;">
+          Send Report to Client
+        </a>
+      </div>
+      
+      <p>If the button above doesn't work, copy and paste this URL into your browser:</p>
+      <p style="background-color: #f5f5f5; padding: 10px; word-break: break-all; font-family: monospace;">
+        ${viewReportUrl}
+      </p>
     </div>
     `
   );
+  
+  console.log("Notification email result:", emailResult);
+  
+  // If the email failed, try a second attempt with simpler formatting
+  if (!emailResult.success) {
+    console.log("First email attempt failed, trying with simpler format");
+    
+    const fallbackResult = await sendEmail(
+      "jamie@lintels.in", 
+      `[Lintels] Processing Complete - ${contact.full_name}`,
+      `
+      Address processing complete for ${contact.full_name} (${contact.email}).
+      
+      Report details:
+      - Properties: ${reportData.properties_count}
+      - Matches: ${reportData.matches_count}
+      
+      To send the report to the client, visit:
+      ${viewReportUrl}
+      `
+    );
+    
+    console.log("Fallback email result:", fallbackResult);
+  }
   
   return new Response(
     JSON.stringify({
