@@ -28,6 +28,13 @@ const Hero = () => {
             >
               Request a Sample Report
             </Button>
+            <Button
+              size="lg"
+              className="w-full sm:w-auto bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-6 sm:px-8 py-6 text-base sm:text-lg rounded-full font-medium transition-colors duration-200 min-h-[3.5rem]"
+              onClick={scrollToContact}
+            >
+              Apply for Beta Access
+            </Button>
           </div>
         </div>
       </div>

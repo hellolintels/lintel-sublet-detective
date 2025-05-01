@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -49,11 +50,38 @@ const formSchema = z.object({
     ),
 });
 
-export function ContactForm() {
-  const [open, setOpen] = useState(false);
+const betaFormSchema = z.object({
+  fullName: z.string()
+    .min(2, { message: "Full name must be at least 2 characters" })
+    .regex(/^[a-zA-Z\s-']+$/, { message: "Name can only contain letters, spaces, hyphens and apostrophes" }),
+  position: z.string()
+    .min(2, { message: "Position must be at least 2 characters" })
+    .regex(/^[a-zA-Z\s-']+$/, { message: "Position can only contain letters, spaces and hyphens" }),
+  company: z.string()
+    .min(2, { message: "Company name must be at least 2 characters" })
+    .regex(/^[\w\s-'&.]+$/, { message: "Company name contains invalid characters" }),
+  email: z.string()
+    .min(1, { message: "Email is required" })
+    .email({ message: "Please enter a valid email address" }),
+  phone: z.string()
+    .min(10, { message: "Phone number must be at least 10 digits" })
+    .regex(/^[0-9+\s()-]+$/, { message: "Please enter a valid phone number" }),
+  addressFile: z
+    .instanceof(FileList)
+    .optional(),
+});
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+interface ContactFormProps {
+  formType?: "sample" | "beta";
+}
+
+export function ContactForm({ formType = "sample" }: ContactFormProps) {
+  const [open, setOpen] = useState(false);
+  
+  const currentSchema = formType === "beta" ? betaFormSchema : formSchema;
+
+  const form = useForm<z.infer<typeof currentSchema>>({
+    resolver: zodResolver(currentSchema),
     defaultValues: {
       fullName: "",
       position: "",
@@ -63,12 +91,35 @@ export function ContactForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof currentSchema>) {
     try {
-      const files = values.addressFile as FileList;
-      if (files && files[0]) {
-        const subject = encodeURIComponent(`Sample request from ${values.company}`);
-        const body = encodeURIComponent(`
+      let subject, body, successMessage;
+
+      if (formType === "beta") {
+        subject = encodeURIComponent(`Beta access request from ${values.company}`);
+        body = encodeURIComponent(`
+Name: ${values.fullName}
+Position: ${values.position}
+Company: ${values.company}
+Email: ${values.email}
+Phone: ${values.phone}
+
+This user is requesting beta access to the platform.
+        `);
+        successMessage = "Thank you! We've received your application for beta access. We'll review it and get back to you shortly.";
+      } else {
+        const files = values.addressFile as FileList;
+        if (files && files[0]) {
+          const fileURL = URL.createObjectURL(files[0]);
+          const tempLink = document.createElement('a');
+          tempLink.href = fileURL;
+          tempLink.download = 'addresses.csv';
+          tempLink.click();
+          URL.revokeObjectURL(fileURL);
+        }
+
+        subject = encodeURIComponent(`Sample request from ${values.company}`);
+        body = encodeURIComponent(`
 Name: ${values.fullName}
 Position: ${values.position}
 Company: ${values.company}
@@ -77,33 +128,24 @@ Phone: ${values.phone}
 
 A CSV file with addresses has been attached to this email.
         `);
-        
-        const fileURL = URL.createObjectURL(files[0]);
-        const tempLink = document.createElement('a');
-        tempLink.href = fileURL;
-        tempLink.download = 'addresses.csv';
-        
-        tempLink.click();
-        URL.revokeObjectURL(fileURL);
-
-        window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
-        
-        toast.success("Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.", {
-          duration: 6000
-        });
-        setOpen(false);
-        form.reset();
-      } else {
-        throw new Error("No file selected");
+        successMessage = "Thank you! We've received your submission and will send your sample report within 48 hours. Please check your email for confirmation.";
       }
+      
+      window.location.href = `mailto:jamie@lintels.in?subject=${subject}&body=${body}`;
+      
+      toast.success(successMessage, {
+        duration: 6000
+      });
+      setOpen(false);
+      form.reset();
     } catch (error) {
-      toast.error("Sorry that didn't work. Please try again or email support@lintels.in attaching the sample CSV");
+      toast.error("Sorry that didn't work. Please try again or email support@lintels.in");
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <div className="flex flex-col gap-4 w-full items-center">
+  const renderForm = () => {
+    if (formType === "sample") {
+      return (
         <Button
           size="lg"
           className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
@@ -111,115 +153,133 @@ A CSV file with addresses has been attached to this email.
         >
           Request a Sample Report
         </Button>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <Dialog open={formType === "sample" ? open : true} onOpenChange={formType === "sample" ? setOpen : undefined}>
+      <div className="flex flex-col gap-4 w-full items-center">
+        {formType === "sample" && renderForm()}
       </div>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+      {(open || formType === "beta") && (
+        <DialogContent className="sm:max-w-[500px]">
+          {formType === "sample" && (
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
+            </DialogHeader>
+          )}
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Position</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Property Manager" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Company Name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="john@company.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="07XXX XXXXXX" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {formType === "sample" && (
+                <FormField
+                  control={form.control}
+                  name="addressFile"
+                  render={({ field: { onChange, value, ...field } }) => (
+                    <FormItem>
+                      <FormLabel>Upload Addresses</FormLabel>
+                      <FormControl>
+                        <div className="relative w-full">
+                          <Input
+                            type="file"
+                            accept=".csv,.xls,.xlsx"
+                            onChange={(e) => onChange(e.target.files)}
+                            {...field}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          />
+                          <div className="flex items-center justify-center w-full border-2 border-dashed border-primary/50 rounded-lg p-4 hover:bg-primary/5 transition-colors">
+                            <Upload className="mr-2 text-primary" />
+                            <span className="text-sm text-muted-foreground">
+                              Upload addresses (CSV or Excel)
+                            </span>
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormDescription className="text-center mt-1">
+                        CSV or Excel file with street addresses and postcodes
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
-            <FormField
-              control={form.control}
-              name="position"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Position</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Property Manager" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="company"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Company Name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="john@company.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="07XXX XXXXXX" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="addressFile"
-              render={({ field: { onChange, value, ...field } }) => (
-                <FormItem>
-                  <FormLabel>Upload Addresses</FormLabel>
-                  <FormControl>
-                    <div className="relative w-full">
-                      <Input
-                        type="file"
-                        accept=".csv,.xls,.xlsx"
-                        onChange={(e) => onChange(e.target.files)}
-                        {...field}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      <div className="flex items-center justify-center w-full border-2 border-dashed border-primary/50 rounded-lg p-4 hover:bg-primary/5 transition-colors">
-                        <Upload className="mr-2 text-primary" />
-                        <span className="text-sm text-muted-foreground">
-                          Upload addresses (CSV or Excel)
-                        </span>
-                      </div>
-                    </div>
-                  </FormControl>
-                  <FormDescription className="text-center mt-1">
-                    CSV or Excel file with street addresses and postcodes
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <Button type="submit" className="w-full">Submit Request</Button>
-          </form>
-        </Form>
-      </DialogContent>
+              
+              <Button type="submit" className="w-full">
+                {formType === "beta" ? "Apply for Beta Access" : "Submit Request"}
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

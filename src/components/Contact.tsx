@@ -1,13 +1,8 @@
 
-import { Button } from "./ui/button";
-import { Mail } from "lucide-react";
 import { ContactForm } from "./ContactForm";
+import ApplyForBeta from "./ApplyForBeta";
 
 const Contact = () => {
-  const handleEmailClick = () => {
-    window.location.href = "mailto:jamie@lintels.in";
-  };
-
   return (
     <div className="w-full py-12 sm:py-16 md:py-24 bg-black px-4 sm:px-6" id="contact-section">
       <div className="container mx-auto flex flex-col items-center text-center">
@@ -22,6 +17,20 @@ const Contact = () => {
           </p>
           <div className="flex flex-col gap-4 w-full items-center">
             <ContactForm />
+          </div>
+        </div>
+        
+        <div className="font-sans w-full max-w-xl flex flex-col items-center rounded-2xl bg-gradient-to-r from-[#6D28D9]/30 via-[#8B5CF6]/30 to-[#A78BFA]/40 border border-[#8B5CF6] p-4 sm:p-6 md:p-8 shadow-lg animate-fade-in">
+          <div className="flex items-center text-[#8B5CF6] mb-2">
+            <span className="text-base sm:text-lg md:text-xl font-semibold tracking-tight">
+              Join Our Beta Program
+            </span>
+          </div>
+          <p className="text-sm sm:text-base text-white mb-4 font-normal text-center">
+            Apply for beta access to our full platform and unlock advanced features. Spaces are limited.
+          </p>
+          <div className="flex flex-col gap-4 w-full items-center">
+            <ApplyForBeta />
           </div>
         </div>
       </div>
