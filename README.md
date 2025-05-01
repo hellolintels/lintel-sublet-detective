@@ -1,8 +1,15 @@
+
 # Welcome to your Lovable project
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/e4221dd2-a0c7-4337-a907-b825d2c03645
+
+## Deployment Strategy
+
+This project uses a dual-branch strategy:
+- `test-env`: For development and testing of new features
+- `main`: Production branch, only updated after approval
 
 ## How can I edit this code?
 
