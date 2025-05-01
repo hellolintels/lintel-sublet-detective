@@ -23,9 +23,10 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
       throw new Error("SendGrid API key is not configured");
     }
     
-    // Get the sender email from environment variables or use the default
-    // The sender email MUST be verified in your SendGrid account
-    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "jamie@lintels.in";
+    // IMPORTANT: This email MUST be verified in your SendGrid account
+    // If you want to use a different email, please verify it in SendGrid first
+    // and then set the SENDGRID_FROM_EMAIL environment variable
+    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in";
     console.log(`Using sender email: ${fromEmail}`);
     
     // Prepare the SendGrid request
