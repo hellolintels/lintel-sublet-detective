@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -54,9 +55,10 @@ const contactFormSchema = z.object({
 
 interface ContactFormProps {
   onOpenChange?: (open: boolean) => void;
+  formType?: string;
 }
 
-export function ContactForm({ onOpenChange }: ContactFormProps) {
+export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -68,7 +70,7 @@ export function ContactForm({ onOpenChange }: ContactFormProps) {
       company: "",
       email: "",
       phone: "",
-      applyForBeta: false,
+      applyForBeta: formType === "beta" || false,
     },
   });
 
