@@ -2,6 +2,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { countAddressRows } from "../file-processing.ts";
+import { corsHeaders } from "../constants.ts";
 
 /**
  * Handle initial processing of contact's address file
@@ -58,8 +59,7 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
         }),
         { 
           headers: { 
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+            ...corsHeaders,
             "Content-Type": "application/json" 
           } 
         }
@@ -102,8 +102,7 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
         }),
         { 
           headers: { 
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+            ...corsHeaders,
             "Content-Type": "application/json" 
           } 
         }
@@ -158,8 +157,7 @@ export async function handleInitialProcess(supabase: ReturnType<typeof createCli
     }),
     { 
       headers: { 
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+        ...corsHeaders,
         "Content-Type": "application/json" 
       } 
     }

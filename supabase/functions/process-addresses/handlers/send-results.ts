@@ -1,6 +1,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
+import { corsHeaders } from "../constants.ts";
 
 /**
  * Handle sending results to the contact
@@ -92,8 +93,7 @@ export async function handleSendResults(
     }),
     { 
       headers: { 
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+        ...corsHeaders,
         "Content-Type": "application/json" 
       } 
     }
