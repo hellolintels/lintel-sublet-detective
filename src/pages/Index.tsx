@@ -5,7 +5,7 @@ import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import Onboarding from "@/components/Onboarding";
-import { ContactForm } from "@/components/ContactForm";
+import Contact from "@/components/Contact";
 
 const Index = () => {
   return (
@@ -16,7 +16,7 @@ const Index = () => {
         <Hero />
         <HowItWorks />
         <Onboarding />
-        <ContactForm />
+        <Contact />
         <Features />
         <Footer />
       </div>
