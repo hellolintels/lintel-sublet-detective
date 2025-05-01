@@ -24,7 +24,7 @@ const ApplyForBeta = () => {
           Please provide your details below to apply for beta access to the platform. 
           We'll review your application and get back to you shortly.
         </p>
-        <ContactForm formType="beta" />
+        <ContactForm formType="beta" onOpenChange={setOpen} />
       </DialogContent>
     </Dialog>
   );

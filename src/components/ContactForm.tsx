@@ -74,9 +74,10 @@ const betaFormSchema = z.object({
 
 interface ContactFormProps {
   formType?: "sample" | "beta";
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ContactForm({ formType = "sample" }: ContactFormProps) {
+export function ContactForm({ formType = "sample", onOpenChange }: ContactFormProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -184,7 +185,13 @@ A CSV file with addresses has been attached to this email.
         duration: 6000
       });
       
-      setOpen(false);
+      // Close dialog if it's the beta form
+      if (formType === "beta" && onOpenChange) {
+        onOpenChange(false);
+      } else {
+        setOpen(false);
+      }
+      
       form.reset();
     } catch (error) {
       console.error("Form submission error:", error);
@@ -216,7 +223,7 @@ A CSV file with addresses has been attached to this email.
         {formType === "sample" && renderForm()}
       </div>
       {(open || formType === "beta") && (
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className={formType === "sample" ? "sm:max-w-[500px]" : ""}>
           {formType === "sample" && (
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
