@@ -12,6 +12,14 @@ const Navbar = () => {
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.email === "jamie@lintels.in";
 
+  // Function to scroll to contact section
+  const scrollToContact = () => {
+    const contactSection = document.getElementById('contact-section');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-4 bg-black border-b border-gray-800">
       <div className="container mx-auto">
@@ -58,12 +66,12 @@ const Navbar = () => {
             )}
             
             {!isAuthenticated ? (
-              <Link 
-                to="/login"
+              <button 
+                onClick={scrollToContact}
                 className="rounded-md px-3.5 py-2.5 text-sm font-semibold bg-[hsl(24,97%,40%)] text-white hover:bg-[hsl(24,97%,35%)] transition-colors"
               >
-                Sign In
-              </Link>
+                Contact
+              </button>
             ) : (
               <Link
                 to="/dashboard"
@@ -126,13 +134,15 @@ const Navbar = () => {
             )}
             
             {!isAuthenticated ? (
-              <Link 
-                to="/login"
+              <button 
+                onClick={() => {
+                  setIsOpen(false);
+                  setTimeout(() => scrollToContact(), 100);
+                }}
                 className="rounded-md px-3.5 py-2.5 text-sm font-semibold bg-[hsl(24,97%,40%)] text-white hover:bg-[hsl(24,97%,35%)] text-center"
-                onClick={() => setIsOpen(false)}
               >
-                Sign In
-              </Link>
+                Contact
+              </button>
             ) : (
               <Link
                 to="/dashboard"
