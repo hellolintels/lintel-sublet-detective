@@ -9,6 +9,7 @@ import Logo from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -69,6 +70,10 @@ const Login = () => {
     }
   };
 
+  const handleGoBack = () => {
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
       <Card className="w-full max-w-md bg-black border border-gray-800">
@@ -115,6 +120,15 @@ const Login = () => {
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign in"}
+            </Button>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              className="text-gray-400 hover:text-white flex items-center"
+              onClick={handleGoBack}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Home
             </Button>
           </CardFooter>
         </form>
