@@ -23,9 +23,10 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
       throw new Error("SendGrid API key is not configured");
     }
     
-    // Use a verified sender email address that's registered with your SendGrid account
-    // You MUST verify this domain or email in SendGrid
-    const fromEmail = "jamie@lintels.in"; // Must be a verified sender in your SendGrid account
+    // Get the sender email from environment variables or use the default
+    // The sender email MUST be verified in your SendGrid account
+    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "jamie@lintels.in";
+    console.log(`Using sender email: ${fromEmail}`);
     
     // Prepare the SendGrid request
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
