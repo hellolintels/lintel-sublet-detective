@@ -107,19 +107,8 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         console.log("Processing file:", file.name, "size:", file.size, "type:", contactData.file_type);
         
         // Convert file to base64 for storage
-        const reader = new FileReader();
         try {
-          const fileBase64 = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => {
-              const base64String = reader.result as string;
-              resolve(base64String);
-            };
-            reader.onerror = () => {
-              reject(new Error("Failed to read file"));
-            };
-            reader.readAsDataURL(file);
-          });
-          
+          const fileBase64 = await readFileAsBase64(file);
           // Store the base64 data without the prefix
           contactData.file_data = fileBase64.split(',')[1];
           console.log("File converted to base64 successfully");
@@ -153,10 +142,8 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       // Store the submission ID for potential follow-up
       if (data && data[0]) {
         setSubmissionId(data[0].id);
-      }
-
-      // Trigger background processing if insertion was successful
-      if (data && data[0]) {
+        
+        // Trigger background processing if insertion was successful
         try {
           // Always include jamie@lintels.in in email recipients
           const emails = [values.email, 'jamie@lintels.in'];
@@ -205,6 +192,16 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       setIsSubmitting(false);
     }
   }
+
+  // Helper function to convert file to base64
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
