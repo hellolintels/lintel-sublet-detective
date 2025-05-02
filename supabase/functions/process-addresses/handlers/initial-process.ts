@@ -26,7 +26,10 @@ export async function handleInitialProcess(
   console.log(`Updating contact status to pending_approval`);
   const { error: updateError } = await supabase
     .from("contacts")
-    .update({ status: "pending_approval" })
+    .update({ 
+      status: "pending_approval",
+      approved_for_matching: false 
+    })
     .eq("id", contact.id);
     
   if (updateError) {
@@ -37,7 +40,9 @@ export async function handleInitialProcess(
   
   // Construct approval URL
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
+  const approvalLink = `${approvalUrl}?action=approve_processing&contact_id=${contact.id}`;
   console.log(`Using approval URL: ${approvalUrl}`);
+  console.log(`Approval link: ${approvalLink}`);
   
   // Prepare file attachment for email with additional validation
   let fileAttachment;
@@ -84,44 +89,49 @@ export async function handleInitialProcess(
     // Continue without the attachment if there's an error
   }
   
-  // Send admin notification email with file attachment
-  console.log("Sending admin notification email with file attachment");
+  // Send admin notification email with file attachment and approval link
+  console.log("Sending admin notification email with file attachment and approval link");
   const adminEmailResult = await sendEmail(
     "jamie@lintels.in",
-    `[Lintels] New Address Submission from ${contact.full_name}`,
+    `[Lintels] New Address Submission from ${contact.full_name} - Approval Required`,
     `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
       <h1 style="color: #2196F3; text-align: center;">New Address Submission</h1>
       
-      <p>A new address list has been submitted for processing.</p>
+      <p>A new address list has been submitted for processing and requires your approval.</p>
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
         <h3 style="margin-top: 0;">User Details:</h3>
         <ul>
-          <li>Full Name: ${contact.full_name}</li>
-          <li>Position: ${contact.position}</li>
-          <li>Company: ${contact.company}</li>
-          <li>Email: ${contact.email}</li>
-          <li>Phone: ${contact.phone}</li>
-          <li>Form Type: ${contact.form_type}</li>
+          <li><strong>Full Name:</strong> ${contact.full_name}</li>
+          <li><strong>Position:</strong> ${contact.position}</li>
+          <li><strong>Company:</strong> ${contact.company}</li>
+          <li><strong>Email:</strong> ${contact.email}</li>
+          <li><strong>Phone:</strong> ${contact.phone}</li>
+          <li><strong>Form Type:</strong> ${contact.form_type}</li>
         </ul>
         
         <h3>File Information:</h3>
         <ul>
-          <li>File Name: ${contact.file_name || 'Not provided'}</li>
-          <li>File Type: ${contact.file_type || 'Not provided'}</li>
-          <li>Address Count: ${addressCount}</li>
+          <li><strong>File Name:</strong> ${contact.file_name || 'Not provided'}</li>
+          <li><strong>File Type:</strong> ${contact.file_type || 'Not provided'}</li>
+          <li><strong>Address Count:</strong> ${addressCount}</li>
         </ul>
       </div>
       
-      <p>Review the submission and approve processing by clicking below:</p>
+      <p><strong>Action Required:</strong> Please review the submission and click the button below to approve processing for Bright Data matching:</p>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
-           style="background-color: #2196F3; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+        <a href="${approvalLink}" 
+           style="background-color: #2196F3; color: white; padding: 15px 25px; text-decoration: none; font-weight: bold; font-size: 18px; border-radius: 5px; display: inline-block;">
           Approve Processing
         </a>
       </div>
+      
+      <p style="background-color: #fffde7; padding: 10px; border-left: 4px solid #ffd600; margin: 20px 0;">
+        <strong>Note:</strong> Clicking the approval button will trigger the Bright Data scraping process for the addresses in the file. 
+        The system will check each postcode against Airbnb, SpareRoom, and Gumtree, and generate a report with the results.
+      </p>
       
       <p>Or use the API endpoint directly:</p>
       <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; font-size: 12px; overflow-x: auto;">
@@ -162,7 +172,7 @@ Content-Type: application/json
         <p>The original notification email failed to send. Please check the admin dashboard for details.</p>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
+          <a href="${approvalLink}" 
              style="background-color: #ff0000; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
             Approve Processing
           </a>
