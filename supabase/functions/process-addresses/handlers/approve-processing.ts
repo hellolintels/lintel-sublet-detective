@@ -78,35 +78,45 @@ export async function handleApproveProcessing(
   }
   
   // Prepare file data for attachment
-  let fileAttachment = '';
+  let fileAttachment;
   if (contact.file_data) {
     try {
-      // Convert the file data to base64 if it's not already
+      console.log("Preparing file attachment");
+      console.log("File data type:", typeof contact.file_data);
+      
+      // Handle the file data based on its type
+      let fileContent = '';
+      
       if (typeof contact.file_data === 'string') {
-        fileAttachment = contact.file_data;
-        console.log("Using file data string directly, length:", fileAttachment.length);
+        fileContent = contact.file_data;
+        console.log("File data is string, length:", fileContent.length);
+      } else if (contact.file_data instanceof Uint8Array) {
+        // Convert Uint8Array to base64 string
+        fileContent = btoa(String.fromCharCode(...contact.file_data));
+        console.log("Converted Uint8Array to base64, length:", fileContent.length);
       } else {
-        // Handle binary data if needed
-        const encoder = new TextEncoder();
-        const decoder = new TextDecoder();
-        const binaryData = encoder.encode(decoder.decode(contact.file_data));
-        fileAttachment = btoa(String.fromCharCode(...new Uint8Array(binaryData)));
-        console.log("Converted binary file data to base64, length:", fileAttachment.length);
+        // Handle object case (bytea from Postgres might come as an object)
+        const fileDataStr = JSON.stringify(contact.file_data);
+        console.log("File data is object, stringified length:", fileDataStr.length);
+        fileContent = fileDataStr;
       }
+      
+      // Create the attachment object
+      fileAttachment = {
+        filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
+        content: fileContent,
+        type: contact.file_type || 'text/csv'
+      };
+      
+      console.log(`File attachment prepared: ${fileAttachment.filename}`);
+      console.log(`Content length: ${fileAttachment.content.length} characters`);
+      
     } catch (error) {
       console.error("Error preparing file attachment:", error);
       // Continue without attachment if there's an error
-      fileAttachment = '';
     }
-  }
-  
-  // Determine file extension for the attachment
-  let fileExtension = 'csv';
-  if (contact.file_name) {
-    const nameParts = contact.file_name.split('.');
-    if (nameParts.length > 1) {
-      fileExtension = nameParts[nameParts.length - 1].toLowerCase();
-    }
+  } else {
+    console.log("No file data available for attachment");
   }
   
   // Send notification that processing is complete
@@ -155,12 +165,7 @@ export async function handleApproveProcessing(
       </p>
     </div>
     `,
-    fileAttachment ? 
-      {
-        filename: `${contact.full_name.replace(/\s+/g, '_')}_addresses.${fileExtension}`,
-        content: fileAttachment,
-        type: contact.file_type || `application/${fileExtension}`
-      } : undefined
+    fileAttachment
   );
   
   console.log("Notification email result:", emailResult);
@@ -191,12 +196,7 @@ export async function handleApproveProcessing(
       
       This is an automated message from lintels.in
       `,
-      fileAttachment ? 
-      {
-        filename: `${contact.full_name.replace(/\s+/g, '_')}_addresses.${fileExtension}`,
-        content: fileAttachment,
-        type: contact.file_type || `application/${fileExtension}`
-      } : undefined
+      fileAttachment
     );
     
     console.log("Fallback email result:", fallbackResult);

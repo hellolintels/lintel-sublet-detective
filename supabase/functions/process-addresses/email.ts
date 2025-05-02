@@ -30,7 +30,19 @@ export async function sendEmail(
     console.log(`SUBJECT: ${subject}`);
     console.log(`CONTENT LENGTH: ${htmlContent.length} characters`);
     console.log(`CONTENT PREVIEW: ${htmlContent.substring(0, 100)}...`);
-    console.log(`ATTACHMENT: ${attachment ? `${attachment.filename} (${attachment.type})` : 'None'}`);
+    
+    if (attachment) {
+      console.log(`ATTACHMENT: ${attachment.filename} (${attachment.type})`);
+      console.log(`ATTACHMENT CONTENT LENGTH: ${attachment.content ? attachment.content.length : 0} characters`);
+      // Log the first few characters of the attachment content for debugging
+      if (attachment.content && attachment.content.length > 0) {
+        console.log(`ATTACHMENT CONTENT PREVIEW: ${attachment.content.substring(0, 20)}...`);
+      } else {
+        console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);
+      }
+    } else {
+      console.log(`ATTACHMENT: None`);
+    }
     
     // Get the SendGrid API key from environment variables
     const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
@@ -62,7 +74,7 @@ export async function sendEmail(
     };
     
     // Add attachment if provided
-    if (attachment) {
+    if (attachment && attachment.content) {
       console.log(`Adding attachment: ${attachment.filename}`);
       emailBody.attachments = [
         {
@@ -121,7 +133,7 @@ export async function sendEmail(
         };
         
         // Add attachment to retry if provided
-        if (attachment) {
+        if (attachment && attachment.content) {
           console.log(`Adding attachment to retry: ${attachment.filename}`);
           retryEmailBody.attachments = [
             {
