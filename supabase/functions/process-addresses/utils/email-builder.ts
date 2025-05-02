@@ -23,6 +23,32 @@ export function cleanAttachmentContent(attachment: EmailAttachment | undefined):
   }
   
   try {
+    // If it starts with data:, extract only the base64 part
+    if (attachment.content.includes('base64,')) {
+      console.log("Removing data URI prefix from attachment content");
+      attachment.content = attachment.content.split('base64,')[1];
+    }
+    
+    // Handle hex-encoded bytea format (from Postgres)
+    if (attachment.content.startsWith('\\x')) {
+      console.log("Converting hex-encoded bytea to base64");
+      const hexString = attachment.content.substring(2);
+      
+      // Convert hex to binary array
+      const binaryArray = new Uint8Array(hexString.length / 2);
+      for (let i = 0; i < hexString.length; i += 2) {
+        binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
+      }
+      
+      // Convert binary array to base64
+      let binaryString = '';
+      binaryArray.forEach(byte => {
+        binaryString += String.fromCharCode(byte);
+      });
+      attachment.content = btoa(binaryString);
+      console.log("Successfully converted hex bytea to base64");
+    }
+    
     // Remove any non-base64 characters that might cause issues
     attachment.content = attachment.content.replace(/[^A-Za-z0-9+/=]/g, '');
     console.log(`CLEANED ATTACHMENT CONTENT LENGTH: ${attachment.content.length} characters`);

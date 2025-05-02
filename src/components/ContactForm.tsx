@@ -143,6 +143,37 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
     });
   };
 
+  // Helper function to convert file to base64 with improved error handling
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          console.log(`File converted to base64, length: ${reader.result.length}`);
+          resolve(reader.result);
+        } else {
+          console.error("FileReader result is not a string:", reader.result);
+          reject(new Error("Failed to convert file to base64 - result is not a string"));
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error("FileReader error:", error);
+        reject(error);
+      };
+      
+      reader.onabort = () => {
+        console.error("FileReader aborted");
+        reject(new Error("File reading aborted"));
+      };
+      
+      // Log file details before reading
+      console.log(`Reading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+      reader.readAsDataURL(file);
+    });
+  };
+
   async function onSubmit(values: z.infer<typeof contactFormSchema>) {
     try {
       setIsSubmitting(true);
@@ -159,7 +190,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         status: "new", // New status for pending approval
       };
 
-      // Handle file data
+      // Handle file data with improved error handling
       if (values.addressFile && values.addressFile[0]) {
         const file = values.addressFile[0];
         contactData.file_name = file.name;
@@ -182,28 +213,39 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           // Continue with submission but log the error
         }
         
-        // Convert file to base64 for storage
+        // Convert file to base64 with improved validation and error handling
         try {
+          // Read file as base64
           const fileBase64 = await readFileAsBase64(file);
-          console.log("File converted to base64, length:", fileBase64.length);
+          console.log("File successfully converted to base64");
           
-          // Store the base64 data without the prefix
+          // Extract the base64 data without the prefix
           let base64Data = "";
           if (fileBase64.includes(',')) {
             base64Data = fileBase64.split(',')[1];
+            console.log("Base64 data extracted from data URI, length:", base64Data.length);
           } else {
             base64Data = fileBase64;
+            console.log("Base64 data used as is, length:", base64Data.length);
           }
-          
-          console.log("Base64 data extracted, length:", base64Data ? base64Data.length : 0);
           
           if (!base64Data) {
             throw new Error("Failed to extract base64 data from file");
           }
           
+          // Verify the base64 data is valid
+          try {
+            const sampleData = base64Data.substring(0, Math.min(10, base64Data.length));
+            atob(sampleData); // Will throw if invalid base64
+            console.log("Base64 validation check passed");
+          } catch (e) {
+            console.error("Invalid base64 data:", e);
+            throw new Error("File produced invalid base64 data");
+          }
+          
           contactData.file_data = base64Data;
         } catch (fileError) {
-          console.error("Error converting file to base64:", fileError);
+          console.error("Error processing file:", fileError);
           toast.error("Unable to process your file. Please try a different file format.");
           setIsSubmitting(false);
           return;
@@ -280,22 +322,6 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
       setIsSubmitting(false);
     }
   }
-
-  // Helper function to convert file to base64
-  const readFileAsBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-        } else {
-          reject(new Error("Failed to convert file to base64"));
-        }
-      };
-      reader.onerror = (error) => reject(error);
-      reader.readAsDataURL(file);
-    });
-  };
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
