@@ -32,6 +32,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         contactData.file_type = file.type || `application/${file.name.split('.').pop()}`;
         
         console.log("Processing file:", file.name, "size:", file.size, "type:", contactData.file_type);
+        console.log("File last modified:", new Date(file.lastModified).toISOString());
         
         // Verify row count before processing
         try {
@@ -53,6 +54,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           // Read file as base64
           const fileBase64 = await readFileAsBase64(file);
           console.log("File successfully converted to base64");
+          console.log(`Base64 data length: ${fileBase64.length}`);
           
           // Extract the base64 data without the prefix
           let base64Data = "";
@@ -78,7 +80,10 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
             throw new Error("File produced invalid base64 data");
           }
           
+          // Store the base64 data in the contact record
           contactData.file_data = base64Data;
+          console.log(`File data ready for submission, length: ${contactData.file_data.length}`);
+          console.log(`File data first 50 chars: ${contactData.file_data.substring(0, 50)}`);
         } catch (fileError) {
           console.error("Error processing file:", fileError);
           toast.error("Unable to process your file. Please try a different file format.");

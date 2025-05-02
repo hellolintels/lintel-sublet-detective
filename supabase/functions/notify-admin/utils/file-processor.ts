@@ -11,6 +11,8 @@ export function processFileData(fileData: any): string {
   }
   
   console.log(`File data type: ${typeof fileData}`);
+  console.log(`File data length: ${typeof fileData === 'string' ? fileData.length : 'unknown'}`);
+  console.log(`File data first 50 chars: ${typeof fileData === 'string' ? fileData.substring(0, 50) : 'not a string'}`);
   
   let fileContent = '';
   
@@ -19,14 +21,18 @@ export function processFileData(fileData: any): string {
     if (typeof fileData === 'string' && fileData.startsWith('\\x')) {
       console.log("Converting hex-encoded bytea to base64");
       
-      // Remove the \x prefix and convert hex to base64
+      // Remove the \x prefix
       const hexString = fileData.substring(2);
+      console.log(`Hex string length after removing prefix: ${hexString.length}`);
+      console.log(`Hex string first 50 chars: ${hexString.substring(0, 50)}`);
       
       // Convert hex to binary array
       const binaryArray = new Uint8Array(hexString.length / 2);
       for (let i = 0; i < hexString.length; i += 2) {
         binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
       }
+      
+      console.log(`Binary array length: ${binaryArray.length}`);
       
       // Convert binary array to base64
       let binaryString = '';
@@ -35,26 +41,32 @@ export function processFileData(fileData: any): string {
       });
       fileContent = btoa(binaryString);
       
-      console.log("Converted hex bytea to base64, length:", fileContent.length);
+      console.log(`Base64 content length: ${fileContent.length}`);
+      console.log(`Base64 content first 50 chars: ${fileContent.substring(0, 50)}`);
     } 
     // If file_data is already base64 but has a prefix like "data:application/csv;base64,"
     else if (typeof fileData === 'string' && fileData.includes('base64,')) {
+      console.log("Extracting base64 data from data URI");
       fileContent = fileData.split('base64,')[1];
-      console.log("Extracted base64 data from data URI, length:", fileContent.length);
+      console.log(`Base64 content length after extracting: ${fileContent.length}`);
+      console.log(`Base64 content first 50 chars: ${fileContent.substring(0, 50)}`);
     } 
     // If it's already a clean base64 string
     else if (typeof fileData === 'string') {
       fileContent = fileData;
-      console.log("Using provided file_data as is, length:", fileContent.length);
+      console.log(`Using provided file_data as is, length: ${fileContent.length}`);
+      console.log(`Content first 50 chars: ${fileContent.substring(0, 50)}`);
     } 
     // If it's binary data (Uint8Array)
     else if (fileData instanceof Uint8Array) {
+      console.log("Converting Uint8Array to base64");
       let binaryString = '';
       for (let i = 0; i < fileData.length; i++) {
         binaryString += String.fromCharCode(fileData[i]);
       }
       fileContent = btoa(binaryString);
-      console.log("Converted binary data to base64, length:", fileContent.length);
+      console.log(`Base64 content length after converting binary: ${fileContent.length}`);
+      console.log(`Base64 content first 50 chars: ${fileContent.substring(0, 50)}`);
     } else {
       console.error("Unsupported file_data format:", typeof fileData);
       return '';
@@ -62,13 +74,19 @@ export function processFileData(fileData: any): string {
     
     // Clean up the base64 string to ensure it only contains valid base64 characters
     fileContent = fileContent.replace(/[^A-Za-z0-9+/=]/g, '');
-    console.log("Base64 content length after cleaning:", fileContent.length);
+    console.log(`Base64 content length after cleaning: ${fileContent.length}`);
     
     // Validate the base64 content
     if (fileContent.length > 0) {
       // Test decode a small sample to verify it's valid base64
-      atob(fileContent.substring(0, Math.min(10, fileContent.length)));
-      console.log("Base64 validation successful");
+      try {
+        const sampleData = fileContent.substring(0, Math.min(10, fileContent.length));
+        atob(sampleData); // Will throw if invalid base64
+        console.log("Base64 validation successful");
+      } catch (e) {
+        console.error("Invalid base64 data:", e);
+        return '';
+      }
     } else {
       console.log("Empty file content after processing");
     }

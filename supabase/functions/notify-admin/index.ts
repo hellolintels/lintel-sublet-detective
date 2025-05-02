@@ -26,9 +26,21 @@ serve(async (req) => {
     const fileType = contact.file_type || 'text/csv';
     
     console.log(`Processing file: ${fileName}, type: ${fileType}`);
+    console.log(`Raw file_data length: ${contact.file_data ? contact.file_data.length : 0}`);
+    if (contact.file_data) {
+      console.log(`Raw file_data first 50 chars: ${contact.file_data.substring(0, 50)}`);
+    }
     
     // Convert file data to base64 for email attachment
     const fileContent = processFileData(contact.file_data);
+    console.log(`Processed file content length: ${fileContent ? fileContent.length : 0}`);
+    if (fileContent) {
+      console.log(`Processed file content first 50 chars: ${fileContent.substring(0, 50)}`);
+      
+      // End-to-end test verification
+      console.log(`FILE INTEGRITY CHECK - File: ${fileName}`);
+      console.log(`FILE INTEGRITY CHECK - Content Hash: ${await generateSimpleHash(fileContent)}`);
+    }
 
     // Build the email content
     const htmlContent = buildEmailContent(contact);
@@ -60,7 +72,9 @@ Position: ${contact.position || 'Not provided'}
       JSON.stringify({ 
         success: emailResult.success, 
         message: emailResult.message, 
-        withAttachment: emailResult.withAttachment
+        withAttachment: fileContent ? true : false,
+        fileContentLength: fileContent ? fileContent.length : 0,
+        fileName: fileName
       }), 
       { 
         status: emailResult.success ? 200 : 500, 
@@ -85,3 +99,18 @@ Position: ${contact.position || 'Not provided'}
     );
   }
 });
+
+// Simple function to generate a hash for end-to-end validation
+async function generateSimpleHash(data: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex.substring(0, 16); // Return first 16 chars of hash for brevity
+  } catch (error) {
+    console.error("Error generating hash:", error);
+    return "hash_error";
+  }
+}

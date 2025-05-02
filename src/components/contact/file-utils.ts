@@ -55,8 +55,23 @@ export const readFileAsBase64 = (file: File): Promise<string> => {
     
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        console.log(`File converted to base64, length: ${reader.result.length}`);
-        resolve(reader.result);
+        const base64Result = reader.result;
+        console.log(`File converted to base64, length: ${base64Result.length}`);
+        console.log(`File base64 data first 50 chars: ${base64Result.substring(0, 50)}...`);
+        
+        // Generate file hash for end-to-end verification
+        generateFileHash(file).then(hash => {
+          console.log(`FORM SUBMISSION INTEGRITY CHECK - File: ${file.name}`);
+          console.log(`FORM SUBMISSION INTEGRITY CHECK - Size: ${file.size} bytes`);
+          console.log(`FORM SUBMISSION INTEGRITY CHECK - Type: ${file.type}`);
+          console.log(`FORM SUBMISSION INTEGRITY CHECK - Content Hash: ${hash}`);
+          
+          resolve(base64Result);
+        }).catch(error => {
+          console.error("Hash generation error:", error);
+          // Still resolve with the base64 data even if hash generation fails
+          resolve(base64Result);
+        });
       } else {
         console.error("FileReader result is not a string:", reader.result);
         reject(new Error("Failed to convert file to base64 - result is not a string"));
@@ -76,5 +91,35 @@ export const readFileAsBase64 = (file: File): Promise<string> => {
     // Log file details before reading
     console.log(`Reading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
     reader.readAsDataURL(file);
+  });
+};
+
+// Helper function to generate a simple hash for file content verification
+const generateFileHash = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        if (!arrayBuffer) {
+          reject(new Error("Failed to read file as ArrayBuffer"));
+          return;
+        }
+        
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        // Return only the first 16 characters for brevity
+        resolve(hashHex.substring(0, 16));
+      } catch (error) {
+        console.error("Error generating file hash:", error);
+        reject(error);
+      }
+    };
+    
+    reader.onerror = () => reject(new Error("Failed to read file for hashing"));
+    reader.readAsArrayBuffer(file);
   });
 };

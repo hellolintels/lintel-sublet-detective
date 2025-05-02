@@ -37,6 +37,8 @@ export async function sendEmail(
   let hasAttachment = false;
   if (fileContent && fileContent.length > 0) {
     console.log(`Adding attachment: ${fileName}`);
+    console.log(`Attachment content length: ${fileContent.length}`);
+    console.log(`Attachment content sample: ${fileContent.substring(0, 50)}...`);
     
     msg.attachments = [
       {
@@ -49,13 +51,10 @@ export async function sendEmail(
     
     hasAttachment = true;
     
-    // Log attachment details for debugging
-    console.log("Attachment details:", {
-      filename: fileName,
-      type: fileType,
-      contentLength: fileContent.length,
-      contentSample: fileContent.substring(0, 20) + '...'
-    });
+    // Generate simple hash for end-to-end verification
+    const simpleHash = await generateSimpleHash(fileContent);
+    console.log(`EMAIL ATTACHMENT INTEGRITY CHECK - File: ${fileName}`);
+    console.log(`EMAIL ATTACHMENT INTEGRITY CHECK - Content Hash: ${simpleHash}`);
   } else {
     console.warn("No valid file content to attach");
   }
@@ -67,7 +66,16 @@ export async function sendEmail(
   
   while (retryCount <= maxRetries) {
     try {
-      console.log(`Sending email${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
+      if (retryCount > 0) {
+        console.log(`Retry attempt ${retryCount} of ${maxRetries}...`);
+        // Short delay between retries, increasing with each attempt
+        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+      }
+      
+      console.log("Sending email to:", to);
+      console.log("Email subject:", subject);
+      console.log("Email has attachment:", hasAttachment);
+      
       const [response] = await sgMail.send(msg);
       
       console.log("Email sent successfully:", {
@@ -107,4 +115,19 @@ export async function sendEmail(
     message: `Failed to send email after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`, 
     withAttachment: hasAttachment
   };
+}
+
+// Simple function to generate a hash for end-to-end validation
+async function generateSimpleHash(data: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex.substring(0, 16); // Return first 16 chars of hash for brevity
+  } catch (error) {
+    console.error("Error generating hash:", error);
+    return "hash_error";
+  }
 }

@@ -1,3 +1,4 @@
+
 /**
  * Count rows in a CSV-like string - with improved handling of file data
  * @param fileData String containing the file data
@@ -78,76 +79,92 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("Extracting file data for attachment from contact:", contact.id);
     console.log("File data type:", typeof contact.file_data);
     console.log("File name:", contact.file_name || "unnamed-file");
-    
-    // Ensure file_data is properly formatted for SendGrid
-    let fileContent = contact.file_data;
+    console.log("Raw file_data length:", contact.file_data.length);
+    console.log("Raw file_data first 50 chars:", contact.file_data.substring(0, 50));
     
     // Handle bytea from Postgres - if it's starting with \x, it's a hex representation
-    if (typeof fileContent === 'string' && fileContent.startsWith('\\x')) {
+    if (typeof contact.file_data === 'string' && contact.file_data.startsWith('\\x')) {
       console.log("Detected hex-encoded bytea data, converting to base64");
       
-      // Remove the \x prefix and convert hex to base64
-      const hexString = fileContent.substring(2);
+      // Remove the \x prefix
+      const hexString = contact.file_data.substring(2);
+      console.log(`Hex string length after removing prefix: ${hexString.length}`);
+      console.log(`Hex string first 50 chars: ${hexString.substring(0, 50)}`);
       
       // Convert hex to binary array
       const binaryArray = new Uint8Array(hexString.length / 2);
       for (let i = 0; i < hexString.length; i += 2) {
         binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
       }
+      console.log(`Binary array length: ${binaryArray.length}`);
       
       // Convert binary array to base64
       let binaryString = '';
       binaryArray.forEach(byte => {
         binaryString += String.fromCharCode(byte);
       });
-      fileContent = btoa(binaryString);
-      console.log("Successfully converted hex bytea to base64");
-    }
-    // If the content already includes a data URI prefix, remove it
-    else if (typeof fileContent === 'string' && fileContent.includes('base64,')) {
-      console.log("Removing data URI prefix from file_data");
-      fileContent = fileContent.split('base64,')[1];
-    }
-    // Handle other types as needed
-    else if (typeof fileContent !== 'string') {
-      console.log("File data is not a string, attempting to convert");
-      fileContent = String(fileContent);
-    }
-    
-    // Make sure we are returning a valid base64 string - cleanup any non-base64 characters
-    if (typeof fileContent === 'string') {
-      // Clean up the base64 string to ensure it only contains valid base64 characters
-      fileContent = fileContent.replace(/[^A-Za-z0-9+/=]/g, '');
-      console.log("Cleaned base64 string, length:", fileContent.length);
+      const base64Content = btoa(binaryString);
+      console.log(`Base64 content length: ${base64Content.length}`);
+      console.log(`Base64 content first 50 chars: ${base64Content.substring(0, 50)}`);
       
-      // Verify this is valid base64
+      // Verify base64 content is valid
       try {
         // Test decode a small sample
-        if (fileContent.length > 0) {
-          const testSample = fileContent.substring(0, Math.min(10, fileContent.length));
+        if (base64Content.length > 0) {
+          const testSample = base64Content.substring(0, Math.min(10, base64Content.length));
           atob(testSample);
           console.log("Base64 validity check passed");
         }
+        return base64Content;
       } catch (e) {
         console.error("Invalid base64 data detected:", e);
         return null;
       }
-    } else {
-      console.error("File content is not a string after processing");
+    } 
+    // If the content already includes a data URI prefix, remove it
+    else if (typeof contact.file_data === 'string' && contact.file_data.includes('base64,')) {
+      console.log("Removing data URI prefix from file_data");
+      const base64Content = contact.file_data.split('base64,')[1];
+      console.log(`Base64 content length after removing prefix: ${base64Content.length}`);
+      console.log(`Base64 content first 50 chars: ${base64Content.substring(0, 50)}`);
+      
+      // Verify base64 content is valid
+      try {
+        if (base64Content.length > 0) {
+          const testSample = base64Content.substring(0, Math.min(10, base64Content.length));
+          atob(testSample);
+          console.log("Base64 validity check passed");
+        }
+        return base64Content;
+      } catch (e) {
+        console.error("Invalid base64 data detected:", e);
+        return null;
+      }
+    }
+    // If it's already a clean base64 string
+    else if (typeof contact.file_data === 'string') {
+      const base64Content = contact.file_data.replace(/[^A-Za-z0-9+/=]/g, '');
+      console.log(`Clean base64 string, length: ${base64Content.length}`);
+      console.log(`Base64 content first 50 chars: ${base64Content.substring(0, 50)}`);
+      
+      // Verify base64 content is valid
+      try {
+        if (base64Content.length > 0) {
+          const testSample = base64Content.substring(0, Math.min(10, base64Content.length));
+          atob(testSample);
+          console.log("Base64 validity check passed");
+        }
+        return base64Content;
+      } catch (e) {
+        console.error("Invalid base64 data detected:", e);
+        return null;
+      }
+    } 
+    // Handle other types as needed
+    else {
+      console.error("File data is not a string, cannot process");
       return null;
     }
-    
-    // Log a sample of the final content for debugging
-    if (typeof fileContent === 'string' && fileContent.length > 0) {
-      console.log("Final file content sample (first 50 chars):", 
-        fileContent.substring(0, Math.min(50, fileContent.length)));
-      console.log("Final file content length:", fileContent.length);
-    } else {
-      console.error("Empty file content after processing");
-      return null;
-    }
-    
-    return fileContent;
   } catch (error) {
     console.error("Error extracting file data for attachment:", error);
     return null;
