@@ -65,6 +65,50 @@ export async function handleApproveProcessing(
   // Create a direct link to send results
   const viewReportUrl = `${supabaseUrl}/functions/v1/process-addresses?action=send_results&contact_id=${contact.id}&report_id=${newReportId}`;
   
+  // Construct file details for the email
+  let fileDetails = ``;
+  if (contact.file_name) {
+    fileDetails = `
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="margin-top: 0;">File Details:</h3>
+        <p><strong>File Name:</strong> ${contact.file_name}</p>
+        <p><strong>File Type:</strong> ${contact.file_type || 'Unknown'}</p>
+      </div>
+    `;
+  }
+  
+  // Prepare file data for attachment
+  let fileAttachment = '';
+  if (contact.file_data) {
+    try {
+      // Convert the file data to base64 if it's not already
+      if (typeof contact.file_data === 'string') {
+        fileAttachment = contact.file_data;
+        console.log("Using file data string directly, length:", fileAttachment.length);
+      } else {
+        // Handle binary data if needed
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const binaryData = encoder.encode(decoder.decode(contact.file_data));
+        fileAttachment = btoa(String.fromCharCode(...new Uint8Array(binaryData)));
+        console.log("Converted binary file data to base64, length:", fileAttachment.length);
+      }
+    } catch (error) {
+      console.error("Error preparing file attachment:", error);
+      // Continue without attachment if there's an error
+      fileAttachment = '';
+    }
+  }
+  
+  // Determine file extension for the attachment
+  let fileExtension = 'csv';
+  if (contact.file_name) {
+    const nameParts = contact.file_name.split('.');
+    if (nameParts.length > 1) {
+      fileExtension = nameParts[nameParts.length - 1].toLowerCase();
+    }
+  }
+  
   // Send notification that processing is complete
   const emailResult = await sendEmail(
     "jamie@lintels.in", 
@@ -74,6 +118,17 @@ export async function handleApproveProcessing(
       <h1 style="color: #4CAF50; text-align: center;">Address Processing Complete</h1>
       
       <p style="font-size: 16px;">The address processing for <strong>${contact.full_name}</strong> (${contact.email}) is now complete.</p>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="margin-top: 0;">User Details:</h3>
+        <p><strong>Name:</strong> ${contact.full_name}</p>
+        <p><strong>Position:</strong> ${contact.position}</p>
+        <p><strong>Company:</strong> ${contact.company}</p>
+        <p><strong>Email:</strong> ${contact.email}</p>
+        <p><strong>Phone:</strong> ${contact.phone}</p>
+      </div>
+      
+      ${fileDetails}
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
         <h3 style="margin-top: 0;">Report Details:</h3>
@@ -94,8 +149,18 @@ export async function handleApproveProcessing(
       <p style="background-color: #f5f5f5; padding: 10px; word-break: break-all; font-family: monospace;">
         ${viewReportUrl}
       </p>
+      
+      <p style="color: #666; font-size: 12px; text-align: center; margin-top: 30px;">
+        This is an automated message from lintels.in
+      </p>
     </div>
-    `
+    `,
+    fileAttachment ? 
+      {
+        filename: `${contact.full_name.replace(/\s+/g, '_')}_addresses.${fileExtension}`,
+        content: fileAttachment,
+        type: contact.file_type || `application/${fileExtension}`
+      } : undefined
   );
   
   console.log("Notification email result:", emailResult);
@@ -110,13 +175,28 @@ export async function handleApproveProcessing(
       `
       Address processing complete for ${contact.full_name} (${contact.email}).
       
+      User Details:
+      - Name: ${contact.full_name}
+      - Position: ${contact.position}
+      - Company: ${contact.company}
+      - Email: ${contact.email}
+      - Phone: ${contact.phone}
+      
       Report details:
       - Properties: ${reportData.properties_count}
       - Matches: ${reportData.matches_count}
       
       To send the report to the client, visit:
       ${viewReportUrl}
-      `
+      
+      This is an automated message from lintels.in
+      `,
+      fileAttachment ? 
+      {
+        filename: `${contact.full_name.replace(/\s+/g, '_')}_addresses.${fileExtension}`,
+        content: fileAttachment,
+        type: contact.file_type || `application/${fileExtension}`
+      } : undefined
     );
     
     console.log("Fallback email result:", fallbackResult);

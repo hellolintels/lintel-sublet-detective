@@ -2,19 +2,35 @@
 // Email handling module using SendGrid
 
 /**
+ * Email attachment interface
+ */
+interface EmailAttachment {
+  filename: string;
+  content: string;
+  type: string;
+}
+
+/**
  * Enhanced email sending function with SendGrid integration
  * @param to Email address of the recipient
  * @param subject Subject line of the email
  * @param htmlContent HTML content of the email
+ * @param attachment Optional file attachment (base64 encoded)
  * @returns Object indicating success or failure
  */
-export async function sendEmail(to: string, subject: string, htmlContent: string) {
+export async function sendEmail(
+  to: string, 
+  subject: string, 
+  htmlContent: string,
+  attachment?: EmailAttachment
+) {
   try {
     console.log(`===== SENDING EMAIL =====`);
     console.log(`TO: ${to}`);
     console.log(`SUBJECT: ${subject}`);
     console.log(`CONTENT LENGTH: ${htmlContent.length} characters`);
     console.log(`CONTENT PREVIEW: ${htmlContent.substring(0, 100)}...`);
+    console.log(`ATTACHMENT: ${attachment ? `${attachment.filename} (${attachment.type})` : 'None'}`);
     
     // Get the SendGrid API key from environment variables
     const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
@@ -28,6 +44,36 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
     const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in";
     console.log(`Using sender email: ${fromEmail}`);
     
+    // Prepare the email request body
+    const emailBody: any = {
+      personalizations: [
+        {
+          to: [{ email: to }]
+        }
+      ],
+      from: { email: fromEmail, name: "Lintels" },
+      subject: subject,
+      content: [
+        {
+          type: "text/html",
+          value: htmlContent
+        }
+      ]
+    };
+    
+    // Add attachment if provided
+    if (attachment) {
+      console.log(`Adding attachment: ${attachment.filename}`);
+      emailBody.attachments = [
+        {
+          filename: attachment.filename,
+          content: attachment.content,
+          type: attachment.type,
+          disposition: "attachment"
+        }
+      ];
+    }
+    
     // Prepare the SendGrid request
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
@@ -35,21 +81,7 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
         "Content-Type": "application/json",
         Authorization: `Bearer ${sendgridApiKey}`
       },
-      body: JSON.stringify({
-        personalizations: [
-          {
-            to: [{ email: to }]
-          }
-        ],
-        from: { email: fromEmail, name: "Lintels" },
-        subject: subject,
-        content: [
-          {
-            type: "text/html",
-            value: htmlContent
-          }
-        ]
-      })
+      body: JSON.stringify(emailBody)
     });
     
     // Special handling for admin emails to ensure delivery
@@ -71,6 +103,36 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
         // Wait 2 seconds before retrying
         await new Promise(resolve => setTimeout(resolve, 2000));
         
+        // Prepare retry email body with attachment if provided
+        const retryEmailBody: any = {
+          personalizations: [
+            {
+              to: [{ email: to }]
+            }
+          ],
+          from: { email: fromEmail, name: "Lintels URGENT" },
+          subject: `${subject} [RETRY]`,
+          content: [
+            {
+              type: "text/html",
+              value: htmlContent
+            }
+          ]
+        };
+        
+        // Add attachment to retry if provided
+        if (attachment) {
+          console.log(`Adding attachment to retry: ${attachment.filename}`);
+          retryEmailBody.attachments = [
+            {
+              filename: attachment.filename,
+              content: attachment.content,
+              type: attachment.type,
+              disposition: "attachment"
+            }
+          ];
+        }
+        
         // Retry the request with the same verified sender
         const retryResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
           method: "POST",
@@ -78,21 +140,7 @@ export async function sendEmail(to: string, subject: string, htmlContent: string
             "Content-Type": "application/json",
             Authorization: `Bearer ${sendgridApiKey}`
           },
-          body: JSON.stringify({
-            personalizations: [
-              {
-                to: [{ email: to }]
-              }
-            ],
-            from: { email: fromEmail, name: "Lintels URGENT" },
-            subject: `${subject} [RETRY]`,
-            content: [
-              {
-                type: "text/html",
-                value: htmlContent
-              }
-            ]
-          })
+          body: JSON.stringify(retryEmailBody)
         });
         
         console.log(`ADMIN EMAIL ${emailId} - Retry attempt response status: ${retryResponse.status}`);
