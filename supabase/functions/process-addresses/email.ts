@@ -91,10 +91,15 @@ export async function sendEmail(
     // Add attachment if provided and content is valid
     if (attachment && attachment.content) {
       console.log(`Adding attachment: ${attachment.filename}`);
+      
+      // Ensure content is properly base64 encoded and in the correct format for SendGrid
+      // Remove any non-base64 characters that might cause issues
+      const cleanedBase64 = attachment.content.replace(/[^A-Za-z0-9+/=]/g, '');
+      
       emailBody.attachments = [
         {
           filename: attachment.filename,
-          content: attachment.content,
+          content: cleanedBase64,
           type: attachment.type,
           disposition: attachment.disposition || "attachment"
         }

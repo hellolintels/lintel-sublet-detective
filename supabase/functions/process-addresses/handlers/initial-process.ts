@@ -44,30 +44,33 @@ export async function handleInitialProcess(
   console.log(`Using approval URL: ${approvalUrl}`);
   console.log(`Approval link: ${approvalLink}`);
   
-  // Prepare file attachment for email - ensure we're using the raw file data stored in database
+  // Prepare file attachment for email - ensure we're using the properly formatted file data
   let fileAttachment;
   try {
     if (contact.file_data) {
       console.log("Preparing file for attachment...");
       
+      // Use a descriptive filename - either the original name or generate one
       const fileName = contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`;
       const fileType = contact.file_type || 'text/csv';
       
       console.log(`File details - Name: ${fileName}, Type: ${fileType}`);
       console.log(`File data length: ${contact.file_data.length} characters`);
       
-      // Use extractFileDataForAttachment to get the base64 data
+      // Use extractFileDataForAttachment to get properly formatted base64 data
       const fileData = extractFileDataForAttachment(contact);
       
       if (fileData) {
         fileAttachment = {
           filename: fileName,
           content: fileData,
-          type: fileType
+          type: fileType,
+          disposition: "attachment"
         };
         
         console.log(`File attachment prepared: ${fileAttachment.filename} (${fileAttachment.type})`);
         console.log(`Content length: ${fileAttachment.content.length} characters`);
+        console.log(`Content preview: ${fileAttachment.content.substring(0, 50)}...`);
         
         // Basic validation
         if (!fileAttachment.content || fileAttachment.content.length === 0) {
