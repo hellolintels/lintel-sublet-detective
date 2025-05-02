@@ -66,7 +66,6 @@ export function countAddressRows(fileData: string | null | undefined): number {
 
 /**
  * Extract file data from a contact record for attachment
- * Fixed version to ensure the original file data is preserved
  * @param contact The contact record containing file data
  * @returns String with the file content ready for attachment, or null
  */
@@ -81,8 +80,7 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("File data type:", typeof contact.file_data);
     console.log("File name:", contact.file_name || "unnamed-file");
     
-    // Since we're storing the raw base64 data from the front-end, we'll return it directly
-    // without any additional processing or manipulation
+    // Return the raw file_data exactly as stored in the database
     return contact.file_data;
   } catch (error) {
     console.error("Error extracting file data for attachment:", error);

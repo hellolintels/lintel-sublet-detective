@@ -1,3 +1,4 @@
+
 // Email handling module using SendGrid
 
 /**
@@ -48,16 +49,6 @@ export async function sendEmail(
       // Log the first few characters of the attachment content for debugging
       if (attachment.content && attachment.content.length > 0) {
         console.log(`ATTACHMENT CONTENT PREVIEW: ${attachment.content.substring(0, 20)}...`);
-        
-        // Ensure content is base64 encoded but don't modify if it already is
-        const base64Regex = /^[A-Za-z0-9+/=]*$/;
-        if (!base64Regex.test(attachment.content)) {
-          console.log("WARNING: Attachment content doesn't appear to be base64 encoded!");
-          // Don't modify or re-encode the content - this might be causing the issue
-          console.log("Keeping original attachment content format");
-        } else {
-          console.log("Attachment content appears to be properly base64 encoded");
-        }
       } else {
         console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);
         attachment = undefined; // Don't include invalid attachments
