@@ -1,78 +1,22 @@
-import type { Config } from "tailwindcss";
-
-export default {
-  darkMode: ["class"],
-  content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-  ],
-  prefix: "",
-  theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
-    extend: {
-      colors: {
-        border: "hsl(24, 70%, 50%)", // More subdued orange border
-        input: "hsl(24, 60%, 55%)", // Softer orange input
-        ring: "hsl(24, 80%, 45%)", // Vibrant but not overwhelming orange ring
-        background: "hsl(0, 0%, 100%)", // White background
-        foreground: "hsl(0, 0%, 10%)", // Dark text for contrast
-        primary: {
-          DEFAULT: "hsl(24, 85%, 50%)", // Bright but balanced orange primary
-          foreground: "hsl(0, 0%, 100%)", // White text on primary
-        },
-        secondary: {
-          DEFAULT: "hsl(220, 50%, 85%)", // Soft blue secondary
-          foreground: "hsl(0, 0%, 20%)", // Dark text on secondary
-        },
-        destructive: {
-          DEFAULT: "hsl(0, 84.2%, 60.2%)", // Keeping red destructive
-          foreground: "hsl(0, 0%, 98%)",
-        },
-        muted: {
-          DEFAULT: "hsl(24, 30%, 90%)", // Very light orange
-          foreground: "hsl(0, 0%, 45%)", // Muted text
-        },
-        accent: {
-          DEFAULT: "hsl(24, 70%, 70%)", // Bright orange accent
-          foreground: "hsl(0, 0%, 10%)", // Dark text on accent
-        },
-        popover: {
-          DEFAULT: "hsl(24, 40%, 95%)", // Very light orange popover
-          foreground: "hsl(0, 0%, 10%)",
-        },
-        card: {
-          DEFAULT: "hsl(24, 30%, 98%)", // Almost white with orange tint
-          foreground: "hsl(0, 0%, 10%)",
-        },
-      },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-      },
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-      },
-    },
+{
+  "name": "lintel-sublet-detective",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  plugins: [require("tailwindcss-animate")],
-} satisfies Config;
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.3.2",
+    "typescript": "^5.0.4",
+    "vite": "^4.3.9",
+    "@vitejs/plugin-react": "^4.0.0"
+  }
+}
