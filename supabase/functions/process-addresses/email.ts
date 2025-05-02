@@ -7,6 +7,10 @@
  * @param subject Subject line of the email
  * @param htmlContent HTML content of the email
  * @returns Object indicating success or failure
+ * 
+ * NOTE: Domain verification issues with SendGrid currently prevent emails from being sent.
+ * This needs to be resolved by properly verifying the lintels.in domain in SendGrid
+ * or using an already-verified sender email.
  */
 export async function sendEmail(to: string, subject: string, htmlContent: string) {
   try {
