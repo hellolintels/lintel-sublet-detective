@@ -83,14 +83,59 @@ export function extractFileDataForAttachment(contact: any): string | null {
     // Ensure file_data is properly formatted for SendGrid
     let fileContent = contact.file_data;
     
-    // Check if the file_data is a Buffer or Uint8Array (which might happen if stored as bytea in Postgres)
-    if (typeof fileContent !== 'string') {
+    // Handle bytea from Postgres - if it's starting with \x, it's a hex representation
+    if (typeof fileContent === 'string' && fileContent.startsWith('\\x')) {
+      console.log("Detected hex-encoded bytea data, converting to base64");
+      
+      // Remove the \x prefix and convert hex to base64
+      const hexString = fileContent.substring(2);
+      
+      // Convert hex to binary array
+      const binaryArray = new Uint8Array(hexString.length / 2);
+      for (let i = 0; i < hexString.length; i += 2) {
+        binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
+      }
+      
+      // Convert binary array to base64
+      const textDecoder = new TextDecoder('utf-8');
+      try {
+        const decoded = textDecoder.decode(binaryArray);
+        fileContent = btoa(decoded);
+        console.log("Successfully converted hex bytea to base64");
+      } catch (e) {
+        console.error("Error decoding binary data:", e);
+        
+        // Fallback: direct binary to base64 conversion without text decoding
+        let binaryString = '';
+        binaryArray.forEach(byte => {
+          binaryString += String.fromCharCode(byte);
+        });
+        fileContent = btoa(binaryString);
+        console.log("Fallback conversion of binary data to base64 completed");
+      }
+    }
+    // If the content already includes a data URI prefix, remove it
+    else if (typeof fileContent === 'string' && fileContent.includes('base64,')) {
+      console.log("Removing data URI prefix from file_data");
+      fileContent = fileContent.split('base64,')[1];
+    }
+    // Binary data (Buffer or Uint8Array)
+    else if (typeof fileContent !== 'string') {
       console.log("File data is not a string, converting to base64");
       
       try {
         // For Uint8Array or Buffer-like objects
         const textDecoder = new TextDecoder('utf-8');
-        fileContent = btoa(textDecoder.decode(fileContent));
+        let binaryString = '';
+        if (fileContent instanceof Uint8Array) {
+          for (let i = 0; i < fileContent.length; i++) {
+            binaryString += String.fromCharCode(fileContent[i]);
+          }
+        } else {
+          // Try to convert to string using available methods
+          binaryString = String(fileContent);
+        }
+        fileContent = btoa(binaryString);
         console.log("Successfully converted binary data to base64");
       } catch (e) {
         console.error("Error converting binary to base64:", e);
@@ -100,25 +145,32 @@ export function extractFileDataForAttachment(contact: any): string | null {
       }
     }
     
-    // Check if the content already includes a data URI prefix and remove it if present
-    if (typeof fileContent === 'string' && fileContent.includes('base64,')) {
-      console.log("Removing data URI prefix from file_data");
-      fileContent = fileContent.split('base64,')[1];
-    }
-    
     // Make sure we are returning a valid base64 string - cleanup any non-base64 characters
     if (typeof fileContent === 'string') {
       // Clean up the base64 string to ensure it only contains valid base64 characters
       fileContent = fileContent.replace(/[^A-Za-z0-9+/=]/g, '');
       console.log("Cleaned base64 string, length:", fileContent.length);
+    } else {
+      console.error("File content is not a string after processing");
+      return null;
     }
     
     // Log a sample of the final content for debugging
     if (typeof fileContent === 'string') {
       console.log("Final file content sample (first 50 chars):", fileContent.substring(0, 50));
       console.log("Final file content length:", fileContent.length);
-    } else {
-      console.error("File content is not a string after processing, attachment will likely fail");
+    }
+    
+    // Test base64 validity by trying to decode a small sample
+    try {
+      if (typeof fileContent === 'string' && fileContent.length > 10) {
+        const testSample = fileContent.substring(0, 10);
+        atob(testSample);
+        console.log("Base64 validity check passed");
+      }
+    } catch (e) {
+      console.error("Base64 validation failed! This is not valid base64:", e);
+      return null;
     }
     
     return fileContent;
