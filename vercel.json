@@ -1,5 +1,9 @@
+
 {
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "installCommand": "bun install"
+  "installCommand": "bun install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ]
 }

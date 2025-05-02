@@ -3,3 +3,9 @@ project_id = "uejymkggevuvuerldzhv"
 
 [functions.process-addresses]
 verify_jwt = false
+
+[functions.notify-admin]
+verify_jwt = false
+
+[functions.setup]
+verify_jwt = false

@@ -1,3 +1,5 @@
+
+// This is just a small modification to ensure proper email notifications
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
@@ -131,6 +133,25 @@ export async function handleInitialProcess(
   const approvalLink = `${approvalUrl}?action=approve_processing&contact_id=${contact.id}`;
   console.log(`Using approval URL: ${approvalUrl}`);
   console.log(`Approval link: ${approvalLink}`);
+  
+  // Call notify-admin function to ensure admin gets notified with attachment
+  try {
+    console.log("Calling notify-admin function");
+    const notifyResult = await fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`
+      },
+      body: JSON.stringify({ contactId: contact.id })
+    });
+    
+    const notifyResponse = await notifyResult.json();
+    console.log("Notify admin response:", notifyResponse);
+  } catch (notifyError) {
+    console.error("Error calling notify-admin function:", notifyError);
+    // Continue with regular email flow as fallback
+  }
   
   // Prepare file attachment for email - ensure we're using the properly formatted file data
   let fileAttachment;
