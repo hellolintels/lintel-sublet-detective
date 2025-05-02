@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -189,7 +188,13 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           console.log("File converted to base64, length:", fileBase64.length);
           
           // Store the base64 data without the prefix
-          const base64Data = fileBase64.split(',')[1];
+          let base64Data = "";
+          if (fileBase64.includes(',')) {
+            base64Data = fileBase64.split(',')[1];
+          } else {
+            base64Data = fileBase64;
+          }
+          
           console.log("Base64 data extracted, length:", base64Data ? base64Data.length : 0);
           
           if (!base64Data) {

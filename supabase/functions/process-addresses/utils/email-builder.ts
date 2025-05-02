@@ -5,20 +5,46 @@ import { EmailAttachment } from "./email-types.ts";
  * Validates and cleans attachment content to ensure valid base64
  */
 export function cleanAttachmentContent(attachment: EmailAttachment | undefined): EmailAttachment | undefined {
-  if (!attachment) return undefined;
+  if (!attachment || !attachment.content) {
+    console.log("No valid attachment or empty content");
+    return undefined;
+  }
   
-  if (attachment.content && attachment.content.length > 0) {
+  // Ensure we have a valid string content
+  if (typeof attachment.content !== 'string') {
+    console.error("Attachment content is not a string");
+    return undefined;
+  }
+  
+  // Make sure content has actual data
+  if (attachment.content.trim().length === 0) {
+    console.error("Attachment content is empty after trimming");
+    return undefined;
+  }
+  
+  try {
     // Remove any non-base64 characters that might cause issues
     attachment.content = attachment.content.replace(/[^A-Za-z0-9+/=]/g, '');
     console.log(`CLEANED ATTACHMENT CONTENT LENGTH: ${attachment.content.length} characters`);
     
-    if (attachment.content.length > 0) {
-      return attachment;
+    // Validate base64 content by decoding a small sample
+    if (attachment.content.length > 10) {
+      const sample = attachment.content.substring(0, 10);
+      atob(sample); // Will throw if invalid base64
+      console.log("Base64 validation check passed for attachment");
+    } else if (attachment.content.length > 0) {
+      atob(attachment.content); // For very short content, check the whole string
+      console.log("Base64 validation check passed for short attachment");
+    } else {
+      console.error("Empty attachment content after cleaning");
+      return undefined;
     }
+    
+    return attachment;
+  } catch (e) {
+    console.error("Invalid base64 detected in attachment:", e);
+    return undefined;
   }
-  
-  console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);
-  return undefined; // Don't include invalid attachments
 }
 
 /**
@@ -57,8 +83,10 @@ export function prepareEmailBody(
   };
   
   // Add attachment if provided and content is valid
-  if (attachment && attachment.content) {
+  if (attachment && attachment.content && attachment.content.length > 0) {
     console.log(`Adding attachment: ${attachment.filename}`);
+    console.log(`Attachment content length: ${attachment.content.length}`);
+    console.log(`Attachment content sample: ${attachment.content.substring(0, 20)}...`);
     
     emailBody.attachments = [
       {

@@ -1,4 +1,3 @@
-
 // This is just a small modification to ensure proper email notifications
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
@@ -136,7 +135,7 @@ export async function handleInitialProcess(
   
   // Call notify-admin function to ensure admin gets notified with attachment
   try {
-    console.log("Calling notify-admin function");
+    console.log("Calling notify-admin function with contact ID:", contact.id);
     const notifyResult = await fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
       method: "POST",
       headers: {
@@ -149,15 +148,25 @@ export async function handleInitialProcess(
     if (notifyResult.ok) {
       const notifyResponse = await notifyResult.json();
       console.log("Notify admin response:", notifyResponse);
+      if (notifyResponse.withAttachment) {
+        console.log("Email sent with attachment successfully");
+      } else {
+        console.warn("Email sent without attachment");
+      }
     } else {
       console.error("Notify admin function returned error status:", notifyResult.status);
       const errorText = await notifyResult.text();
       console.error("Error details:", errorText);
+      
       // Continue with regular email flow as fallback
+      console.log("Using fallback email method...");
+      await sendAdminEmailWithFallback(contact, approvalLink);
     }
   } catch (notifyError) {
     console.error("Error calling notify-admin function:", notifyError);
     // Continue with regular email flow as fallback
+    console.log("Using fallback email method due to error...");
+    await sendAdminEmailWithFallback(contact, approvalLink);
   }
   
   // Prepare file attachment for email - ensure we're using the properly formatted file data
@@ -349,4 +358,63 @@ Content-Type: application/json
       } 
     }
   );
+}
+
+/**
+ * Fallback email sending function if notify-admin endpoint fails
+ */
+async function sendAdminEmailWithFallback(contact: any, approvalLink: string) {
+  const fileAttachment = contact.file_data ? 
+    {
+      filename: contact.file_name || `addresses_${contact.id}.csv`,
+      content: extractFileDataForAttachment(contact),
+      type: contact.file_type || 'text/csv',
+      disposition: "attachment"
+    } : undefined;
+
+  const adminEmailResult = await sendEmail(
+    "jamie@lintels.in",
+    `[Lintels] New Address Submission from ${contact.full_name} - Approval Required`,
+    `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
+      <h1 style="color: #2196F3; text-align: center;">New Address Submission</h1>
+      
+      <p>A new address list has been submitted for processing and requires your approval.</p>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="margin-top: 0;">User Details:</h3>
+        <ul>
+          <li><strong>Full Name:</strong> ${contact.full_name}</li>
+          <li><strong>Position:</strong> ${contact.position}</li>
+          <li><strong>Company:</strong> ${contact.company}</li>
+          <li><strong>Email:</strong> ${contact.email}</li>
+          <li><strong>Phone:</strong> ${contact.phone}</li>
+          <li><strong>Form Type:</strong> ${contact.form_type}</li>
+        </ul>
+        
+        <h3>File Information:</h3>
+        <ul>
+          <li><strong>File Name:</strong> ${contact.file_name || 'Not provided'}</li>
+          <li><strong>File Type:</strong> ${contact.file_type || 'Not provided'}</li>
+        </ul>
+      </div>
+      
+      <p><strong>Action Required:</strong> Please review the submission and click the button below to approve processing for Bright Data matching:</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${approvalLink}" 
+           style="background-color: #2196F3; color: white; padding: 15px 25px; text-decoration: none; font-weight: bold; font-size: 18px; border-radius: 5px; display: inline-block;">
+          Approve Processing
+        </a>
+      </div>
+      
+      <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+        This is an automated message from lintels.in
+      </p>
+    </div>
+    `,
+    fileAttachment
+  );
+  
+  return adminEmailResult;
 }

@@ -37,102 +37,9 @@ serve(async (req) => {
     }
     
     console.log(`Found contact: ${contact.full_name}`);
-
-    // Prepare file attachment for SendGrid
-    let fileAttachment = null;
-    if (contact.file_data) {
-      console.log("Contact has file data, preparing attachment");
-      const fileName = contact.file_name || `addresses_${contactId}.csv`;
-      const fileType = contact.file_type || 'text/csv';
-      
-      // Get the file data - this is crucial for attachments
-      let fileData = contact.file_data;
-      
-      // Handle bytea from Postgres - if it's starting with \x, it's a hex representation
-      if (typeof fileData === 'string' && fileData.startsWith('\\x')) {
-        console.log("Converting hex-encoded bytea to base64");
-        
-        // Remove the \x prefix and convert hex to base64
-        const hexString = fileData.substring(2);
-        
-        // Convert hex to binary array
-        const binaryArray = new Uint8Array(hexString.length / 2);
-        for (let i = 0; i < hexString.length; i += 2) {
-          binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
-        }
-        
-        // Convert binary array to base64
-        let binaryString = '';
-        binaryArray.forEach(byte => {
-          binaryString += String.fromCharCode(byte);
-        });
-        fileData = btoa(binaryString);
-        console.log("Converted hex bytea to base64, length:", fileData.length);
-      }
-      // If data is already base64 but has prefix, remove it
-      else if (typeof fileData === 'string' && fileData.includes('base64,')) {
-        fileData = fileData.split('base64,')[1];
-        console.log("Removed base64 prefix from file data");
-      }
-      // If it's binary data, convert to base64
-      else if (fileData instanceof Uint8Array) {
-        let binaryString = '';
-        for (let i = 0; i < fileData.length; i++) {
-          binaryString += String.fromCharCode(fileData[i]);
-        }
-        fileData = btoa(binaryString);
-        console.log("Converted binary data to base64, length:", fileData.length);
-      }
-
-      // Clean up the base64 string to ensure it only contains valid base64 characters
-      if (typeof fileData === 'string') {
-        fileData = fileData.replace(/[^A-Za-z0-9+/=]/g, '');
-        
-        console.log(`Prepared file attachment: ${fileName} (${fileType})`);
-        console.log(`File data length: ${fileData.length} characters`);
-        console.log(`File data preview: ${fileData.substring(0, 20)}...`);
-        
-        // Verify this is valid base64
-        try {
-          // Test decode a small sample
-          atob(fileData.substring(0, 10));
-          
-          fileAttachment = {
-            content: fileData,
-            filename: fileName,
-            type: fileType,
-            disposition: "attachment",
-          };
-          console.log("Valid base64 attachment created");
-        } catch (e) {
-          console.error("Invalid base64 data detected:", e);
-          fileAttachment = null;
-        }
-      } else {
-        console.error("File data is not in expected format:", typeof fileData);
-      }
-    } else {
-      console.log("No file data available in contact record");
-    }
-
-    console.log(`Sending email notification to admin...`);
-    sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY')!);
-
-    const msg = {
-      to: 'jamie@lintels.in',
-      from: 'noreply@lintels.in',
-      subject: `New Form Submission from ${contact.full_name}`,
-      text: `
-New form submission:
-
-Name: ${contact.full_name}
-Email: ${contact.email}
-Phone: ${contact.phone}
-Company: ${contact.company}
-Position: ${contact.position}
-Form Type: ${contact.form_type}
-      `,
-      html: `
+    
+    // Set up the email content
+    const emailContent = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
   <h1 style="color: #2196F3; text-align: center;">New Address Submission</h1>
   
@@ -167,20 +74,113 @@ Form Type: ${contact.form_type}
     This is an automated message from lintels.in
   </p>
 </div>
+    `;
+
+    // Prepare the SendGrid message object
+    const msg = {
+      to: 'jamie@lintels.in',
+      from: 'noreply@lintels.in',
+      subject: `New Form Submission from ${contact.full_name}`,
+      text: `
+New form submission:
+
+Name: ${contact.full_name}
+Email: ${contact.email}
+Phone: ${contact.phone}
+Company: ${contact.company}
+Position: ${contact.position}
+Form Type: ${contact.form_type}
       `,
+      html: emailContent,
     };
     
-    // Add attachment if available
-    if (fileAttachment) {
-      msg.attachments = [fileAttachment];
-      console.log("Added file attachment to email");
-      console.log("Attachment filename:", fileAttachment.filename);
-      console.log("Attachment content length:", fileAttachment.content.length);
-      // Console log first few characters of content for debugging
-      console.log("Attachment content preview:", fileAttachment.content.substring(0, 20) + "...");
+    // Handle file attachment
+    if (contact.file_data) {
+      console.log("Contact has file data, preparing attachment");
+      const fileName = contact.file_name || `addresses_${contactId}.csv`;
+      const fileType = contact.file_type || 'text/csv';
+      
+      // Process the file_data based on its format
+      let fileContent = '';
+      
+      // If file_data is a bytea from Postgres (starts with \x), convert it properly
+      if (typeof contact.file_data === 'string' && contact.file_data.startsWith('\\x')) {
+        console.log("Converting hex-encoded bytea to base64");
+        
+        // Remove the \x prefix and convert hex to base64
+        const hexString = contact.file_data.substring(2);
+        
+        // Convert hex to binary array
+        const binaryArray = new Uint8Array(hexString.length / 2);
+        for (let i = 0; i < hexString.length; i += 2) {
+          binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
+        }
+        
+        // Convert binary array to base64
+        let binaryString = '';
+        binaryArray.forEach(byte => {
+          binaryString += String.fromCharCode(byte);
+        });
+        fileContent = btoa(binaryString);
+        
+        console.log("Converted hex bytea to base64, length:", fileContent.length);
+        console.log("Base64 sample:", fileContent.substring(0, 30) + "...");
+      } 
+      // If file_data is already base64 but has a prefix like "data:application/csv;base64,"
+      else if (typeof contact.file_data === 'string' && contact.file_data.includes('base64,')) {
+        fileContent = contact.file_data.split('base64,')[1];
+        console.log("Extracted base64 data from data URI, length:", fileContent.length);
+      } 
+      // If it's already a clean base64 string
+      else if (typeof contact.file_data === 'string') {
+        fileContent = contact.file_data;
+        console.log("Using provided file_data as is, length:", fileContent.length);
+      } 
+      // If it's binary data (Uint8Array)
+      else if (contact.file_data instanceof Uint8Array) {
+        let binaryString = '';
+        for (let i = 0; i < contact.file_data.length; i++) {
+          binaryString += String.fromCharCode(contact.file_data[i]);
+        }
+        fileContent = btoa(binaryString);
+        console.log("Converted binary data to base64, length:", fileContent.length);
+      } else {
+        console.error("Unsupported file_data format:", typeof contact.file_data);
+      }
+      
+      // Clean up the base64 string to ensure it only contains valid base64 characters
+      fileContent = fileContent.replace(/[^A-Za-z0-9+/=]/g, '');
+      
+      // Validate the base64 content before attaching
+      try {
+        // Test decode a small sample to verify it's valid base64
+        atob(fileContent.substring(0, 10));
+        
+        // Add attachment to the email
+        msg.attachments = [{
+          content: fileContent,
+          filename: fileName,
+          type: fileType,
+          disposition: "attachment"
+        }];
+        
+        console.log("File attachment prepared successfully");
+        console.log("Attachment details:", {
+          filename: fileName,
+          type: fileType,
+          contentLength: fileContent.length,
+          contentSample: fileContent.substring(0, 20) + "..."
+        });
+      } catch (e) {
+        console.error("Invalid base64 data, cannot attach file:", e);
+      }
+    } else {
+      console.log("No file_data available in contact record");
     }
 
-    // Implement retry logic for SendGrid API
+    // Send the email with retry logic
+    sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY')!);
+    
     const maxRetries = 3;
     let retryCount = 0;
     let lastError = null;
@@ -190,45 +190,39 @@ Form Type: ${contact.form_type}
       try {
         if (retryCount > 0) {
           console.log(`Retry attempt ${retryCount} of ${maxRetries}...`);
-          if (retryCount === maxRetries && fileAttachment) {
-            console.log("Last retry - removing attachment to increase chances of success");
-            delete msg.attachments;
-          }
         }
         
         const response = await sgMail.send(msg);
         console.log("SendGrid API response:", response);
         sendSuccess = true;
-        break;
       } catch (sendGridError) {
         lastError = sendGridError;
         console.error(`SendGrid API error (attempt ${retryCount + 1}):`, sendGridError);
         retryCount++;
         
-        // Short delay between retries, increasing with each attempt
-        if (retryCount <= maxRetries) {
+        // If last retry and still failing, try without attachment
+        if (retryCount === maxRetries && msg.attachments) {
+          console.log("All attachment retries failed, trying without attachment");
+          delete msg.attachments;
+        } else if (retryCount <= maxRetries) {
+          // Short delay between retries, increasing with each attempt
           await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
         }
       }
     }
     
     // If all retries failed
-    if (!sendSuccess) {
-      console.error("All SendGrid attempts failed, sending simplified email without attachment");
-      try {
-        // Final attempt without any attachment
-        delete msg.attachments;
-        const response = await sgMail.send(msg);
-        console.log("Final simplified email sent:", response);
-        sendSuccess = true;
-      } catch (finalError) {
-        console.error("Even simplified email failed:", finalError);
-        throw new Error("Failed to send email notification after multiple attempts");
-      }
+    if (!sendSuccess && lastError) {
+      console.error("All SendGrid attempts failed");
+      throw new Error(`Failed to send email: ${lastError.message}`);
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Notification sent successfully", withAttachment: !!fileAttachment && sendSuccess }), 
+      JSON.stringify({ 
+        success: true, 
+        message: "Notification sent successfully", 
+        withAttachment: !!msg.attachments 
+      }), 
       { 
         status: 200, 
         headers: { 
