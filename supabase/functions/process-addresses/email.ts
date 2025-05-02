@@ -83,6 +83,9 @@ export async function sendEmail(
     const fromName = Deno.env.get("SENDGRID_FROM_NAME") || "Lintels";
     console.log(`Using sender: ${fromName} <${fromEmail}>`);
     
+    // Add a timestamp to prevent email threading in some clients
+    const timestampedSubject = `${subject} [${Date.now()}]`;
+    
     // Prepare the email request body
     const emailBody: any = {
       personalizations: [
@@ -91,7 +94,7 @@ export async function sendEmail(
         }
       ],
       from: { email: fromEmail, name: fromName },
-      subject: subject,
+      subject: timestampedSubject,
       content: [
         {
           type: "text/html",
@@ -129,34 +132,60 @@ export async function sendEmail(
     // Prepare the SendGrid request with comprehensive error handling
     console.log("Sending email via SendGrid API...");
     let response;
-    try {
-      response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sendgridApiKey}`
-        },
-        body: JSON.stringify(emailBody)
-      });
-      
-      console.log(`SendGrid API Response Status: ${response.status}`);
-      
-      // If the response is not successful, attempt to get more details
-      if (!response.ok) {
+    
+    // Implement retry logic
+    const maxRetries = 2;
+    let retryCount = 0;
+    let lastError = null;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        if (retryCount > 0) {
+          console.log(`Retry attempt ${retryCount} of ${maxRetries}...`);
+          // Short delay between retries, increasing with each attempt
+          await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+        }
+        
+        response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sendgridApiKey}`
+          },
+          body: JSON.stringify(emailBody)
+        });
+        
+        console.log(`SendGrid API Response Status: ${response.status}`);
+        
+        if (response.ok) {
+          // Success! Break out of retry loop
+          break;
+        }
+        
+        // If we're here, response wasn't ok - prepare error details
         let errorDetails = "Unknown error";
         try {
           const errorText = await response.text();
-          console.error("SendGrid API error:", errorText);
+          console.error(`SendGrid API error: ${errorText}`);
           errorDetails = errorText;
         } catch (e) {
           console.error("Could not retrieve error details:", e);
         }
         
-        throw new Error(`SendGrid API returned ${response.status}: ${errorDetails}`);
+        lastError = new Error(`SendGrid API returned ${response.status}: ${errorDetails}`);
+        
+        // Continue to next retry attempt
+        retryCount++;
+      } catch (fetchError) {
+        console.error("Error during SendGrid API call:", fetchError);
+        lastError = fetchError;
+        retryCount++;
       }
-    } catch (fetchError) {
-      console.error("Error during SendGrid API call:", fetchError);
-      throw fetchError;
+    }
+    
+    // If we've exhausted retries and still have an error
+    if (!response || !response.ok) {
+      throw lastError || new Error("Failed to send email after multiple attempts");
     }
     
     // Special handling for admin emails to ensure delivery
@@ -194,7 +223,7 @@ export async function sendEmail(
             email: Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in", 
             name: "Lintels URGENT" 
           },
-          subject: `${subject} [RETRY]`,
+          subject: `${subject} [RETRY ${Date.now()}]`,
           content: [
             {
               type: "text/html",

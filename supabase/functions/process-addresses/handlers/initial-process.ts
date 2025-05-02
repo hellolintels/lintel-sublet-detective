@@ -22,13 +22,13 @@ export async function handleInitialProcess(
   const addressCount = await countAddressRows(contact.file_data);
   console.log(`Address file contains ${addressCount} rows`);
   
-  // Update contact status
+  // Update contact status - removing approved_for_matching which doesn't exist
   console.log(`Updating contact status to pending_approval`);
   const { error: updateError } = await supabase
     .from("contacts")
     .update({ 
-      status: "pending_approval",
-      approved_for_matching: false 
+      status: "pending_approval"
+      // Removed the approved_for_matching field that doesn't exist
     })
     .eq("id", contact.id);
     

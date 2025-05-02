@@ -50,9 +50,14 @@ export function countAddressRows(fileData: string | null | undefined): number {
     if (lines.length > 0) console.log("First line:", lines[0]);
     if (lines.length > 1) console.log("Second line:", lines[1]);
     
-    const lineCount = Math.max(0, lines.length - 1); // Subtract 1 for header
-    console.log(`Counted ${lineCount} data rows (excluding header)`);
-    return lineCount;
+    // Count non-empty lines
+    const nonEmptyLines = lines.filter(line => line.trim().length > 0).length;
+    console.log(`Found ${nonEmptyLines} non-empty lines`);
+    
+    // If we have at least one non-empty line, assume it's the header and subtract 1
+    const dataRows = nonEmptyLines > 0 ? nonEmptyLines - 1 : 0;
+    console.log(`Counted ${dataRows} data rows (excluding header)`);
+    return dataRows;
   } catch (error) {
     console.error("Error counting lines:", error);
     return 0; // Return 0 as a safe default
@@ -93,7 +98,15 @@ export function extractFileDataForAttachment(contact: any): string | null {
           console.log("Base64 validity check: Successfully decoded test portion");
         } catch (e) {
           console.warn("Base64 validity check failed, string might not be valid base64:", e);
-          // Continue anyway since it might just be a partial issue
+          
+          // Try to re-encode it properly
+          try {
+            fileContent = btoa(unescape(encodeURIComponent(contact.file_data)));
+            console.log("Re-encoded as base64, new length:", fileContent.length);
+          } catch (encodeError) {
+            console.error("Failed to re-encode as base64:", encodeError);
+            // Continue anyway, it might work
+          }
         }
       } else {
         // If it's not base64 encoded, encode it
