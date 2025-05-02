@@ -12,11 +12,12 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Find and Replace
-      uses: replicate/find-and-replace-action@v1
+      uses: jacobtomlinson/gha-find-replace@v2
       with:
         find: "supabase.functions.invoke('process-addresses'"
         replace: "supabase.functions.invoke('notify-admin'"
-        files: "**/*.js"
+        regex: false
+        include: "**/*.js"
 
     - name: Commit Changes to feature branch
       run: |
