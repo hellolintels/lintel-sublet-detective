@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -308,7 +307,7 @@ const AdminDashboard = () => {
                           <TableCell>{getStatusBadge(request.status)}</TableCell>
                           <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            {request.status === 'pending_approval' && (
+                            {(request.status === 'pending_approval' || request.status === 'new') && (
                               <Button 
                                 size="sm"
                                 className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)]"

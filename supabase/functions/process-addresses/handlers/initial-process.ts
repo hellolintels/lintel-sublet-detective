@@ -1,7 +1,8 @@
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
-import { countAddressRows } from "../file-processing.ts";
+import { countAddressRows, extractFileDataForAttachment } from "../file-processing.ts";
 
 /**
  * Handle initial processing of address data
@@ -11,12 +12,13 @@ import { countAddressRows } from "../file-processing.ts";
  */
 export async function handleInitialProcess(
   supabase: ReturnType<typeof createClient>,
-  contact: any
+  contact: any,
+  supabaseUrl: string
 ) {
   console.log(`Starting initial process for contact: ${contact.id}`);
   
   // Count rows in the address file to determine processing approach
-  const addressCount = await countAddressRows(contact);
+  const addressCount = await countAddressRows(contact.file_data);
   console.log(`Address file contains ${addressCount} rows`);
   
   // Update contact status
@@ -33,12 +35,28 @@ export async function handleInitialProcess(
   console.log(`Updated contact status to 'pending_approval'`);
   
   // Construct approval URL
-  const functionUrl = Deno.env.get("SUPABASE_URL") || "";
-  const approvalUrl = `${functionUrl}/functions/v1/process-addresses`;
+  const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   console.log(`Using approval URL: ${approvalUrl}`);
   
-  // Send admin notification email
-  console.log("Sending admin notification email");
+  // Prepare file attachment for email
+  let fileAttachment;
+  if (contact.file_data) {
+    const fileContent = extractFileDataForAttachment(contact);
+    if (fileContent) {
+      fileAttachment = {
+        filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
+        content: fileContent,
+        type: contact.file_type || 'text/csv'
+      };
+      console.log(`File attachment prepared: ${fileAttachment.filename}`);
+      console.log(`Content length: ${fileContent.length} characters`);
+    } else {
+      console.log("Could not extract file content for attachment");
+    }
+  }
+  
+  // Send admin notification email with file attachment
+  console.log("Sending admin notification email with file attachment");
   const adminEmailResult = await sendEmail(
     "jamie@lintels.in",
     `[Lintels] New Address Submission from ${contact.full_name}`,
@@ -70,7 +88,7 @@ export async function handleInitialProcess(
       <p>Review the submission and approve processing by clicking below:</p>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${approvalUrl}?contactId=${contact.id}&action=approve_processing" 
+        <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
            style="background-color: #2196F3; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
           Approve Processing
         </a>
@@ -91,10 +109,11 @@ Content-Type: application/json
         This is an automated message from lintels.in
       </p>
     </div>
-    `
+    `,
+    fileAttachment
   );
   
-  console.log("Admin email sending result (first attempt):", adminEmailResult);
+  console.log("Admin email sending result:", adminEmailResult);
   
   // Send confirmation email to customer
   const clientEmailResult = await sendEmail(

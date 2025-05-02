@@ -2,6 +2,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
+import { extractFileDataForAttachment } from "../file-processing.ts";
 
 /**
  * Handle approval of processing a contact's address file
@@ -77,50 +78,28 @@ export async function handleApproveProcessing(
     `;
   }
   
-  // Prepare file data for attachment
+  // Prepare file data for attachment using our helper function
   let fileAttachment;
   if (contact.file_data) {
     try {
       console.log("Preparing file attachment");
-      console.log("File data type:", typeof contact.file_data);
       
-      // Handle the file data based on its type
-      let fileContent = '';
+      // Extract file content using our helper function
+      const fileContent = extractFileDataForAttachment(contact);
       
-      if (typeof contact.file_data === 'string') {
-        // If it's already a string, use it directly
-        fileContent = contact.file_data;
-        console.log("File data is string, length:", fileContent.length);
-      } else if (contact.file_data instanceof Uint8Array) {
-        // Convert Uint8Array to base64 string
-        fileContent = btoa(String.fromCharCode(...contact.file_data));
-        console.log("Converted Uint8Array to base64, length:", fileContent.length);
-      } else {
-        // For bytea from Postgres, it might come as an object with base64 data
-        console.log("File data is object, stringifying for inspection");
-        console.log("Object keys:", Object.keys(contact.file_data).join(", "));
+      if (fileContent) {
+        // Create the attachment object
+        fileAttachment = {
+          filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
+          content: fileContent,
+          type: contact.file_type || 'text/csv'
+        };
         
-        // Try different approaches to get the actual data
-        if (contact.file_data.toString) {
-          fileContent = contact.file_data.toString('base64');
-          console.log("Used toString('base64'), length:", fileContent.length);
-        } else {
-          // Last resort, stringify the object
-          fileContent = JSON.stringify(contact.file_data);
-          console.log("Used JSON.stringify, length:", fileContent.length);
-        }
+        console.log(`File attachment prepared: ${fileAttachment.filename}`);
+        console.log(`Content length: ${fileContent.length} characters`);
+      } else {
+        console.log("Could not extract file content for attachment");
       }
-      
-      // Create the attachment object
-      fileAttachment = {
-        filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
-        content: fileContent,
-        type: contact.file_type || 'text/csv'
-      };
-      
-      console.log(`File attachment prepared: ${fileAttachment.filename}`);
-      console.log(`Content length: ${fileAttachment.content.length} characters`);
-      
     } catch (error) {
       console.error("Error preparing file attachment:", error);
       // Continue without attachment if there's an error
@@ -129,7 +108,7 @@ export async function handleApproveProcessing(
     console.log("No file data available for attachment");
   }
   
-  // Send notification that processing is complete
+  // Send notification that processing is complete, with file attachment
   const emailResult = await sendEmail(
     "jamie@lintels.in", 
     `[Lintels] Address Processing Complete for ${contact.full_name}`,
