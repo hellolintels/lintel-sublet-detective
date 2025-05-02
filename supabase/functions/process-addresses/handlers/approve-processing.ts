@@ -19,6 +19,7 @@ export async function handleApproveProcessing(
   supabaseUrl: string
 ) {
   console.log(`Starting approve processing for contact: ${contact.id}`);
+  console.log(`Contact full name: ${contact.full_name}, email: ${contact.email}`);
   
   // Update contact status to processing
   const { error: updateError } = await supabase
@@ -80,9 +81,9 @@ export async function handleApproveProcessing(
   
   // Prepare file data for attachment using our helper function
   let fileAttachment;
-  if (contact.file_data) {
-    try {
-      console.log("Preparing file attachment");
+  try {
+    if (contact.file_data) {
+      console.log("Preparing file attachment for approval email");
       
       // Extract file content using our helper function
       const fileContent = extractFileDataForAttachment(contact);
@@ -100,12 +101,12 @@ export async function handleApproveProcessing(
       } else {
         console.log("Could not extract file content for attachment");
       }
-    } catch (error) {
-      console.error("Error preparing file attachment:", error);
-      // Continue without attachment if there's an error
+    } else {
+      console.log("No file data available for attachment");
     }
-  } else {
-    console.log("No file data available for attachment");
+  } catch (error) {
+    console.error("Error preparing file attachment:", error);
+    // Continue without attachment if there's an error
   }
   
   // Send notification that processing is complete, with file attachment
@@ -159,44 +160,13 @@ export async function handleApproveProcessing(
   
   console.log("Notification email result:", emailResult);
   
-  // If the email failed, try a second attempt with simpler formatting
-  if (!emailResult.success) {
-    console.log("First email attempt failed, trying with simpler format");
-    
-    const fallbackResult = await sendEmail(
-      "jamie@lintels.in", 
-      `[Lintels] Processing Complete - ${contact.full_name}`,
-      `
-      Address processing complete for ${contact.full_name} (${contact.email}).
-      
-      User Details:
-      - Name: ${contact.full_name}
-      - Position: ${contact.position}
-      - Company: ${contact.company}
-      - Email: ${contact.email}
-      - Phone: ${contact.phone}
-      
-      Report details:
-      - Properties: ${reportData.properties_count}
-      - Matches: ${reportData.matches_count}
-      
-      To send the report to the client, visit:
-      ${viewReportUrl}
-      
-      This is an automated message from lintels.in
-      `,
-      fileAttachment
-    );
-    
-    console.log("Fallback email result:", fallbackResult);
-  }
-  
   return new Response(
     JSON.stringify({
       message: "Address processing completed",
       contact_id: contact.id,
       report_id: newReportId,
-      status: "processed"
+      status: "processed",
+      email_status: emailResult.success ? "sent" : "failed"
     }),
     { 
       headers: { 

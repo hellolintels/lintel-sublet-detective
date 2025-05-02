@@ -16,6 +16,7 @@ export async function handleInitialProcess(
   supabaseUrl: string
 ) {
   console.log(`Starting initial process for contact: ${contact.id}`);
+  console.log(`Contact full name: ${contact.full_name}, email: ${contact.email}`);
   
   // Count rows in the address file to determine processing approach
   const addressCount = await countAddressRows(contact.file_data);
@@ -40,19 +41,28 @@ export async function handleInitialProcess(
   
   // Prepare file attachment for email
   let fileAttachment;
-  if (contact.file_data) {
-    const fileContent = extractFileDataForAttachment(contact);
-    if (fileContent) {
-      fileAttachment = {
-        filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
-        content: fileContent,
-        type: contact.file_type || 'text/csv'
-      };
-      console.log(`File attachment prepared: ${fileAttachment.filename}`);
-      console.log(`Content length: ${fileContent.length} characters`);
+  try {
+    if (contact.file_data) {
+      console.log("Extracting file data for attachment...");
+      const fileContent = extractFileDataForAttachment(contact);
+      
+      if (fileContent) {
+        fileAttachment = {
+          filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
+          content: fileContent,
+          type: contact.file_type || 'text/csv'
+        };
+        console.log(`File attachment prepared: ${fileAttachment.filename}`);
+        console.log(`Content length: ${fileContent.length} characters`);
+      } else {
+        console.log("Could not extract file content for attachment");
+      }
     } else {
-      console.log("Could not extract file content for attachment");
+      console.log("No file_data available in contact record");
     }
+  } catch (attachmentError) {
+    console.error("Error preparing file attachment:", attachmentError);
+    // Continue without the attachment if there's an error
   }
   
   // Send admin notification email with file attachment

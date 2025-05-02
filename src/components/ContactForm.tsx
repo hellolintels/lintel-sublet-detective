@@ -131,7 +131,11 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           const base64Data = fileBase64.split(',')[1];
           console.log("Base64 data extracted, length:", base64Data ? base64Data.length : 0);
           
-          contactData.file_data = base64Data || fileBase64;
+          if (!base64Data) {
+            throw new Error("Failed to extract base64 data from file");
+          }
+          
+          contactData.file_data = base64Data;
           console.log("File data ready for storage, type:", typeof contactData.file_data);
         } catch (fileError) {
           console.error("Error converting file to base64:", fileError);

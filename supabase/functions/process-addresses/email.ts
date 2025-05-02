@@ -8,6 +8,7 @@ interface EmailAttachment {
   filename: string;
   content: string;
   type: string;
+  disposition?: string;
 }
 
 /**
@@ -31,14 +32,36 @@ export async function sendEmail(
     console.log(`CONTENT LENGTH: ${htmlContent.length} characters`);
     console.log(`CONTENT PREVIEW: ${htmlContent.substring(0, 100)}...`);
     
+    // Validate recipient email
+    if (!to || !to.includes('@')) {
+      throw new Error(`Invalid recipient email: ${to}`);
+    }
+    
     if (attachment) {
       console.log(`ATTACHMENT: ${attachment.filename} (${attachment.type})`);
       console.log(`ATTACHMENT CONTENT LENGTH: ${attachment.content ? attachment.content.length : 0} characters`);
+      
       // Log the first few characters of the attachment content for debugging
       if (attachment.content && attachment.content.length > 0) {
         console.log(`ATTACHMENT CONTENT PREVIEW: ${attachment.content.substring(0, 20)}...`);
+        
+        // Verify the content is base64 encoded
+        const base64Regex = /^[A-Za-z0-9+/=]*$/;
+        if (!base64Regex.test(attachment.content)) {
+          console.log("WARNING: Attachment content doesn't appear to be base64 encoded!");
+          console.log("Re-encoding attachment content to base64...");
+          try {
+            attachment.content = btoa(unescape(encodeURIComponent(attachment.content)));
+            console.log("Re-encoded attachment. New length:", attachment.content.length);
+          } catch (e) {
+            console.error("Failed to re-encode attachment content:", e);
+            console.log("Sending email without attachment");
+            attachment = undefined;
+          }
+        }
       } else {
         console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);
+        attachment = undefined; // Don't include invalid attachments
       }
     } else {
       console.log(`ATTACHMENT: None`);
@@ -73,7 +96,7 @@ export async function sendEmail(
       ]
     };
     
-    // Add attachment if provided
+    // Add attachment if provided and content is valid
     if (attachment && attachment.content) {
       console.log(`Adding attachment: ${attachment.filename}`);
       emailBody.attachments = [
@@ -81,7 +104,7 @@ export async function sendEmail(
           filename: attachment.filename,
           content: attachment.content,
           type: attachment.type,
-          disposition: "attachment"
+          disposition: attachment.disposition || "attachment"
         }
       ];
     }
@@ -96,6 +119,20 @@ export async function sendEmail(
       body: JSON.stringify(emailBody)
     });
     
+    // If the response is not successful, attempt to get more details
+    if (!response.ok) {
+      let errorDetails = "Unknown error";
+      try {
+        const errorText = await response.text();
+        console.error("SendGrid API error:", errorText);
+        errorDetails = errorText;
+      } catch (e) {
+        console.error("Could not retrieve error details:", e);
+      }
+      
+      throw new Error(`SendGrid API returned ${response.status}: ${errorDetails}`);
+    }
+    
     // Special handling for admin emails to ensure delivery
     if (to === "jamie@lintels.in") {
       console.log(`CRITICAL ADMIN EMAIL TO: ${to}`);
@@ -105,65 +142,7 @@ export async function sendEmail(
       const emailId = `admin_email_${Date.now()}`;
       console.log(`ADMIN EMAIL TRACKING ID: ${emailId}`);
       
-      // Log the SendGrid response status for admin emails
       console.log(`ADMIN EMAIL ${emailId} - SendGrid Response Status: ${response.status}`);
-      
-      // If the response is not successful, retry once more
-      if (!response.ok) {
-        console.log(`ADMIN EMAIL ${emailId} - First attempt failed with status ${response.status}, retrying...`);
-        
-        // Wait 2 seconds before retrying
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Prepare retry email body with attachment if provided
-        const retryEmailBody: any = {
-          personalizations: [
-            {
-              to: [{ email: to }]
-            }
-          ],
-          from: { email: fromEmail, name: "Lintels URGENT" },
-          subject: `${subject} [RETRY]`,
-          content: [
-            {
-              type: "text/html",
-              value: htmlContent
-            }
-          ]
-        };
-        
-        // Add attachment to retry if provided
-        if (attachment && attachment.content) {
-          console.log(`Adding attachment to retry: ${attachment.filename}`);
-          retryEmailBody.attachments = [
-            {
-              filename: attachment.filename,
-              content: attachment.content,
-              type: attachment.type,
-              disposition: "attachment"
-            }
-          ];
-        }
-        
-        // Retry the request with the same verified sender
-        const retryResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sendgridApiKey}`
-          },
-          body: JSON.stringify(retryEmailBody)
-        });
-        
-        console.log(`ADMIN EMAIL ${emailId} - Retry attempt response status: ${retryResponse.status}`);
-      }
-    }
-    
-    // Check if the request was successful
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("SendGrid API error:", errorText);
-      throw new Error(`SendGrid API returned ${response.status}: ${errorText}`);
     }
     
     return { 
@@ -177,6 +156,54 @@ export async function sendEmail(
     console.error(`Failed to send email to: ${to}`);
     console.error(`Subject: ${subject}`);
     console.error("Error details:", error);
+    
+    // For important emails, make a second attempt with simplified content
+    if (to === "jamie@lintels.in") {
+      console.log("Admin email failed, attempting simplified retry...");
+      try {
+        // Prepare the retry email body with minimal HTML and no attachments
+        const retryEmailBody: any = {
+          personalizations: [
+            {
+              to: [{ email: to }]
+            }
+          ],
+          from: { email: Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in", name: "Lintels URGENT" },
+          subject: `${subject} [RETRY]`,
+          content: [
+            {
+              type: "text/html",
+              value: `<p>This is a simplified retry email after a failure.</p><p>Original subject: ${subject}</p><p>Please check the admin dashboard for details.</p>`
+            }
+          ]
+        };
+        
+        // Send the retry email
+        const retryResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SENDGRID_API_KEY") || ""}`
+          },
+          body: JSON.stringify(retryEmailBody)
+        });
+        
+        console.log("Admin email retry status:", retryResponse.status);
+        
+        if (retryResponse.ok) {
+          return { 
+            success: true, 
+            messageId: `sendgrid_retry_${Date.now()}`,
+            recipient: to,
+            subject: subject,
+            note: "Sent with simplified content after initial failure"
+          };
+        }
+      } catch (retryError) {
+        console.error("Admin email retry also failed:", retryError);
+      }
+    }
+    
     return { 
       success: false, 
       error: error instanceof Error ? error.message : String(error),

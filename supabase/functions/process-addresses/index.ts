@@ -45,40 +45,89 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log("Created Supabase client with service role");
     
-    if (!contactId) {
-      throw new Error("Contact ID is required");
+    if (!contactId && action !== "initial_process") {
+      console.error("Contact ID is required but was not provided");
+      throw new Error("Contact ID is required for action: " + action);
     }
     
-    console.log(`Processing request with action: ${action} for contact ID: ${contactId}`);
-    
-    // Get the contact data
-    const { data: contact, error: contactError } = await supabase
-      .from("contacts")
-      .select("*")
-      .eq("id", contactId)
-      .single();
-      
-    if (contactError) {
-      console.error("Error fetching contact:", contactError);
-      throw contactError;
-    }
-    
-    if (!contact) {
-      throw new Error(`Contact with ID ${contactId} not found`);
-    }
-    
-    console.log(`Found contact: ${contact.full_name}`);
+    console.log(`Processing request with action: ${action}` + (contactId ? ` for contact ID: ${contactId}` : ""));
     
     // Different actions based on the request type
     switch (action) {
       case "initial_process":
+        if (!contactId) {
+          console.error("Contact ID is required for initial_process action");
+          throw new Error("Contact ID is required");
+        }
+        
+        // Get the contact data
+        const { data: contact, error: contactError } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq("id", contactId)
+          .single();
+          
+        if (contactError) {
+          console.error("Error fetching contact:", contactError);
+          throw contactError;
+        }
+        
+        if (!contact) {
+          throw new Error(`Contact with ID ${contactId} not found`);
+        }
+        
+        console.log(`Found contact: ${contact.full_name}`);
         return await handleInitialProcess(supabase, contact, supabaseUrl);
       
       case "approve_processing":
-        return await handleApproveProcessing(supabase, contact, reportId, supabaseUrl);
+        if (!contactId) {
+          console.error("Contact ID is required for approve_processing action");
+          throw new Error("Contact ID is required");
+        }
+        
+        // Get the contact data
+        const { data: approveContact, error: approveContactError } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq("id", contactId)
+          .single();
+          
+        if (approveContactError) {
+          console.error("Error fetching contact for approval:", approveContactError);
+          throw approveContactError;
+        }
+        
+        if (!approveContact) {
+          throw new Error(`Contact with ID ${contactId} not found for approval`);
+        }
+        
+        console.log(`Found contact for approval: ${approveContact.full_name}`);
+        return await handleApproveProcessing(supabase, approveContact, reportId, supabaseUrl);
       
       case "send_results":
-        return await handleSendResults(supabase, contact, reportId);
+        if (!contactId) {
+          console.error("Contact ID is required for send_results action");
+          throw new Error("Contact ID is required");
+        }
+        
+        // Get the contact data
+        const { data: resultsContact, error: resultsContactError } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq("id", contactId)
+          .single();
+          
+        if (resultsContactError) {
+          console.error("Error fetching contact for results:", resultsContactError);
+          throw resultsContactError;
+        }
+        
+        if (!resultsContact) {
+          throw new Error(`Contact with ID ${contactId} not found for results`);
+        }
+        
+        console.log(`Found contact for results: ${resultsContact.full_name}`);
+        return await handleSendResults(supabase, resultsContact, reportId);
       
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -89,7 +138,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({
-        error: error.message || "An unexpected error occurred",
+        error: error instanceof Error ? error.message : String(error),
       }),
       {
         status: 400,

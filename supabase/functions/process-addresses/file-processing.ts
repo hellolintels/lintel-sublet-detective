@@ -62,6 +62,7 @@ export function countAddressRows(fileData: string | null | undefined): number {
 /**
  * Extract file data from a contact record for attachment
  * This function handles various formats the file data might be in
+ * and ensures proper base64 encoding for email attachments
  * @param contact The contact record containing file data
  * @returns String with the file content ready for attachment, or null
  */
@@ -76,36 +77,74 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("File data type:", typeof contact.file_data);
     
     // Handle different types of file data
+    let fileContent: string | null = null;
+    
     if (typeof contact.file_data === 'string') {
-      // If it's already a string, use it directly
       console.log("File data is string type, length:", contact.file_data.length);
-      return contact.file_data;
-    } 
-    
-    if (contact.file_data instanceof Uint8Array) {
+      
+      // Check if the string is already base64 encoded
+      const base64Regex = /^[A-Za-z0-9+/=]*$/;
+      if (base64Regex.test(contact.file_data)) {
+        console.log("String appears to be already base64 encoded");
+        fileContent = contact.file_data;
+      } else {
+        // If it's not base64 encoded, encode it
+        console.log("Converting string to base64");
+        try {
+          // We need to handle Unicode characters correctly
+          fileContent = btoa(unescape(encodeURIComponent(contact.file_data)));
+          console.log("Successfully encoded to base64, length:", fileContent.length);
+        } catch (e) {
+          console.error("Error during base64 encoding:", e);
+          // As a last resort, try a different encoding approach
+          try {
+            console.log("Trying alternative encoding approach");
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(contact.file_data);
+            fileContent = btoa(String.fromCharCode(...new Uint8Array(bytes)));
+            console.log("Alternative encoding successful, length:", fileContent.length);
+          } catch (innerError) {
+            console.error("All encoding approaches failed:", innerError);
+            return null;
+          }
+        }
+      }
+    } else if (contact.file_data instanceof Uint8Array) {
       // Convert Uint8Array to base64 string
-      const fileContent = btoa(String.fromCharCode(...contact.file_data));
+      console.log("Converting Uint8Array to base64");
+      fileContent = btoa(String.fromCharCode(...contact.file_data));
       console.log("Converted Uint8Array to base64, length:", fileContent.length);
-      return fileContent;
-    }
-    
-    // Handle PostgreSQL bytea type which might come as an object
-    console.log("File data appears to be an object");
-    
-    if (typeof contact.file_data.toString === 'function') {
-      try {
-        // Try to use toString method if available
-        const fileContent = contact.file_data.toString('base64');
-        console.log("Used toString('base64'), length:", fileContent.length);
-        return fileContent;
-      } catch (e) {
-        console.error("Error using toString('base64'):", e);
+    } else {
+      // Handle PostgreSQL bytea type which might come as an object
+      console.log("File data appears to be an object");
+      
+      if (typeof contact.file_data.toString === 'function') {
+        try {
+          // Try to use toString method if available
+          fileContent = contact.file_data.toString('base64');
+          console.log("Used toString('base64'), length:", fileContent ? fileContent.length : 0);
+        } catch (e) {
+          console.error("Error using toString('base64'):", e);
+        }
+      }
+      
+      // As a last resort, stringify the object and encode it
+      if (!fileContent) {
+        const jsonString = JSON.stringify(contact.file_data);
+        console.log("Used JSON.stringify as fallback, length:", jsonString.length);
+        fileContent = btoa(unescape(encodeURIComponent(jsonString)));
       }
     }
     
-    // As a last resort, stringify the object
-    const fileContent = JSON.stringify(contact.file_data);
-    console.log("Used JSON.stringify as fallback, length:", fileContent.length);
+    if (!fileContent) {
+      console.error("Failed to extract file data after all attempts");
+      return null;
+    }
+    
+    // Ensure the content is properly base64 encoded
+    console.log("Final file content length:", fileContent.length);
+    console.log("File content preview (first 20 chars):", fileContent.substring(0, 20));
+    
     return fileContent;
   } catch (error) {
     console.error("Error extracting file data for attachment:", error);
