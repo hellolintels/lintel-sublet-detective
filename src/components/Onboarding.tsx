@@ -9,7 +9,7 @@ const Onboarding = () => {
         <div className="text-gray-300 text-sm sm:text-base md:text-lg mb-8">
           <p className="mb-4">
             We're currently working with selected agents and housing providers across the UK. 
-            Beta onboarding is limited — if you manage rental properties and want to test 
+            If you manage rental properties and want to test 
             lintels.in, fill out the sample report form and check the "Apply for Beta Access" option.
           </p>
         </div>
