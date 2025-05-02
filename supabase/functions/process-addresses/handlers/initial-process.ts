@@ -22,13 +22,12 @@ export async function handleInitialProcess(
   const addressCount = await countAddressRows(contact.file_data);
   console.log(`Address file contains ${addressCount} rows`);
   
-  // Update contact status - removing approved_for_matching which doesn't exist
+  // Update contact status
   console.log(`Updating contact status to pending_approval`);
   const { error: updateError } = await supabase
     .from("contacts")
     .update({ 
       status: "pending_approval"
-      // Removed the approved_for_matching field that doesn't exist
     })
     .eq("id", contact.id);
     
@@ -44,12 +43,11 @@ export async function handleInitialProcess(
   console.log(`Using approval URL: ${approvalUrl}`);
   console.log(`Approval link: ${approvalLink}`);
   
-  // Prepare file attachment for email with additional validation
+  // Prepare file attachment for email
   let fileAttachment;
   try {
     if (contact.file_data) {
       console.log("Extracting file data for attachment...");
-      // Get the raw file data without additional processing
       const fileContent = contact.file_data;
       
       if (fileContent && typeof fileContent === 'string') {

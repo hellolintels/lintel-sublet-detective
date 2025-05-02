@@ -81,18 +81,9 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("File data type:", typeof contact.file_data);
     console.log("File name:", contact.file_name || "unnamed-file");
     
-    // The file_data should already be base64 encoded from the frontend
-    // We'll verify and ensure it's properly formatted
-    if (typeof contact.file_data === 'string') {
-      console.log("File data is string type, length:", contact.file_data.length);
-      
-      // Directly use the provided base64 data - it should be properly encoded from the frontend
-      // This preserves the original file content without any manipulation
-      return contact.file_data;
-    } else {
-      console.error("File data is not a string, cannot use as attachment");
-      return null;
-    }
+    // Since we're storing the raw base64 data from the front-end, we'll return it directly
+    // without any additional processing or manipulation
+    return contact.file_data;
   } catch (error) {
     console.error("Error extracting file data for attachment:", error);
     return null;
