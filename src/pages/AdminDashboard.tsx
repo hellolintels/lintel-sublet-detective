@@ -86,6 +86,8 @@ const AdminDashboard = () => {
 
   const handleApproveRequest = async (contactId: string) => {
     try {
+      console.log("Approving request for contact ID:", contactId);
+      
       // Update the contact status to "approved"
       const { error: updateError } = await supabase
         .from('contacts')
@@ -95,14 +97,19 @@ const AdminDashboard = () => {
       if (updateError) throw updateError;
       
       // Call the process-addresses function with the contact ID
-      const { error: functionError } = await supabase.functions.invoke('process-addresses', {
+      const { data, error: functionError } = await supabase.functions.invoke('process-addresses', {
         body: {
           contactId: contactId,
           action: 'approve_processing'
         }
       });
       
-      if (functionError) throw functionError;
+      if (functionError) {
+        console.error("Function error:", functionError);
+        throw functionError;
+      }
+      
+      console.log("Function response:", data);
       
       toast({
         title: "Request approved",
@@ -116,7 +123,7 @@ const AdminDashboard = () => {
       console.error("Error approving request:", error);
       toast({
         title: "Error",
-        description: "Failed to approve request",
+        description: "Failed to approve request: " + (error instanceof Error ? error.message : "Unknown error"),
         variant: "destructive",
       });
     }
