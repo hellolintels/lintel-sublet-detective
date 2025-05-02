@@ -18,6 +18,7 @@ jobs:
         replace: "supabase.functions.invoke('notify-admin'"
         regex: false
         include: "**/*.js"
+        fail_on_no_matches: false
 
     - name: Commit Changes to feature branch
       run: |
