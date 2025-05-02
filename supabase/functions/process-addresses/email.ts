@@ -50,7 +50,7 @@ export async function sendEmail(
       if (attachment.content && attachment.content.length > 0) {
         console.log(`ATTACHMENT CONTENT PREVIEW: ${attachment.content.substring(0, 20)}...`);
         
-        // Verify the content is base64 encoded
+        // Ensure content is base64 encoded but don't modify if it already is
         const base64Regex = /^[A-Za-z0-9+/=]*$/;
         if (!base64Regex.test(attachment.content)) {
           console.log("WARNING: Attachment content doesn't appear to be base64 encoded!");
@@ -63,6 +63,8 @@ export async function sendEmail(
             console.log("Sending email without attachment");
             attachment = undefined;
           }
+        } else {
+          console.log("Attachment content appears to be properly base64 encoded");
         }
       } else {
         console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);

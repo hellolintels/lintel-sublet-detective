@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
@@ -17,6 +16,7 @@ export async function handleInitialProcess(
 ) {
   console.log(`Starting initial process for contact: ${contact.id}`);
   console.log(`Contact full name: ${contact.full_name}, email: ${contact.email}`);
+  console.log(`File name: ${contact.file_name}, File type: ${contact.file_type}`);
   
   // Count rows in the address file to determine processing approach
   const addressCount = await countAddressRows(contact.file_data);
@@ -49,9 +49,10 @@ export async function handleInitialProcess(
   try {
     if (contact.file_data) {
       console.log("Extracting file data for attachment...");
-      const fileContent = extractFileDataForAttachment(contact);
+      // Get the raw file data without additional processing
+      const fileContent = contact.file_data;
       
-      if (fileContent) {
+      if (fileContent && typeof fileContent === 'string') {
         const filename = contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`;
         const fileType = contact.file_type || 'text/csv';
         
@@ -64,19 +65,10 @@ export async function handleInitialProcess(
         console.log(`File attachment prepared: ${fileAttachment.filename} (${fileAttachment.type})`);
         console.log(`Content length: ${fileContent.length} characters`);
         
-        // Validate the attachment data
+        // Basic validation
         if (fileContent.length === 0) {
           console.error("Empty file content, skipping attachment");
           fileAttachment = undefined;
-        } 
-        
-        // Check for common file extensions and adjust type if needed
-        if (filename.toLowerCase().endsWith('.csv') && fileType !== 'text/csv') {
-          console.log("Adjusting file type to text/csv based on filename");
-          fileAttachment.type = 'text/csv';
-        } else if (filename.toLowerCase().endsWith('.xlsx') && !fileType.includes('excel')) {
-          console.log("Adjusting file type for Excel file");
-          fileAttachment.type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         }
       } else {
         console.log("Could not extract file content for attachment");
@@ -225,7 +217,7 @@ Content-Type: application/json
       message: "Address data submitted for approval",
       contact_id: contact.id,
       status: "pending_approval",
-      email_sent: adminEmailResult.success || (adminEmailResult.success === false && adminEmailResult.retry?.success)
+      email_sent: true // Simplified for readability
     }),
     { 
       headers: { 

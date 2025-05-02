@@ -134,18 +134,9 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
             throw new Error("Failed to extract base64 data from file");
           }
           
+          // Store the raw base64 encoded file data without any manipulation
           contactData.file_data = base64Data;
           console.log("File data ready for storage, type:", typeof contactData.file_data);
-          
-          // Validate base64 encoding
-          try {
-            // Try to decode a small portion to confirm it's valid base64
-            atob(base64Data.substring(0, 20));
-            console.log("Base64 validation passed");
-          } catch (validationError) {
-            console.error("Base64 validation failed:", validationError);
-            // We'll still proceed, but log the error
-          }
         } catch (fileError) {
           console.error("Error converting file to base64:", fileError);
           toast.error("Unable to process your file. Please try a different file format.");
