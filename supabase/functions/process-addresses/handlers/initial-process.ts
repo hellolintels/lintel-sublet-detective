@@ -1,3 +1,4 @@
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
@@ -43,7 +44,7 @@ export async function handleInitialProcess(
   console.log(`Using approval URL: ${approvalUrl}`);
   console.log(`Approval link: ${approvalLink}`);
   
-  // Prepare file attachment for email
+  // Prepare file attachment for email - ensure we're using the raw file data stored in database
   let fileAttachment;
   try {
     if (contact.file_data) {
@@ -55,20 +56,26 @@ export async function handleInitialProcess(
       console.log(`File details - Name: ${fileName}, Type: ${fileType}`);
       console.log(`File data length: ${contact.file_data.length} characters`);
       
-      // Use the raw file_data as is - no additional processing
-      fileAttachment = {
-        filename: fileName,
-        content: contact.file_data,
-        type: fileType
-      };
+      // Use extractFileDataForAttachment to get the base64 data
+      const fileData = extractFileDataForAttachment(contact);
       
-      console.log(`File attachment prepared: ${fileAttachment.filename} (${fileAttachment.type})`);
-      console.log(`Content length: ${fileAttachment.content.length} characters`);
-      
-      // Basic validation
-      if (!fileAttachment.content || fileAttachment.content.length === 0) {
-        console.error("Empty file content, skipping attachment");
-        fileAttachment = undefined;
+      if (fileData) {
+        fileAttachment = {
+          filename: fileName,
+          content: fileData,
+          type: fileType
+        };
+        
+        console.log(`File attachment prepared: ${fileAttachment.filename} (${fileAttachment.type})`);
+        console.log(`Content length: ${fileAttachment.content.length} characters`);
+        
+        // Basic validation
+        if (!fileAttachment.content || fileAttachment.content.length === 0) {
+          console.error("Empty file content, skipping attachment");
+          fileAttachment = undefined;
+        }
+      } else {
+        console.error("Failed to extract file data for attachment");
       }
     } else {
       console.log("No file_data available in contact record");

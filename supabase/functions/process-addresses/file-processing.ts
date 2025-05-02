@@ -81,6 +81,7 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("File name:", contact.file_name || "unnamed-file");
     
     // Return the raw file_data exactly as stored in the database
+    // This should already be base64 encoded from the frontend
     return contact.file_data;
   } catch (error) {
     console.error("Error extracting file data for attachment:", error);
