@@ -5,6 +5,8 @@ import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import Onboarding from "@/components/Onboarding";
+import Contact from "@/components/Contact";
+import SampleOffer from "@/components/SampleOffer";
 
 const Index = () => {
   return (
@@ -13,9 +15,11 @@ const Index = () => {
       
       <div className="container mx-auto px-4 pt-24">
         <Hero />
+        <SampleOffer />
         <HowItWorks />
         <Onboarding />
         <Features />
+        <Contact />
         <Footer />
       </div>
     </div>
