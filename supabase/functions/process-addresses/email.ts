@@ -30,11 +30,16 @@ export async function sendEmail(
     console.log(`TO: ${to}`);
     console.log(`SUBJECT: ${subject}`);
     console.log(`CONTENT LENGTH: ${htmlContent.length} characters`);
-    console.log(`CONTENT PREVIEW: ${htmlContent.substring(0, 100)}...`);
     
     // Validate recipient email
     if (!to || !to.includes('@')) {
       throw new Error(`Invalid recipient email: ${to}`);
+    }
+    
+    // Enhanced logging for admin emails
+    if (to === "jamie@lintels.in") {
+      console.log(`CRITICAL ADMIN EMAIL TO: ${to}`);
+      console.log(`Email sending attempt started at: ${new Date().toISOString()}`);
     }
     
     if (attachment) {
@@ -63,8 +68,6 @@ export async function sendEmail(
         console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);
         attachment = undefined; // Don't include invalid attachments
       }
-    } else {
-      console.log(`ATTACHMENT: None`);
     }
     
     // Get the SendGrid API key from environment variables
@@ -77,7 +80,8 @@ export async function sendEmail(
     // With domain authentication, any email on the verified domain can be used
     // Default to a standard notifications address if not specified
     const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in";
-    console.log(`Using sender email: ${fromEmail}`);
+    const fromName = Deno.env.get("SENDGRID_FROM_NAME") || "Lintels";
+    console.log(`Using sender: ${fromName} <${fromEmail}>`);
     
     // Prepare the email request body
     const emailBody: any = {
@@ -86,7 +90,7 @@ export async function sendEmail(
           to: [{ email: to }]
         }
       ],
-      from: { email: fromEmail, name: "Lintels" },
+      from: { email: fromEmail, name: fromName },
       subject: subject,
       content: [
         {
@@ -109,40 +113,58 @@ export async function sendEmail(
       ];
     }
     
-    // Prepare the SendGrid request
-    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${sendgridApiKey}`
-      },
-      body: JSON.stringify(emailBody)
-    });
+    // Log entire request for debugging admin emails
+    if (to === "jamie@lintels.in") {
+      console.log("ADMIN EMAIL REQUEST BODY:", JSON.stringify({
+        ...emailBody,
+        attachments: emailBody.attachments ? [{
+          filename: emailBody.attachments[0].filename,
+          type: emailBody.attachments[0].type,
+          content_length: emailBody.attachments[0].content?.length || 0,
+          content_preview: emailBody.attachments[0].content?.substring(0, 20) + '...' || 'empty'
+        }] : []
+      }));
+    }
     
-    // If the response is not successful, attempt to get more details
-    if (!response.ok) {
-      let errorDetails = "Unknown error";
-      try {
-        const errorText = await response.text();
-        console.error("SendGrid API error:", errorText);
-        errorDetails = errorText;
-      } catch (e) {
-        console.error("Could not retrieve error details:", e);
-      }
+    // Prepare the SendGrid request with comprehensive error handling
+    console.log("Sending email via SendGrid API...");
+    let response;
+    try {
+      response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sendgridApiKey}`
+        },
+        body: JSON.stringify(emailBody)
+      });
       
-      throw new Error(`SendGrid API returned ${response.status}: ${errorDetails}`);
+      console.log(`SendGrid API Response Status: ${response.status}`);
+      
+      // If the response is not successful, attempt to get more details
+      if (!response.ok) {
+        let errorDetails = "Unknown error";
+        try {
+          const errorText = await response.text();
+          console.error("SendGrid API error:", errorText);
+          errorDetails = errorText;
+        } catch (e) {
+          console.error("Could not retrieve error details:", e);
+        }
+        
+        throw new Error(`SendGrid API returned ${response.status}: ${errorDetails}`);
+      }
+    } catch (fetchError) {
+      console.error("Error during SendGrid API call:", fetchError);
+      throw fetchError;
     }
     
     // Special handling for admin emails to ensure delivery
     if (to === "jamie@lintels.in") {
-      console.log(`CRITICAL ADMIN EMAIL TO: ${to}`);
-      console.log(`ADMIN EMAIL SUBJECT: ${subject}`);
-      
-      // Generate a unique tracking ID for this admin email
       const emailId = `admin_email_${Date.now()}`;
       console.log(`ADMIN EMAIL TRACKING ID: ${emailId}`);
-      
       console.log(`ADMIN EMAIL ${emailId} - SendGrid Response Status: ${response.status}`);
+      console.log(`ADMIN EMAIL ${emailId} - Sent at: ${new Date().toISOString()}`);
     }
     
     return { 
@@ -168,7 +190,10 @@ export async function sendEmail(
               to: [{ email: to }]
             }
           ],
-          from: { email: Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in", name: "Lintels URGENT" },
+          from: { 
+            email: Deno.env.get("SENDGRID_FROM_EMAIL") || "notifications@lintels.in", 
+            name: "Lintels URGENT" 
+          },
           subject: `${subject} [RETRY]`,
           content: [
             {

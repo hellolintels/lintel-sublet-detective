@@ -160,6 +160,37 @@ export async function handleApproveProcessing(
   
   console.log("Notification email result:", emailResult);
   
+  // If the primary email fails, try again with a simplified version
+  if (!emailResult.success) {
+    console.log("Primary notification email failed, attempting retry...");
+    const retryResult = await sendEmail(
+      "jamie@lintels.in",
+      `[URGENT] [Lintels] Processing Complete - ${contact.full_name} - RETRY`,
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff0000; border-radius: 5px;">
+        <h1 style="color: #ff0000; text-align: center;">Processing Complete (Retry)</h1>
+        
+        <p>The address processing for <strong>${contact.full_name}</strong> is complete, but the notification failed.</p>
+        
+        <p>Please check the admin dashboard for contact ID: ${contact.id}</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${viewReportUrl}" 
+             style="background-color: #ff0000; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+            Send Report to Client
+          </a>
+        </div>
+        
+        <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+          This is an automated RETRY message from lintels.in
+        </p>
+      </div>
+      `
+    );
+    
+    console.log("Retry email result:", retryResult);
+  }
+  
   return new Response(
     JSON.stringify({
       message: "Address processing completed",

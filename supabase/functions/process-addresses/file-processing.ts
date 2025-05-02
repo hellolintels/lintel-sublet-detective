@@ -61,8 +61,7 @@ export function countAddressRows(fileData: string | null | undefined): number {
 
 /**
  * Extract file data from a contact record for attachment
- * This function handles various formats the file data might be in
- * and ensures proper base64 encoding for email attachments
+ * Enhanced version with better error handling and base64 validation
  * @param contact The contact record containing file data
  * @returns String with the file content ready for attachment, or null
  */
@@ -87,6 +86,15 @@ export function extractFileDataForAttachment(contact: any): string | null {
       if (base64Regex.test(contact.file_data)) {
         console.log("String appears to be already base64 encoded");
         fileContent = contact.file_data;
+        
+        // Double-check validity by trying to decode a small portion
+        try {
+          const testDecode = atob(contact.file_data.substring(0, 100));
+          console.log("Base64 validity check: Successfully decoded test portion");
+        } catch (e) {
+          console.warn("Base64 validity check failed, string might not be valid base64:", e);
+          // Continue anyway since it might just be a partial issue
+        }
       } else {
         // If it's not base64 encoded, encode it
         console.log("Converting string to base64");
@@ -141,7 +149,21 @@ export function extractFileDataForAttachment(contact: any): string | null {
       return null;
     }
     
-    // Ensure the content is properly base64 encoded
+    // Double check: Ensure the content is properly base64 encoded
+    try {
+      // Try to decode a small part to verify it's valid base64
+      atob(fileContent.substring(0, 10));
+    } catch (e) {
+      console.error("Final base64 validation failed:", e);
+      // Last ditch effort - try to re-encode
+      try {
+        fileContent = btoa(unescape(encodeURIComponent(fileContent)));
+      } catch (finalError) {
+        console.error("Final encoding attempt failed:", finalError);
+        return null;
+      }
+    }
+    
     console.log("Final file content length:", fileContent.length);
     console.log("File content preview (first 20 chars):", fileContent.substring(0, 20));
     

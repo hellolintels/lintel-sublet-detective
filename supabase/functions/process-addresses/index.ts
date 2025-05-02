@@ -15,10 +15,10 @@ serve(async (req) => {
   try {
     // Extract the request parameters - handle both JSON body and URL parameters
     let contactId, action = "initial_process", reportId;
+    const url = new URL(req.url);
     
     // Check if this is a GET request (direct link from email)
     if (req.method === "GET") {
-      const url = new URL(req.url);
       contactId = url.searchParams.get("contact_id");
       action = url.searchParams.get("action") || "initial_process";
       reportId = url.searchParams.get("report_id");
@@ -26,12 +26,17 @@ serve(async (req) => {
       console.log("Processing GET request with params:", { contactId, action, reportId });
     } else {
       // Handle POST request with JSON body
-      const requestData = await req.json();
-      contactId = requestData.contactId;
-      action = requestData.action || "initial_process";
-      reportId = requestData.reportId;
-      
-      console.log("Processing POST request with data:", requestData);
+      try {
+        const requestData = await req.json();
+        contactId = requestData.contactId;
+        action = requestData.action || "initial_process";
+        reportId = requestData.reportId;
+        
+        console.log("Processing POST request with data:", requestData);
+      } catch (parseError) {
+        console.error("Error parsing request JSON:", parseError);
+        throw new Error("Invalid JSON in request body");
+      }
     }
     
     // Create a Supabase client with the service role key
@@ -45,8 +50,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log("Created Supabase client with service role");
     
+    // Validate contactId for all actions except initial_process which might be coming from form
     if (!contactId && action !== "initial_process") {
-      console.error("Contact ID is required but was not provided");
+      console.error("Contact ID is required but was not provided for action:", action);
       throw new Error("Contact ID is required for action: " + action);
     }
     

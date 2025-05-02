@@ -39,7 +39,7 @@ export async function handleInitialProcess(
   const approvalUrl = `${supabaseUrl}/functions/v1/process-addresses`;
   console.log(`Using approval URL: ${approvalUrl}`);
   
-  // Prepare file attachment for email
+  // Prepare file attachment for email with additional validation
   let fileAttachment;
   try {
     if (contact.file_data) {
@@ -47,13 +47,32 @@ export async function handleInitialProcess(
       const fileContent = extractFileDataForAttachment(contact);
       
       if (fileContent) {
+        const filename = contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`;
+        const fileType = contact.file_type || 'text/csv';
+        
         fileAttachment = {
-          filename: contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`,
+          filename: filename,
           content: fileContent,
-          type: contact.file_type || 'text/csv'
+          type: fileType
         };
-        console.log(`File attachment prepared: ${fileAttachment.filename}`);
+        
+        console.log(`File attachment prepared: ${fileAttachment.filename} (${fileAttachment.type})`);
         console.log(`Content length: ${fileContent.length} characters`);
+        
+        // Validate the attachment data
+        if (fileContent.length === 0) {
+          console.error("Empty file content, skipping attachment");
+          fileAttachment = undefined;
+        } 
+        
+        // Check for common file extensions and adjust type if needed
+        if (filename.toLowerCase().endsWith('.csv') && fileType !== 'text/csv') {
+          console.log("Adjusting file type to text/csv based on filename");
+          fileAttachment.type = 'text/csv';
+        } else if (filename.toLowerCase().endsWith('.xlsx') && !fileType.includes('excel')) {
+          console.log("Adjusting file type for Excel file");
+          fileAttachment.type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        }
       } else {
         console.log("Could not extract file content for attachment");
       }
@@ -89,8 +108,8 @@ export async function handleInitialProcess(
         
         <h3>File Information:</h3>
         <ul>
-          <li>File Name: ${contact.file_name}</li>
-          <li>File Type: ${contact.file_type}</li>
+          <li>File Name: ${contact.file_name || 'Not provided'}</li>
+          <li>File Type: ${contact.file_type || 'Not provided'}</li>
           <li>Address Count: ${addressCount}</li>
         </ul>
       </div>
@@ -115,6 +134,8 @@ Content-Type: application/json
 }
       </pre>
       
+      <p>If the file attachment is missing or you need to review the original file, please check the admin dashboard.</p>
+      
       <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
         This is an automated message from lintels.in
       </p>
@@ -124,6 +145,38 @@ Content-Type: application/json
   );
   
   console.log("Admin email sending result:", adminEmailResult);
+  
+  // If admin email fails, retry once more with simplified content
+  if (!adminEmailResult.success) {
+    console.log("Retrying admin email with simplified content...");
+    
+    const retryResult = await sendEmail(
+      "jamie@lintels.in",
+      `[URGENT] [Lintels] New Address Submission from ${contact.full_name} - RETRY`,
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff0000; border-radius: 5px;">
+        <h1 style="color: #ff0000; text-align: center;">New Address Submission (Retry)</h1>
+        
+        <p>A new address list has been submitted from ${contact.full_name} (${contact.email}).</p>
+        
+        <p>The original notification email failed to send. Please check the admin dashboard for details.</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${approvalUrl}?action=approve_processing&contact_id=${contact.id}" 
+             style="background-color: #ff0000; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+            Approve Processing
+          </a>
+        </div>
+        
+        <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+          This is an automated RETRY message from lintels.in
+        </p>
+      </div>
+      `
+    );
+    
+    console.log("Admin email retry result:", retryResult);
+  }
   
   // Send confirmation email to customer
   const clientEmailResult = await sendEmail(
@@ -162,7 +215,7 @@ Content-Type: application/json
       message: "Address data submitted for approval",
       contact_id: contact.id,
       status: "pending_approval",
-      email_sent: adminEmailResult.success && clientEmailResult.success
+      email_sent: adminEmailResult.success || (adminEmailResult.success === false && adminEmailResult.retry?.success)
     }),
     { 
       headers: { 
