@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { ContactForm } from "./ContactForm";
+import { ContactForm } from "./contact/ContactForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const ApplyForBeta = () => {
