@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
@@ -178,7 +177,7 @@ Content-Type: application/json
     console.log("Admin email retry result:", retryResult);
   }
   
-  // Send confirmation email to customer
+  // Send confirmation email to customer with UK spelling
   const clientEmailResult = await sendEmail(
     contact.email,
     "We've Received Your Address List - Lintels.in",
@@ -193,7 +192,7 @@ Content-Type: application/json
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
         <p><strong>What happens next?</strong></p>
         <ol style="margin-left: 20px; padding-left: 0;">
-          <li>Our system will analyze your addresses against our database of short-term rental listings</li>
+          <li>Our system will analyse your addresses against our database of short-term rental listings</li>
           <li>We'll compile a sample report showing potential matches</li>
           <li>You'll receive an email with the report results within 24 hours</li>
         </ol>
