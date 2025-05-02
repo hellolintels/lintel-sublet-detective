@@ -248,7 +248,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold mb-4">Request a Sample Report</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Upload your addresses to get a detailed report on potential AirBnb and other short-term lettings.
+              Upload address and postcodes to get a report on potential short term lettings.
             </DialogDescription>
           </DialogHeader>
           
