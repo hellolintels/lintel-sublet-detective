@@ -2,8 +2,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
-import { extractFileDataForAttachment } from "../file-processing.ts";
+import { extractPostcodesFromContact } from "../utils/postcode-extractor.ts";
 import { scrapePostcodes } from "../scraping/bright-data-scraper.ts";
+import { generateHtmlReport, generateCsvReport } from "../utils/report-generator.ts";
+import { countMatches } from "../utils/report-metrics.ts";
 
 /**
  * Handle approval of processing a contact's address file
@@ -40,47 +42,7 @@ export async function handleApproveProcessing(
   console.log(`Updated contact status to 'processing' and set approved_for_matching=true`);
   
   // Extract postcodes from the address file
-  console.log("Extracting postcodes from address file...");
-  let postcodes: string[] = [];
-  
-  try {
-    if (contact.file_data) {
-      // Try to extract postcodes from the file
-      // This is a simplified example - real implementation would parse CSV or Excel properly
-      const fileContent = extractFileDataForAttachment(contact);
-      if (fileContent) {
-        // For demonstration, we'll extract UK postcodes using a regex pattern
-        // In production, use proper CSV/Excel parsing based on file_type
-        const decodedContent = atob(fileContent);
-        const ukPostcodeRegex = /[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}/gi;
-        postcodes = [...decodedContent.matchAll(ukPostcodeRegex)].map(match => match[0].trim());
-        
-        // Remove duplicates
-        postcodes = [...new Set(postcodes)];
-        
-        console.log(`Extracted ${postcodes.length} unique postcodes from file`);
-        if (postcodes.length > 0) {
-          console.log("Sample postcodes:", postcodes.slice(0, 3));
-        } else {
-          console.log("No postcodes found in the file. Using sample postcodes for testing");
-          // Use sample postcodes for testing if none found
-          postcodes = ["AB1 2CD", "XY9 8ZT", "E1 6AN", "SW1A 1AA", "M1 1AE"];
-        }
-      } else {
-        console.warn("Could not extract file content for postcode extraction");
-        // Use sample postcodes for testing
-        postcodes = ["AB1 2CD", "XY9 8ZT", "E1 6AN", "SW1A 1AA", "M1 1AE"];
-      }
-    } else {
-      console.warn("No file data available for postcode extraction");
-      // Use sample postcodes for testing
-      postcodes = ["AB1 2CD", "XY9 8ZT", "E1 6AN", "SW1A 1AA", "M1 1AE"];
-    }
-  } catch (error) {
-    console.error("Error extracting postcodes from file:", error);
-    // Use sample postcodes for testing
-    postcodes = ["AB1 2CD", "XY9 8ZT", "E1 6AN", "SW1A 1AA", "M1 1AE"];
-  }
+  const postcodes = extractPostcodesFromContact(contact);
   
   // Trigger scraping process for each postcode
   console.log("Starting Bright Data scraping process for postcodes...");
@@ -203,96 +165,4 @@ export async function handleApproveProcessing(
       } 
     }
   );
-}
-
-/**
- * Count the number of potential matches that need investigation
- */
-function countMatches(scrapingResults: any[]): number {
-  return scrapingResults.filter(result => {
-    return result.airbnb?.status === "investigate" || 
-           result.spareroom?.status === "investigate" || 
-           result.gumtree?.status === "investigate";
-  }).length;
-}
-
-/**
- * Generate an HTML report from scraping results
- */
-function generateHtmlReport(scrapingResults: any[]): string {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
-      <h2 style="color: #333;">Postcode Matching Results</h2>
-      
-      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-        <thead>
-          <tr style="background-color: #f2f2f2;">
-            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Postcode</th>
-            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Airbnb</th>
-            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">SpareRoom</th>
-            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Gumtree</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${scrapingResults.map(result => `
-            <tr>
-              <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">${result.postcode}</td>
-              <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">
-                ${formatCell(result.airbnb)}
-              </td>
-              <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">
-                ${formatCell(result.spareroom)}
-              </td>
-              <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">
-                ${formatCell(result.gumtree)}
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-/**
- * Generate a CSV report from scraping results
- */
-function generateCsvReport(scrapingResults: any[]): string {
-  const headers = "Postcode,Airbnb,SpareRoom,Gumtree,Airbnb URL,SpareRoom URL,Gumtree URL\n";
-  const rows = scrapingResults.map(result => {
-    const airbnbStatus = result.airbnb?.status || "error";
-    const spareroomStatus = result.spareroom?.status || "error";
-    const gumtreeStatus = result.spareroom?.status || "error";
-    
-    const airbnbUrl = result.airbnb?.url || "";
-    const spareroomUrl = result.spareroom?.url || "";
-    const gumtreeUrl = result.gumtree?.url || "";
-    
-    return `"${result.postcode}","${airbnbStatus}","${spareroomStatus}","${gumtreeStatus}","${airbnbUrl}","${spareroomUrl}","${gumtreeUrl}"`;
-  }).join("\n");
-  
-  return headers + rows;
-}
-
-/**
- * Format a cell in the HTML report
- */
-function formatCell(platformResult: any): string {
-  if (!platformResult) {
-    return `<span style="color: #999;">error</span>`;
-  }
-  
-  if (platformResult.status === "error") {
-    return `<span style="color: #999;">error</span>`;
-  }
-  
-  if (platformResult.status === "no match") {
-    return `<span style="color: #888;">no match</span>`;
-  }
-  
-  if (platformResult.status === "investigate") {
-    return `<a href="${platformResult.url}" target="_blank" style="color: #d9534f; font-weight: bold; text-decoration: underline;">investigate</a>`;
-  }
-  
-  return `<span>${platformResult.status}</span>`;
 }
