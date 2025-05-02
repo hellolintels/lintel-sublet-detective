@@ -14,15 +14,15 @@ jobs:
     - name: Find and Replace
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "supabase.functions.invoke('process-addresses'"
-        replace: "supabase.functions.invoke('notify-admin'"
+        find: "console.log"
+        replace: "console.debug"
         regex: false
-        include: "**/*.js"
+        include: "**/*.{js,ts,tsx}"
 
     - name: Commit Changes to feature branch
       run: |
         git checkout -b replace-text-branch || git checkout replace-text-branch
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
-        git commit -am "Replace process-addresses with notify-admin" || echo "No changes to commit"
+        git commit -am "Test replace console.log with console.debug" || echo "No changes to commit"
         git push origin replace-text-branch
