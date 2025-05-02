@@ -14,8 +14,8 @@ jobs:
     - name: Find and Replace
       uses: replicate/find-and-replace-action@v1
       with:
-        find: "supabase.functions.invoke('process-addresses'" # The text to find
-        replace: "supabase.functions.invoke('notify-admin'"   # The text to replace it with
+        find: "supabase.functions.invoke('process-addresses'" # Text to find
+        replace: "supabase.functions.invoke('notify-admin'"   # Text to replace it with
         files: "**/*.js"                                     # Files to include (e.g., all JavaScript files)
 
     - name: Commit Changes
