@@ -1,7 +1,7 @@
 name: Find and Replace Text
 
 on:
-  workflow_dispatch: # Allows you to manually trigger the workflow
+  workflow_dispatch:
 
 jobs:
   find-and-replace:
@@ -14,13 +14,14 @@ jobs:
     - name: Find and Replace
       uses: replicate/find-and-replace-action@v1
       with:
-        find: "supabase.functions.invoke('process-addresses'" # Text to find
-        replace: "supabase.functions.invoke('notify-admin'"   # Text to replace it with
-        files: "**/*.js"                                     # Files to include (e.g., all JavaScript files)
+        find: "supabase.functions.invoke('process-addresses'"
+        replace: "supabase.functions.invoke('notify-admin'"
+        files: "**/*.js"
 
-    - name: Commit Changes
+    - name: Commit Changes to feature branch
       run: |
+        git checkout -b replace-text-branch
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
         git commit -am "Replace process-addresses with notify-admin"
-        git push
+        git push origin replace-text-branch
