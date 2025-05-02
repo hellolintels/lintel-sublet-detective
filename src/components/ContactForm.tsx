@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+const MAX_ROWS = 20;
 
 const contactFormSchema = z.object({
   fullName: z.string()
@@ -30,7 +31,7 @@ const contactFormSchema = z.object({
     .min(2, { message: "Position must be at least 2 characters" })
     .regex(/^[a-zA-Z\s-']+$/, { message: "Position can only contain letters, spaces and hyphens" }),
   company: z.string()
-    .min(2, { message: "Company name must be at least 2 characters" })
+    .min(2, { message: "Company must be at least 2 characters" })
     .regex(/^[\w\s-'&.]+$/, { message: "Company name contains invalid characters" }),
   email: z.string()
     .min(1, { message: "Email is required" })
@@ -98,6 +99,51 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
     }
   }, [onOpenChange, form]);
 
+  // Function to count rows in CSV/Excel files
+  const countFileRows = async (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          if (!content) {
+            resolve(0);
+            return;
+          }
+          
+          // For CSV files, count lines
+          if (file.name.toLowerCase().endsWith('.csv')) {
+            const lines = content.split('\n').filter(line => line.trim().length > 0);
+            // Subtract 1 for header row
+            resolve(lines.length > 0 ? lines.length - 1 : 0);
+          } 
+          // For Excel files, this is a simplified check - in reality we would need a proper Excel parser
+          // For demo purposes, we'll just check if the file seems to have content
+          else {
+            // If it's not empty, assume it has at least one row
+            // A more accurate implementation would use a library like xlsx to parse Excel files
+            resolve(content.length > 100 ? 10 : 0); // Placeholder logic
+          }
+        } catch (error) {
+          console.error("Error counting rows:", error);
+          reject(error);
+        }
+      };
+      
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      
+      // Read as text for CSV
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        // For Excel files, read as binary string 
+        // (simplified approach - real implementation would use xlsx library)
+        reader.readAsBinaryString(file);
+      }
+    });
+  };
+
   async function onSubmit(values: z.infer<typeof contactFormSchema>) {
     try {
       setIsSubmitting(true);
@@ -121,6 +167,21 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
         contactData.file_type = file.type || `application/${file.name.split('.').pop()}`;
         
         console.log("Processing file:", file.name, "size:", file.size, "type:", contactData.file_type);
+        
+        // Verify row count before processing
+        try {
+          const rowCount = await countFileRows(file);
+          console.log("File contains approximately", rowCount, "rows");
+          
+          if (rowCount > MAX_ROWS) {
+            toast.error(`Sorry, only files with up to ${MAX_ROWS} addresses are allowed for the sample report.`);
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (countError) {
+          console.error("Error counting rows:", countError);
+          // Continue with submission but log the error
+        }
         
         // Convert file to base64 for storage
         try {

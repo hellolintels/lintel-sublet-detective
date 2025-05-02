@@ -1,8 +1,9 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
 import { countAddressRows, extractFileDataForAttachment } from "../file-processing.ts";
+
+const MAX_ALLOWED_ROWS = 20;
 
 /**
  * Handle initial processing of address data
@@ -22,6 +23,93 @@ export async function handleInitialProcess(
   // Count rows in the address file to determine processing approach
   const addressCount = await countAddressRows(contact.file_data);
   console.log(`Address file contains ${addressCount} rows`);
+  
+  // Check if address count exceeds maximum
+  if (addressCount > MAX_ALLOWED_ROWS) {
+    console.log(`Address count (${addressCount}) exceeds maximum allowed (${MAX_ALLOWED_ROWS})`);
+    
+    // Update contact status to indicate too many addresses
+    const { error: updateError } = await supabase
+      .from("contacts")
+      .update({ 
+        status: "too_many_addresses"
+      })
+      .eq("id", contact.id);
+      
+    if (updateError) {
+      console.error("Error updating contact:", updateError);
+      throw updateError;
+    }
+    
+    // Send notification to user about the limit
+    await sendEmail(
+      contact.email,
+      "Regarding Your Address List Submission - Lintels.in",
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff6b6b; border-radius: 5px;">
+        <h1 style="color: #ff6b6b; text-align: center;">Address List Limit Exceeded</h1>
+        
+        <p>Hello ${contact.full_name},</p>
+        
+        <p>Thank you for your interest in our services. We've received your address list submission, but we noticed that your file contains more than ${MAX_ALLOWED_ROWS} addresses.</p>
+        
+        <p>For our sample report service, we can only process up to ${MAX_ALLOWED_ROWS} addresses at a time. If you'd like to proceed with a sample report, please resubmit your form with a smaller list of addresses.</p>
+        
+        <p>If you need to process a larger dataset, please contact us at <a href="mailto:info@lintels.in">info@lintels.in</a> to discuss our full service options.</p>
+        
+        <p>We apologize for any inconvenience and look forward to assisting you.</p>
+        
+        <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+          This is an automated message from lintels.in
+        </p>
+      </div>
+      `
+    );
+    
+    // Alert admin about the oversized submission
+    await sendEmail(
+      "jamie@lintels.in",
+      `[Lintels] Oversized Address List from ${contact.full_name}`,
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff6b6b; border-radius: 5px;">
+        <h1 style="color: #ff6b6b; text-align: center;">Oversized Address List Submission</h1>
+        
+        <p>A user has submitted an address list that exceeds the ${MAX_ALLOWED_ROWS} address limit for sample reports:</p>
+        
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+          <ul>
+            <li><strong>Name:</strong> ${contact.full_name}</li>
+            <li><strong>Email:</strong> ${contact.email}</li>
+            <li><strong>Company:</strong> ${contact.company}</li>
+            <li><strong>Address Count:</strong> ${addressCount}</li>
+            <li><strong>File Name:</strong> ${contact.file_name || 'Not provided'}</li>
+          </ul>
+        </div>
+        
+        <p>This may be a good sales opportunity for a full service conversion. The user has been notified that their submission exceeds the sample limit.</p>
+        
+        <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+          This is an automated message from lintels.in
+        </p>
+      </div>
+      `
+    );
+    
+    return new Response(
+      JSON.stringify({
+        message: "Address file exceeds maximum allowed rows",
+        contact_id: contact.id,
+        status: "too_many_addresses",
+        email_sent: true
+      }),
+      { 
+        headers: { 
+          ...corsHeaders,
+          "Content-Type": "application/json" 
+        } 
+      }
+    );
+  }
   
   // Update contact status
   console.log(`Updating contact status to pending_approval`);
@@ -44,30 +132,33 @@ export async function handleInitialProcess(
   console.log(`Using approval URL: ${approvalUrl}`);
   console.log(`Approval link: ${approvalLink}`);
   
-  // Prepare file attachment for email - ensure we're using the raw file data stored in database
+  // Prepare file attachment for email - ensure we're using the properly formatted file data
   let fileAttachment;
   try {
     if (contact.file_data) {
       console.log("Preparing file for attachment...");
       
+      // Use a descriptive filename - either the original name or generate one
       const fileName = contact.file_name || `${contact.full_name.replace(/\s+/g, '_')}_addresses.csv`;
       const fileType = contact.file_type || 'text/csv';
       
       console.log(`File details - Name: ${fileName}, Type: ${fileType}`);
       console.log(`File data length: ${contact.file_data.length} characters`);
       
-      // Use extractFileDataForAttachment to get the base64 data
+      // Use extractFileDataForAttachment to get properly formatted base64 data
       const fileData = extractFileDataForAttachment(contact);
       
       if (fileData) {
         fileAttachment = {
           filename: fileName,
           content: fileData,
-          type: fileType
+          type: fileType,
+          disposition: "attachment"
         };
         
         console.log(`File attachment prepared: ${fileAttachment.filename} (${fileAttachment.type})`);
         console.log(`Content length: ${fileAttachment.content.length} characters`);
+        console.log(`Content preview: ${fileAttachment.content.substring(0, 50)}...`);
         
         // Basic validation
         if (!fileAttachment.content || fileAttachment.content.length === 0) {

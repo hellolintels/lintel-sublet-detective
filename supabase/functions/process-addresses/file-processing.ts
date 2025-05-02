@@ -80,9 +80,42 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("File data type:", typeof contact.file_data);
     console.log("File name:", contact.file_name || "unnamed-file");
     
-    // Return the raw file_data exactly as stored in the database
-    // This should already be base64 encoded from the frontend
-    return contact.file_data;
+    // Ensure file_data is properly formatted for SendGrid
+    // SendGrid requires base64 content without data URI prefix
+    let fileContent = contact.file_data;
+    
+    // Check if the file_data is a Buffer or Uint8Array (which might happen if stored as bytea in Postgres)
+    if (typeof fileContent !== 'string') {
+      console.log("File data is not a string, converting to base64");
+      // If it's binary data we need to convert it to base64 string
+      try {
+        // For Uint8Array or Buffer-like objects
+        const textDecoder = new TextDecoder('utf-8');
+        fileContent = btoa(textDecoder.decode(fileContent));
+        console.log("Successfully converted binary data to base64");
+      } catch (e) {
+        console.error("Error converting binary to base64:", e);
+        // Try stringifying instead if conversion fails
+        fileContent = String(fileContent);
+        console.log("Fell back to string conversion");
+      }
+    }
+    
+    // Check if the content already includes a data URI prefix and remove it if present
+    if (typeof fileContent === 'string' && fileContent.includes('base64,')) {
+      console.log("Removing data URI prefix from file_data");
+      fileContent = fileContent.split('base64,')[1];
+    }
+    
+    // Log a sample of the final content for debugging
+    if (typeof fileContent === 'string') {
+      console.log("Final file content sample (first 50 chars):", fileContent.substring(0, 50));
+      console.log("Final file content length:", fileContent.length);
+    } else {
+      console.error("File content is not a string after processing, attachment will likely fail");
+    }
+    
+    return fileContent;
   } catch (error) {
     console.error("Error extracting file data for attachment:", error);
     return null;
