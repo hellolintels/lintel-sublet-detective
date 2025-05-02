@@ -146,8 +146,15 @@ export async function handleInitialProcess(
       body: JSON.stringify({ contactId: contact.id })
     });
     
-    const notifyResponse = await notifyResult.json();
-    console.log("Notify admin response:", notifyResponse);
+    if (notifyResult.ok) {
+      const notifyResponse = await notifyResult.json();
+      console.log("Notify admin response:", notifyResponse);
+    } else {
+      console.error("Notify admin function returned error status:", notifyResult.status);
+      const errorText = await notifyResult.text();
+      console.error("Error details:", errorText);
+      // Continue with regular email flow as fallback
+    }
   } catch (notifyError) {
     console.error("Error calling notify-admin function:", notifyError);
     // Continue with regular email flow as fallback

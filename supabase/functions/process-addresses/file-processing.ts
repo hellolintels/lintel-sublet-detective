@@ -81,13 +81,12 @@ export function extractFileDataForAttachment(contact: any): string | null {
     console.log("File name:", contact.file_name || "unnamed-file");
     
     // Ensure file_data is properly formatted for SendGrid
-    // SendGrid requires base64 content without data URI prefix
     let fileContent = contact.file_data;
     
     // Check if the file_data is a Buffer or Uint8Array (which might happen if stored as bytea in Postgres)
     if (typeof fileContent !== 'string') {
       console.log("File data is not a string, converting to base64");
-      // If it's binary data we need to convert it to base64 string
+      
       try {
         // For Uint8Array or Buffer-like objects
         const textDecoder = new TextDecoder('utf-8');
@@ -105,6 +104,13 @@ export function extractFileDataForAttachment(contact: any): string | null {
     if (typeof fileContent === 'string' && fileContent.includes('base64,')) {
       console.log("Removing data URI prefix from file_data");
       fileContent = fileContent.split('base64,')[1];
+    }
+    
+    // Make sure we are returning a valid base64 string - cleanup any non-base64 characters
+    if (typeof fileContent === 'string') {
+      // Clean up the base64 string to ensure it only contains valid base64 characters
+      fileContent = fileContent.replace(/[^A-Za-z0-9+/=]/g, '');
+      console.log("Cleaned base64 string, length:", fileContent.length);
     }
     
     // Log a sample of the final content for debugging

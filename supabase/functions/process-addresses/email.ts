@@ -46,8 +46,11 @@ export async function sendEmail(
       console.log(`ATTACHMENT: ${attachment.filename} (${attachment.type})`);
       console.log(`ATTACHMENT CONTENT LENGTH: ${attachment.content ? attachment.content.length : 0} characters`);
       
-      // Log the first few characters of the attachment content for debugging
+      // Clean up the attachment content to ensure valid base64
       if (attachment.content && attachment.content.length > 0) {
+        // Remove any non-base64 characters that might cause issues
+        attachment.content = attachment.content.replace(/[^A-Za-z0-9+/=]/g, '');
+        console.log(`CLEANED ATTACHMENT CONTENT LENGTH: ${attachment.content.length} characters`);
         console.log(`ATTACHMENT CONTENT PREVIEW: ${attachment.content.substring(0, 20)}...`);
       } else {
         console.log(`ATTACHMENT CONTENT IS EMPTY OR INVALID`);
@@ -92,14 +95,10 @@ export async function sendEmail(
     if (attachment && attachment.content) {
       console.log(`Adding attachment: ${attachment.filename}`);
       
-      // Ensure content is properly base64 encoded and in the correct format for SendGrid
-      // Remove any non-base64 characters that might cause issues
-      const cleanedBase64 = attachment.content.replace(/[^A-Za-z0-9+/=]/g, '');
-      
       emailBody.attachments = [
         {
           filename: attachment.filename,
-          content: cleanedBase64,
+          content: attachment.content,
           type: attachment.type,
           disposition: attachment.disposition || "attachment"
         }

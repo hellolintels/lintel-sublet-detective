@@ -55,15 +55,31 @@ serve(async (req) => {
           fileData = fileData.split('base64,')[1];
         }
         
-        console.log(`Prepared file attachment: ${fileName} (${fileType.substring(0, 20)}...)`);
+        // Clean up the base64 string to ensure it only contains valid base64 characters
+        fileData = fileData.replace(/[^A-Za-z0-9+/=]/g, '');
+        
+        console.log(`Prepared file attachment: ${fileName} (${fileType})`);
+        console.log(`File data length: ${fileData.length} characters`);
+        
         fileAttachment = {
           content: fileData,
           filename: fileName,
           type: fileType,
           disposition: "attachment",
         };
+      } else if (fileData instanceof Uint8Array) {
+        // Convert Uint8Array to base64 string
+        const base64 = btoa(String.fromCharCode(...fileData));
+        console.log(`Converted binary data to base64, length: ${base64.length}`);
+        
+        fileAttachment = {
+          content: base64,
+          filename: fileName,
+          type: fileType,
+          disposition: "attachment",
+        };
       } else {
-        console.error("File data is not in expected string format");
+        console.error("File data is not in expected format:", typeof fileData);
       }
     } else {
       console.log("No file data available in contact record");
@@ -112,6 +128,11 @@ Form Type: ${contact.form_type}
   
   <p>Please check the Supabase dashboard for more details and to process this submission.</p>
   
+  <p>You can process this submission using the following URL:</p>
+  <code style="display: block; background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 12px;">
+    ${Deno.env.get('SUPABASE_URL')}/functions/v1/process-addresses?action=approve_processing&contact_id=${contact.id}
+  </code>
+  
   <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
     This is an automated message from lintels.in
   </p>
@@ -123,10 +144,33 @@ Form Type: ${contact.form_type}
     if (fileAttachment) {
       msg.attachments = [fileAttachment];
       console.log("Added file attachment to email");
+      console.log("Attachment filename:", fileAttachment.filename);
+      console.log("Attachment content length:", fileAttachment.content.length);
+      // Console log first few characters of content for debugging
+      console.log("Attachment content preview:", fileAttachment.content.substring(0, 20) + "...");
     }
 
-    await sgMail.send(msg);
-    console.log("Email notification sent successfully");
+    try {
+      const response = await sgMail.send(msg);
+      console.log("SendGrid API response:", response);
+    } catch (sendGridError) {
+      console.error("SendGrid API error:", sendGridError);
+      
+      // If sending fails with attachment, retry without it
+      if (fileAttachment) {
+        console.log("Retrying email without attachment...");
+        delete msg.attachments;
+        try {
+          const retryResponse = await sgMail.send(msg);
+          console.log("Retry email sent without attachment:", retryResponse);
+        } catch (retryError) {
+          console.error("Retry email also failed:", retryError);
+          throw retryError;
+        }
+      } else {
+        throw sendGridError;
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "Notification sent successfully" }), 
