@@ -81,6 +81,10 @@ export async function handleSendResults(
           Get Full Analysis
         </a>
       </div>
+      
+      <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+        This is an automated message from lintels.in
+      </p>
     </div>
     `
   );
@@ -95,15 +99,28 @@ export async function handleSendResults(
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
       <h1 style="color: #2196F3; text-align: center;">Report Sent Successfully</h1>
       
-      <p>The sample report for <strong>${contact.full_name}</strong> (${contact.email}) has been sent.</p>
+      <p>The sample report for <strong>${contact.full_name}</strong> has been sent.</p>
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <h3 style="margin-top: 0;">Report details:</h3>
+        <h3 style="margin-top: 0;">User Details:</h3>
+        <ul>
+          <li>Full Name: ${contact.full_name}</li>
+          <li>Position: ${contact.position}</li>
+          <li>Company: ${contact.company}</li>
+          <li>Email: ${contact.email}</li>
+          <li>Phone: ${contact.phone}</li>
+        </ul>
+        
+        <h3>Report Details:</h3>
         <ul>
           <li>Properties analyzed: ${report.properties_count}</li>
           <li>Matches found: ${report.matches_count}</li>
         </ul>
       </div>
+      
+      <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
+        This is an automated message from lintels.in
+      </p>
     </div>
     `
   );
