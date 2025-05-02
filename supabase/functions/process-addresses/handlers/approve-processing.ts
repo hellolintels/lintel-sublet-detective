@@ -88,6 +88,7 @@ export async function handleApproveProcessing(
       let fileContent = '';
       
       if (typeof contact.file_data === 'string') {
+        // If it's already a string, use it directly
         fileContent = contact.file_data;
         console.log("File data is string, length:", fileContent.length);
       } else if (contact.file_data instanceof Uint8Array) {
@@ -95,10 +96,19 @@ export async function handleApproveProcessing(
         fileContent = btoa(String.fromCharCode(...contact.file_data));
         console.log("Converted Uint8Array to base64, length:", fileContent.length);
       } else {
-        // Handle object case (bytea from Postgres might come as an object)
-        const fileDataStr = JSON.stringify(contact.file_data);
-        console.log("File data is object, stringified length:", fileDataStr.length);
-        fileContent = fileDataStr;
+        // For bytea from Postgres, it might come as an object with base64 data
+        console.log("File data is object, stringifying for inspection");
+        console.log("Object keys:", Object.keys(contact.file_data).join(", "));
+        
+        // Try different approaches to get the actual data
+        if (contact.file_data.toString) {
+          fileContent = contact.file_data.toString('base64');
+          console.log("Used toString('base64'), length:", fileContent.length);
+        } else {
+          // Last resort, stringify the object
+          fileContent = JSON.stringify(contact.file_data);
+          console.log("Used JSON.stringify, length:", fileContent.length);
+        }
       }
       
       // Create the attachment object

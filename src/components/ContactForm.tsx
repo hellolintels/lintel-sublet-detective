@@ -129,9 +129,10 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           
           // Store the base64 data without the prefix
           const base64Data = fileBase64.split(',')[1];
-          console.log("Base64 data extracted, length:", base64Data.length);
+          console.log("Base64 data extracted, length:", base64Data ? base64Data.length : 0);
           
-          contactData.file_data = base64Data;
+          contactData.file_data = base64Data || fileBase64;
+          console.log("File data ready for storage, type:", typeof contactData.file_data);
         } catch (fileError) {
           console.error("Error converting file to base64:", fileError);
           toast.error("Unable to process your file. Please try a different file format.");

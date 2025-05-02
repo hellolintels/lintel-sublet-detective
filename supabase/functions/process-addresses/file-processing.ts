@@ -15,13 +15,13 @@ export function countAddressRows(fileData: string | null | undefined): number {
   
   // First, try to safely decode the file data if it's base64 encoded
   try {
-    console.log("Processing file data, first 20 chars:", fileData.substring(0, 20));
-    console.log("File data length:", fileData.length);
+    console.log("Processing file data, first 20 chars:", typeof fileData === 'string' ? fileData.substring(0, 20) : 'NOT A STRING');
+    console.log("File data length:", typeof fileData === 'string' ? fileData.length : 'NOT A STRING');
     
     // Check if the data actually looks like base64 before trying to decode it
     // More permissive regex pattern that only checks for valid base64 characters
     const base64Regex = /^[A-Za-z0-9+/=]*$/;
-    if (base64Regex.test(fileData)) {
+    if (typeof fileData === 'string' && base64Regex.test(fileData)) {
       try {
         console.log("File data appears to be base64, attempting to decode");
         dataString = atob(fileData);
@@ -32,8 +32,8 @@ export function countAddressRows(fileData: string | null | undefined): number {
         dataString = fileData; // Fall back to using the raw data
       }
     } else {
-      console.log("File data doesn't appear to be base64 encoded, using as is");
-      dataString = fileData;
+      console.log("File data doesn't appear to be base64 encoded or isn't a string, using as is");
+      dataString = typeof fileData === 'string' ? fileData : JSON.stringify(fileData);
     }
   } catch (e) {
     console.error("Exception during base64 check/decode:", e);
