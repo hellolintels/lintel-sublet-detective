@@ -5,7 +5,6 @@ import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import Onboarding from "@/components/Onboarding";
-import Contact from "@/components/Contact";
 
 const Index = () => {
   return (
