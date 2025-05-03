@@ -13,6 +13,7 @@ export function readFileAsBase64(file: File): Promise<string> {
         if (reader.result) {
           // Get base64 string with data URI
           const base64String = reader.result as string;
+          console.log(`File successfully read, base64 length: ${base64String.length}`);
           resolve(base64String);
         } else {
           reject(new Error("FileReader result is null"));
@@ -29,7 +30,7 @@ export function readFileAsBase64(file: File): Promise<string> {
     
     try {
       reader.readAsDataURL(file);
-      console.log(`Reading file as DataURL: ${file.name}`);
+      console.log(`Reading file as DataURL: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
     } catch (error) {
       console.error("Error reading file:", error);
       reject(error);

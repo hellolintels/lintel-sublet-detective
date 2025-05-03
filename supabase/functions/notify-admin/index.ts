@@ -18,18 +18,11 @@ async function sendEmailWithAttachment(
   sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY')!);
 
   // Log details for verification
-  console.log(`Sending email to: ${to}`);
-  console.log(`Subject: ${subject}`);
-  console.log(`Attachment file name: ${fileName}`);
-  console.log(`Attachment file type: ${fileType}`);
-  console.log(`Attachment base64 content length: ${fileContent.length} characters`);
-
-  // Extract the actual base64 content if it includes a data URI prefix
-  let cleanBase64Content = fileContent;
-  if (fileContent.includes('base64,')) {
-    cleanBase64Content = fileContent.split('base64,')[1];
-    console.log(`Extracted clean base64 content (length: ${cleanBase64Content.length})`);
-  }
+  console.log(`SENDING EMAIL TO: ${to}`);
+  console.log(`SUBJECT: ${subject}`);
+  console.log(`ATTACHMENT FILE NAME: ${fileName}`);
+  console.log(`ATTACHMENT FILE TYPE: ${fileType}`);
+  console.log(`ATTACHMENT BASE64 CONTENT LENGTH: ${fileContent.length} characters`);
 
   // Prepare the email message
   const msg = {
@@ -40,7 +33,7 @@ async function sendEmailWithAttachment(
     text: textContent,
     attachments: [
       {
-        content: cleanBase64Content,
+        content: fileContent,
         filename: fileName,
         type: fileType,
         disposition: 'attachment',
@@ -86,10 +79,9 @@ function buildHtmlContent(contact: any) {
         <li><strong>Email:</strong> ${contact.email}</li>
         <li><strong>Phone:</strong> ${contact.phone}</li>
         <li><strong>Form Type:</strong> ${contact.form_type || 'sample'}</li>
+        <li><strong>File Name:</strong> ${contact.file_name || 'Not provided'}</li>
       </ul>
     </div>
-    
-    <p>Please check the Supabase dashboard for more details.</p>
   </div>
   `;
 }
@@ -108,51 +100,35 @@ serve(async (req) => {
     console.log(`Processing notification for contact ID: ${contactId}`);
     console.log(`Direct file data provided: ${directFileData ? 'Yes' : 'No'}`);
 
-    let contact;
-    let fileName;
-    let fileType;
-    let fileContent;
-
-    // Create Supabase client to fetch contact info if needed
+    // Create Supabase client to fetch contact info
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
     // Get contact data from database
-    const { data: contactData, error: contactError } = await supabase
+    const { data: contact, error: contactError } = await supabase
       .from('contacts')
       .select('*')
       .eq('id', contactId)
       .single();
 
-    if (contactError || !contactData) {
+    if (contactError || !contact) {
       throw new Error(`Contact not found: ${contactError?.message || 'Unknown error'}`);
     }
 
-    contact = contactData;
     console.log(`Contact found: ${contact.full_name} (${contact.email})`);
 
-    // Determine if we should use the direct file data or get it from the database
-    if (directFileData && directFileData.fileName && directFileData.fileContent) {
-      console.log("Using direct file data from the request");
-      fileName = directFileData.fileName;
-      fileType = directFileData.fileType || 'application/octet-stream';
-      fileContent = directFileData.fileContent;
-      
-      console.log(`Direct file details: ${fileName}, type: ${fileType}, content length: ${fileContent.length}`);
-    } else {
-      console.log("No direct file data, using data from the database");
-      fileName = contact.file_name;
-      fileType = contact.file_type || 'application/octet-stream';
-      fileContent = contact.file_data;
-      
-      if (!fileContent) {
-        throw new Error("No file content found in contact record");
-      }
+    // Use the direct file data from the request
+    if (!directFileData || !directFileData.fileName || !directFileData.fileContent) {
+      throw new Error("Missing file data in request");
     }
 
-    console.log(`Final file details for email: ${fileName}, type: ${fileType}`);
+    const fileName = directFileData.fileName;
+    const fileType = directFileData.fileType || 'application/octet-stream';
+    const fileContent = directFileData.fileContent;
+    
+    console.log(`File details for email: ${fileName}, type: ${fileType}, content length: ${fileContent.length}`);
 
     // Build email content
     const htmlContent = buildHtmlContent(contact);
@@ -161,6 +137,7 @@ serve(async (req) => {
       Email: ${contact.email}
       Phone: ${contact.phone}
       Company: ${contact.company || 'Not provided'}
+      File: ${fileName}
     `;
 
     // Send the email with attachment

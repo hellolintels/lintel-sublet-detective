@@ -36,7 +36,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         }
       } catch (countError) {
         console.error("Error counting rows:", countError);
-        // Continue anyway for now
+        // Continue anyway
       }
       
       // Convert file to base64 - this will be used both for storage and email
@@ -76,16 +76,22 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         
         // Send the email immediately with the already-processed base64 file
         try {
-          console.log("Calling notify-admin edge function directly with file data");
+          console.log("Sending email with direct file attachment");
+          
+          // Extract the clean base64 content without the data URI prefix
+          let cleanFileContent = fileBase64;
+          if (fileBase64.includes('base64,')) {
+            cleanFileContent = fileBase64.split('base64,')[1];
+            console.log(`Extracted clean base64 content (length: ${cleanFileContent.length})`);
+          }
           
           const notifyResponse = await supabase.functions.invoke("notify-admin", {
             body: { 
               contactId: contactId,
-              // Pass the file data directly to avoid DB lookup
               directFileData: {
                 fileName: file.name,
                 fileType: file.type,
-                fileContent: fileBase64
+                fileContent: cleanFileContent
               }
             }
           });
@@ -94,15 +100,15 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           
           if (notifyResponse.error) {
             console.error("Notification error:", notifyResponse.error);
-            toast.error("There was an error sending the notification. Please try again.");
-            return false;
+            // Don't block the form submission on email error
+            console.log("Proceeding despite email sending error");
+          } else {
+            console.log("Admin notification sent successfully");
           }
-          
-          console.log("Admin notification sent successfully");
         } catch (functionCallError) {
           console.error("Failed to call notify-admin function:", functionCallError);
-          toast.error("There was an error processing your submission. Please try again.");
-          return false;
+          // Don't block the form submission on email error
+          console.log("Proceeding despite email sending error");
         }
       }
       
