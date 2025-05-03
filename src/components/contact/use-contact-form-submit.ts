@@ -42,7 +42,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       const fileBase64 = await readFileAsBase64(file);
       console.log(`File converted to base64, length: ${fileBase64.length}`);
       
-      // Create temporary contact record for tracking
+      // Create contact record in database
       const contactData = {
         full_name: values.fullName,
         position: values.position,
@@ -56,7 +56,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         file_data: fileBase64
       };
 
-      // Save to Supabase (with temporary status)
+      // Save to Supabase
       console.log("Saving contact data to Supabase");
       const { data, error } = await supabase
         .from('contacts')
@@ -73,7 +73,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       if (data && data.length > 0) {
         const contactId = data[0].id;
         
-        // Send notification email with the file attachment - using direct data approach
+        // Send notification email with the file attachment
         try {
           console.log(`Sending notification for contact ID ${contactId} with file: ${file.name}`);
           

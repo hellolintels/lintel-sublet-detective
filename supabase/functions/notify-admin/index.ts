@@ -33,21 +33,21 @@ serve(async (req) => {
     // Get contact data from Supabase
     const contact = await getContactById(contactId);
     
-    // Process the file data
+    // Process the file data to ensure proper encoding as plain text
     const fileContent = processFileData(contact.file_data);
     if (!fileContent) {
       throw new Error("Failed to process file data");
     }
     
-    // Generate approval URLs
+    // Generate absolute approval/rejection URLs with full domain
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const approveUrl = `${supabaseUrl}/functions/v1/process-addresses?action=approve_processing&contact_id=${contactId}`;
     const rejectUrl = `${supabaseUrl}/functions/v1/process-addresses?action=reject_processing&contact_id=${contactId}`;
     
-    // Build the email HTML body
+    // Build the email HTML body with approve/reject buttons
     const htmlContent = buildEmailContent(contact);
     
-    // Plain text version of the email
+    // Plain text version of the email with direct links
     const textContent = `
 New address list submission from ${contact.full_name} (${contact.email})
 File: ${contact.file_name}
@@ -67,7 +67,7 @@ Contact Details:
 - Position: ${contact.position || 'Not provided'}
     `;
     
-    // Send the email
+    // Send the email with the CSV file as a plain text attachment
     const emailResult = await sendEmail(
       'jamie@lintels.in',
       `[ACTION REQUIRED] New Address List from ${contact.full_name} - ID: ${contactId}`,
