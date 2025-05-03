@@ -5,6 +5,10 @@
  * @returns HTML string for the email
  */
 export function buildEmailContent(contact: any): string {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const approveUrl = `${supabaseUrl}/functions/v1/process-addresses?action=approve_processing&contact_id=${contact.id}`;
+  const rejectUrl = `${supabaseUrl}/functions/v1/process-addresses?action=reject_processing&contact_id=${contact.id}`;
+  
   return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
   <h1 style="color: #2196F3; text-align: center;">New Address Submission</h1>
@@ -29,12 +33,20 @@ export function buildEmailContent(contact: any): string {
     </ul>
   </div>
   
-  <p>Please check the Supabase dashboard for more details and to process this submission.</p>
-  
-  <p>You can process this submission using the following URL:</p>
-  <code style="display: block; background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 12px;">
-    ${Deno.env.get('SUPABASE_URL')}/functions/v1/process-addresses?action=approve_processing&contact_id=${contact.id}
-  </code>
+  <div style="margin: 20px 0;">
+    <p><strong>Actions Required:</strong></p>
+    <p>Please review the attached CSV file and approve or reject this submission:</p>
+    
+    <div style="margin: 20px 0;">
+      <a href="${approveUrl}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Approve Processing</a>
+      <a href="${rejectUrl}" style="display: inline-block; background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reject</a>
+    </div>
+    
+    <p style="font-size: 12px; color: #666;">
+      Approving will process the addresses through BrightData and create a sample report.<br>
+      Rejecting will mark the submission as rejected in the database.
+    </p>
+  </div>
   
   <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
     This is an automated message from lintels.in

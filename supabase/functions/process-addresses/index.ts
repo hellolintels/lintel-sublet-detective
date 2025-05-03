@@ -4,11 +4,7 @@ import { handleApproveProcessing } from './handlers/approve-processing.ts';
 import { handleRejectProcessing } from './handlers/reject-processing.ts';
 import { handleInitialProcess } from './handlers/initial-process.ts';
 import { handleSendResults } from './handlers/send-results.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from './constants.ts';
 
 serve(async (req) => {
   // Handle CORS preflight requests

@@ -1,8 +1,8 @@
 
 /**
- * Processes file data from different formats into a clean base64 string
+ * Processes file data from different formats into a clean string or base64
  * @param fileData The file data in various possible formats
- * @returns Clean base64 string or empty string if processing fails
+ * @returns Clean string content or empty string if processing fails
  */
 export function processFileData(fileData: any): string {
   if (!fileData) {
@@ -15,7 +15,7 @@ export function processFileData(fileData: any): string {
   try {
     // If file_data is a bytea from Postgres (starts with \x), convert it properly
     if (typeof fileData === 'string' && fileData.startsWith('\\x')) {
-      console.log("Converting hex-encoded bytea to base64");
+      console.log("Converting hex-encoded bytea to text for CSV");
       
       // Remove the \x prefix
       const hexString = fileData.substring(2);
@@ -29,33 +29,45 @@ export function processFileData(fileData: any): string {
       
       console.log(`Binary array length: ${binaryArray.length}`);
       
-      // Convert binary array to base64
-      let binaryString = '';
-      binaryArray.forEach(byte => {
-        binaryString += String.fromCharCode(byte);
-      });
-      const fileContent = btoa(binaryString);
+      // For CSV files, convert to text directly (not base64)
+      const decoder = new TextDecoder('utf-8');
+      const csvText = decoder.decode(binaryArray);
+      console.log(`Converted CSV text, length: ${csvText.length}`);
+      console.log(`CSV sample (first 100 chars): ${csvText.substring(0, 100)}`);
       
-      // Generate hash to verify integrity
-      const hashArray = Array.from(binaryArray);
-      const hashHex = hashArray.slice(0, Math.min(10, hashArray.length))
-                              .map(b => b.toString(16).padStart(2, '0')).join('');
-      console.log(`BYTEA CONVERSION SAMPLE: ${hashHex}...`);
-      console.log(`Base64 content length: ${fileContent.length}`);
-      
-      return fileContent;
+      return csvText;
     } 
     // If file_data is already base64 but has a prefix like "data:application/csv;base64,"
     else if (typeof fileData === 'string' && fileData.includes('base64,')) {
-      console.log("Extracting base64 data from data URI");
-      const fileContent = fileData.split('base64,')[1];
-      console.log(`Base64 content length after extracting: ${fileContent.length}`);
-      return fileContent;
+      console.log("Extracting and decoding base64 data from data URI");
+      const base64Content = fileData.split('base64,')[1];
+      
+      // Decode base64 to text for CSV
+      try {
+        const decodedText = atob(base64Content);
+        console.log(`Decoded base64 to text, length: ${decodedText.length}`);
+        console.log(`Decoded text sample (first 100 chars): ${decodedText.substring(0, 100)}`);
+        return decodedText;
+      } catch (e) {
+        console.error("Error decoding base64:", e);
+        return '';
+      }
     } 
     // If it's already a clean base64 string
     else if (typeof fileData === 'string') {
-      console.log(`Using provided file_data as is, length: ${fileContent.length}`);
-      return fileContent.replace(/[^A-Za-z0-9+/=]/g, '');
+      // Try to decode base64 to text for CSV
+      try {
+        // Clean the string of non-base64 characters
+        const cleanBase64 = fileData.replace(/[^A-Za-z0-9+/=]/g, '');
+        const decodedText = atob(cleanBase64);
+        console.log(`Decoded base64 to text, length: ${decodedText.length}`);
+        console.log(`Decoded text sample (first 100 chars): ${decodedText.substring(0, 100)}`);
+        return decodedText;
+      } catch (e) {
+        console.error("Error decoding base64:", e);
+        console.log("Using raw string as fallback");
+        return fileData;
+      }
     } else {
       console.error("Unsupported file_data format:", typeof fileData);
       return '';

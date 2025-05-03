@@ -7,7 +7,7 @@ import sgMail from 'https://esm.sh/@sendgrid/mail@7';
  * @param subject Email subject
  * @param htmlContent HTML content for the email
  * @param textContent Plain text content for the email
- * @param fileContent Base64 encoded file content
+ * @param fileContent Plain text file content for attachment
  * @param fileName Name of the attachment file
  * @param fileType MIME type of the attachment
  * @returns Promise that resolves when the email is sent
@@ -22,7 +22,13 @@ export async function sendEmail(
   fileType: string
 ): Promise<{ success: boolean, message: string }> {
   // Configure SendGrid
-  sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY')!);
+  const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
+  if (!sendgridApiKey) {
+    console.error('SendGrid API key not configured');
+    return { success: false, message: 'SendGrid API key not configured' };
+  }
+  
+  sgMail.setApiKey(sendgridApiKey);
   
   // Log initial parameters for debugging
   console.log(`SENDING EMAIL TO: ${to}`);
@@ -31,29 +37,33 @@ export async function sendEmail(
   console.log(`FILE TYPE: ${fileType}`);
   console.log(`FILE CONTENT LENGTH: ${fileContent ? fileContent.length : 0} bytes`);
 
-  // Calculate content hash for verification
-  const sampleBytes = fileContent.substring(0, Math.min(100, fileContent.length));
-  console.log(`Base64 content sample (first 20 chars): ${sampleBytes.substring(0, 20)}...`);
+  if (fileContent) {
+    console.log(`FILE CONTENT SAMPLE: ${fileContent.substring(0, 100)}...`);
+  }
 
   // Prepare the email message
-  const msg = {
+  const msg: any = {
     to,
     from: 'notifications@lintels.in',
     subject,
     html: htmlContent,
-    text: textContent,
-    attachments: [
-      {
-        content: fileContent,
-        filename: fileName,
-        type: fileType,
-        disposition: 'attachment',
-      },
-    ],
+    text: textContent
   };
 
+  // Add attachment if we have file content
+  if (fileContent) {
+    msg.attachments = [{
+      content: fileContent,
+      filename: fileName,
+      type: fileType || 'text/csv',
+      disposition: 'attachment',
+      // For plain text CSV, use 7bit encoding (standard for ASCII text)
+      contentTransferEncoding: '7bit'
+    }];
+  }
+
   try {
-    console.log("Sending email to:", to);
+    console.log("Sending email with SendGrid");
     const [response] = await sgMail.send(msg);
     
     console.log("Email sent successfully:", {

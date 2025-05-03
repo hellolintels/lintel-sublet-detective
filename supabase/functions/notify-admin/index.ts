@@ -1,11 +1,11 @@
 
 import { serve } from 'https://deno.land/x/sift@0.6.0/mod.ts';
-import sgMail from 'https://esm.sh/@sendgrid/mail@7';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getContactById } from './utils/contacts.ts';
+import { buildEmailContent } from './utils/email-builder.ts';
+import { sendEmail } from './utils/email-sender.ts';
+import { processFileData } from './utils/file-processor.ts';
+import { corsHeaders } from './utils/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -26,148 +26,27 @@ serve(async (req) => {
       throw new Error("Contact ID is required");
     }
 
-    // Set up SendGrid
-    const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
-    if (!sendgridApiKey) {
-      throw new Error('SendGrid API key not configured');
-    }
-    
-    sgMail.setApiKey(sendgridApiKey);
-    console.log('SendGrid API key set successfully');
-    
     // Get contact data from Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const contact = await getContactById(contactId);
     
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase credentials not configured');
-    }
-    
-    // Create Supabase client
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Get contact data with file content
-    const { data: contact, error: contactError } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('id', contactId)
-      .single();
-
-    if (contactError || !contact) {
-      console.error('Contact fetch error:', contactError);
-      throw new Error(`Contact not found: ${contactError?.message || 'Unknown error'}`);
-    }
-
-    console.log(`📧 Contact found: ${contact.full_name} (${contact.email})`);
-    
-    // Verify file data is present
-    if (!contact.file_data || !contact.file_name) {
-      console.error('Missing file data in contact record');
-      throw new Error('Missing file data in contact record');
-    }
-
-    // Process the file data from bytea format
-    const fileName = contact.file_name;
-    const fileType = contact.file_type || 'text/csv';
-    let fileContent = '';
-
-    try {
-      console.log(`🔄 Processing file data for ${fileName}`);
-
-      // Handle bytea format from Postgres
-      if (typeof contact.file_data === 'string' && contact.file_data.startsWith('\\x')) {
-        const hexString = contact.file_data.substring(2);
-        console.log(`Converting hex-encoded bytea to binary, hex length: ${hexString.length}`);
-        
-        const binaryArray = new Uint8Array(hexString.length / 2);
-        for (let i = 0; i < hexString.length; i += 2) {
-          binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
-        }
-        
-        // For CSV files, convert to text
-        if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
-          const decoder = new TextDecoder('utf-8');
-          fileContent = decoder.decode(binaryArray);
-          console.log(`Decoded CSV text data, length: ${fileContent.length}`);
-          
-          // Log a sample of the decoded content
-          if (fileContent.length > 0) {
-            console.log(`CSV sample (first 100 chars): ${fileContent.substring(0, 100)}`);
-          }
-        } else {
-          // For binary files, base64 encode
-          let binaryString = '';
-          binaryArray.forEach(byte => {
-            binaryString += String.fromCharCode(byte);
-          });
-          fileContent = btoa(binaryString);
-        }
-      } else {
-        // If it's already a base64 string
-        fileContent = contact.file_data;
-        
-        // For CSV files, decode the base64 to get plain text
-        if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
-          fileContent = atob(fileContent);
-          console.log(`Decoded base64 CSV to plain text, length: ${fileContent.length}`);
-        }
-      }
-      
-      console.log(`✅ File processing complete for ${fileName}`);
-    } catch (decodeError) {
-      console.error('Error processing file data:', decodeError);
-      // Fall back to original content if decoding fails
-      console.log('Using original file data without transformation');
-      fileContent = contact.file_data;
+    // Process the file data
+    const fileContent = processFileData(contact.file_data);
+    if (!fileContent) {
+      throw new Error("Failed to process file data");
     }
     
     // Generate approval URLs
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const approveUrl = `${supabaseUrl}/functions/v1/process-addresses?action=approve_processing&contact_id=${contactId}`;
     const rejectUrl = `${supabaseUrl}/functions/v1/process-addresses?action=reject_processing&contact_id=${contactId}`;
     
     // Build the email HTML body
-    const htmlContent = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #e65c00;">New Address List Submission - Requires Approval</h2>
-      
-      <p>A new address list has been submitted for your review and approval.</p>
-      
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <h3 style="margin-top: 0;">Contact Details:</h3>
-        <ul>
-          <li><strong>Full Name:</strong> ${contact.full_name}</li>
-          <li><strong>Position:</strong> ${contact.position || 'Not provided'}</li>
-          <li><strong>Company:</strong> ${contact.company || 'Not provided'}</li>
-          <li><strong>Email:</strong> ${contact.email}</li>
-          <li><strong>Phone:</strong> ${contact.phone}</li>
-          <li><strong>Form Type:</strong> ${contact.form_type || 'sample'}</li>
-          <li><strong>File Name:</strong> ${fileName}</li>
-          <li><strong>Contact ID:</strong> ${contactId}</li>
-        </ul>
-      </div>
-      
-      <div style="margin: 20px 0;">
-        <p><strong>Actions Required:</strong></p>
-        <p>Please review the attached CSV file and approve or reject this submission:</p>
-        
-        <div style="margin: 20px 0;">
-          <a href="${approveUrl}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Approve Processing</a>
-          <a href="${rejectUrl}" style="display: inline-block; background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reject</a>
-        </div>
-        
-        <p style="font-size: 12px; color: #666;">
-          Approving will process the addresses through BrightData and create a sample report.<br>
-          Rejecting will mark the submission as rejected in the database.
-        </p>
-      </div>
-    </div>
-    `;
-
+    const htmlContent = buildEmailContent(contact);
+    
     // Plain text version of the email
     const textContent = `
 New address list submission from ${contact.full_name} (${contact.email})
-File: ${fileName}
+File: ${contact.file_name}
 Contact ID: ${contactId}
 
 To approve this submission, go to:
@@ -184,87 +63,50 @@ Contact Details:
 - Position: ${contact.position || 'Not provided'}
     `;
     
-    // Determine the correct content-transfer-encoding
-    let contentTransferEncoding = '7bit'; // Default for plain text
+    // Send the email
+    const emailResult = await sendEmail(
+      'jamie@lintels.in',
+      `[ACTION REQUIRED] New Address List from ${contact.full_name} - ID: ${contactId}`,
+      htmlContent,
+      textContent,
+      fileContent,
+      contact.file_name,
+      contact.file_type || 'text/csv'
+    );
     
-    // Prepare email data
-    const msg = {
-      to: 'jamie@lintels.in',
-      from: 'notifications@lintels.in',
-      subject: `[ACTION REQUIRED] New Address List from ${contact.full_name} - ID: ${contactId}`,
-      html: htmlContent,
-      text: textContent,
-      attachments: []
-    };
-
-    // Add attachment if we have file content
-    if (fileContent) {
-      if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
-        // For CSV files, attach as plain text with 7bit encoding
-        msg.attachments = [{
-          content: fileContent,
-          filename: fileName,
-          type: 'text/csv',
-          disposition: 'attachment',
-          contentTransferEncoding: contentTransferEncoding,
-        }];
-      } else {
-        // For binary files, use base64
-        msg.attachments = [{
-          content: fileContent, 
-          filename: fileName,
-          type: fileType,
-          disposition: 'attachment',
-          contentTransferEncoding: 'base64',
-        }];
-      }
+    if (!emailResult.success) {
+      throw new Error(`Failed to send email: ${emailResult.message}`);
+    }
+    
+    // Update contact status to "pending_approval"
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+    
+    const { error: updateError } = await supabase
+      .from('contacts')
+      .update({ status: 'pending_approval' })
+      .eq('id', contactId);
+      
+    if (updateError) {
+      console.error('Error updating contact status:', updateError);
+    } else {
+      console.log(`Contact status updated to "pending_approval" for ID: ${contactId}`);
     }
 
-    console.log('Email configuration prepared, about to send...');
-    console.log(`Email will be sent to: jamie@lintels.in`);
-    console.log(`From: notifications@lintels.in`);
-    console.log(`Subject: [ACTION REQUIRED] New Address List from ${contact.full_name} - ID: ${contactId}`);
-    console.log(`Attachment filename: ${fileName}`);
-    console.log(`Content transfer encoding: ${contentTransferEncoding}`);
-
-    try {
-      // Send the email using SendGrid
-      const [response] = await sgMail.send(msg);
-      
-      console.log('SendGrid API Response:');
-      console.log(`Status code: ${response.statusCode}`);
-      console.log(`Headers: ${JSON.stringify(response.headers)}`);
-      console.log('Email sent successfully!');
-      
-      // Update contact status to "pending_approval"
-      const { error: updateError } = await supabase
-        .from('contacts')
-        .update({ status: 'pending_approval' })
-        .eq('id', contactId);
-        
-      if (updateError) {
-        console.error('Error updating contact status:', updateError);
-      } else {
-        console.log(`Contact status updated to "pending_approval" for ID: ${contactId}`);
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: `Email sent to jamie@lintels.in with attachment: ${contact.file_name}`,
+        emailFile: contact.file_name,
+        contactStatus: 'pending_approval'
+      }), 
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Email sent to jamie@lintels.in with attachment: ${fileName}`,
-          emailFile: fileName,
-          statusCode: response.statusCode,
-          contactStatus: 'pending_approval'
-        }), 
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    } catch (sendError) {
-      console.error('SendGrid error:', sendError);
-      throw new Error(`Failed to send email via SendGrid: ${sendError.message}`);
-    }
+    );
   } catch (err) {
     console.error('❌ ERROR in notify-admin function:', err);
     return new Response(
