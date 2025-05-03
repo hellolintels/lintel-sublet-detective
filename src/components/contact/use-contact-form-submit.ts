@@ -14,7 +14,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       setIsSubmitting(true);
       console.log("Form submission started with values:", values);
 
-      // Handle file data
+      // Validate file
       if (!values.addressFile || !values.addressFile[0]) {
         toast.error("Please select a valid file");
         setIsSubmitting(false);
@@ -36,14 +36,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         }
       } catch (countError) {
         console.error("Error counting rows:", countError);
-        // Continue anyway
       }
       
-      // Convert file to base64 ONCE - we'll use this for both storage and sending the email
+      // Convert file to base64
       const fileBase64 = await readFileAsBase64(file);
-      console.log(`File converted to base64, final length: ${fileBase64.length}`);
+      console.log(`File converted to base64, length: ${fileBase64.length}`);
       
-      // Prepare contact data for Supabase
+      // Prepare data for Supabase
       const contactData = {
         full_name: values.fullName,
         position: values.position,
@@ -57,8 +56,8 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         file_data: fileBase64
       };
 
-      // Insert into Supabase
-      console.log("Submitting contact data to Supabase");
+      // Save to Supabase
+      console.log("Saving contact data to Supabase");
       const { data, error } = await supabase
         .from('contacts')
         .insert([contactData])
@@ -74,14 +73,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       if (data && data.length > 0) {
         const contactId = data[0].id;
         
-        // Send the email directly with the base64 file we already have
+        // Send notification email with the file attachment
         try {
-          console.log(`Sending email notification for contact ID ${contactId} with direct file attachment: ${file.name}`);
+          console.log(`Sending email notification for contact ID ${contactId} with file: ${file.name}`);
           
           const notifyResponse = await supabase.functions.invoke("notify-admin", {
             body: { 
               contactId: contactId,
-              // Include the file data directly to avoid database lookup
               directFileData: {
                 fileName: file.name,
                 fileType: file.type,
@@ -92,15 +90,14 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           
           if (notifyResponse.error) {
             console.error("Email notification error:", notifyResponse.error);
-            // Log the detailed error
-            console.error("Notification error details:", JSON.stringify(notifyResponse.error));
+            console.error("Error details:", JSON.stringify(notifyResponse.error));
           } else {
-            console.log("Email notification success response:", notifyResponse.data);
+            console.log("Email notification success:", notifyResponse.data);
+            console.log(`Email sent successfully with file: ${file.name}`);
           }
         } catch (functionCallError) {
           console.error("Failed to call notify-admin function:", functionCallError);
-          // Log the detailed error
-          console.error("Function error details:", JSON.stringify(functionCallError));
+          console.error("Error details:", JSON.stringify(functionCallError));
         }
       }
       

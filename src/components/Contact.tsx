@@ -14,7 +14,7 @@ const Contact = () => {
           <p className="text-sm sm:text-base text-white mb-4 font-normal text-center">
             Upload your addresses to receive a free sample report that matches your list to potential sublets
           </p>
-          <div className="flex flex-col gap-4 w-full items-center">
+          <div className="flex flex-col w-full items-center">
             <ContactForm />
           </div>
         </div>

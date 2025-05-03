@@ -1,6 +1,5 @@
 
 import { serve } from 'https://deno.land/x/sift@0.6.0/mod.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import sgMail from 'https://esm.sh/@sendgrid/mail@7';
 
 const corsHeaders = {
@@ -15,24 +14,38 @@ serve(async (req) => {
   }
   
   try {
+    console.log('📨 notify-admin function called');
+    
     // Parse the request body
     const body = await req.json();
     const { contactId, directFileData } = body;
 
-    console.log(`⭐ Processing notification for contact ID: ${contactId}`);
-    console.log(`⭐ Direct file data provided: ${directFileData ? 'Yes' : 'No'}`);
-
+    console.log(`📝 Processing contact ID: ${contactId}`);
+    
     if (!contactId) {
       throw new Error("Contact ID is required");
     }
 
-    // Create Supabase client to fetch contact info
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    );
-
-    // Get contact data from database
+    // Set up SendGrid
+    const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
+    if (!sendgridApiKey) {
+      throw new Error('SendGrid API key not configured');
+    }
+    sgMail.setApiKey(sendgridApiKey);
+    
+    // Get contact data from Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase credentials not configured');
+    }
+    
+    // Create Supabase client
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get contact data
     const { data: contact, error: contactError } = await supabase
       .from('contacts')
       .select('*')
@@ -40,36 +53,33 @@ serve(async (req) => {
       .single();
 
     if (contactError || !contact) {
+      console.error('Contact fetch error:', contactError);
       throw new Error(`Contact not found: ${contactError?.message || 'Unknown error'}`);
     }
 
-    console.log(`⭐ Contact found: ${contact.full_name} (${contact.email})`);
-    console.log(`⭐ Received direct file data: ${directFileData?.fileName || 'None'}`);
-
-    // Use the direct file data from the request if available
+    console.log(`📧 Contact found: ${contact.full_name} (${contact.email})`);
+    
+    // Verify file data is present
     if (!directFileData || !directFileData.fileName || !directFileData.fileContent) {
-      throw new Error("Missing file data in request");
+      console.error('Missing file data:', directFileData ? Object.keys(directFileData) : 'null');
+      throw new Error('Missing file data in request');
     }
 
     const fileName = directFileData.fileName;
     const fileType = directFileData.fileType || 'text/csv';
     const fileContent = directFileData.fileContent;
     
-    console.log(`⭐ File info for email attachment: ${fileName}, type: ${fileType}`);
-    console.log(`⭐ File content length for attachment: ${fileContent.length} chars`);
+    console.log(`📎 Preparing email with attachment: ${fileName} (${fileType}), content length: ${fileContent.length} chars`);
 
-    // Configure SendGrid
-    sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY') || '');
-
-    // Build a simple HTML email
+    // Build the email HTML body
     const htmlContent = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
-      <h1 style="color: #2196F3; text-align: center;">New Address Submission</h1>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #e65c00;">New Address List Submission</h2>
       
-      <p>A new address list has been submitted from ${contact.full_name}.</p>
+      <p>A new address list has been submitted for processing.</p>
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <h3 style="margin-top: 0;">User Details:</h3>
+        <h3 style="margin-top: 0;">Contact Details:</h3>
         <ul>
           <li><strong>Full Name:</strong> ${contact.full_name}</li>
           <li><strong>Position:</strong> ${contact.position || 'Not provided'}</li>
@@ -77,21 +87,23 @@ serve(async (req) => {
           <li><strong>Email:</strong> ${contact.email}</li>
           <li><strong>Phone:</strong> ${contact.phone}</li>
           <li><strong>Form Type:</strong> ${contact.form_type || 'sample'}</li>
-          <li><strong>File Name:</strong> ${fileName || 'Not provided'}</li>
+          <li><strong>File Name:</strong> ${fileName}</li>
         </ul>
       </div>
     </div>
     `;
 
+    // Plain text version of the email
     const textContent = `
-      New form submission from ${contact.full_name}
-      Email: ${contact.email}
-      Phone: ${contact.phone}
-      Company: ${contact.company || 'Not provided'}
-      File: ${fileName}
+New form submission from ${contact.full_name}
+Email: ${contact.email}
+Phone: ${contact.phone}
+Company: ${contact.company || 'Not provided'}
+Position: ${contact.position || 'Not provided'}
+File: ${fileName}
     `;
-
-    // Prepare the email message with the attachment
+    
+    // Prepare the email with attachment
     const msg = {
       to: 'jamie@lintels.in',
       from: 'notifications@lintels.in',
@@ -109,44 +121,29 @@ serve(async (req) => {
     };
 
     // Send the email
-    console.log(`⭐ Sending email to jamie@lintels.in with file: ${fileName}`);
-    const [response] = await sgMail.send(msg);
-    
-    console.log(`⭐ SendGrid response status: ${response.statusCode}`);
-    console.log(`⭐ Email sent successfully with attachment: ${fileName}`);
+    console.log(`📤 Sending email to jamie@lintels.in with file: ${fileName}`);
+    const result = await sgMail.send(msg);
+    console.log(`📬 Email sent successfully: Status ${result[0]?.statusCode || 'unknown'}`);
 
-    // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Email sent successfully to jamie@lintels.in with attachment: ${fileName}`,
-        contactId,
-        fileName,
-        statusCode: response.statusCode
+        message: `Email sent to jamie@lintels.in with attachment: ${fileName}`,
+        emailFile: fileName,
       }), 
       { 
         status: 200, 
-        headers: { 
-          ...corsHeaders,
-          "Content-Type": "application/json" 
-        } 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
 
-  } catch (err: any) {
-    console.error('❌ Error in notify-admin:', err);
-    
+  } catch (err) {
+    console.error('❌ ERROR in notify-admin function:', err);
     return new Response(
-      JSON.stringify({ 
-        error: err.message,
-        stack: err.stack 
-      }), 
+      JSON.stringify({ error: err.message }), 
       { 
         status: 500, 
-        headers: { 
-          ...corsHeaders,
-          "Content-Type": "application/json" 
-        } 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
   }
