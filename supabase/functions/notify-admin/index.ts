@@ -138,6 +138,7 @@ serve(async (req) => {
         `New Address Submission from ${payload.full_name}`,
         htmlContent,
         processedContent,
+        processedContent,
         fileName,
         fileType
       );

@@ -17,9 +17,9 @@ export async function sendEmail(
   subject: string,
   htmlContent: string,
   textContent: string,
-  fileContent: string,
-  fileName: string,
-  fileType: string
+  fileContent?: string,
+  fileName?: string,
+  fileType?: string
 ): Promise<{ success: boolean, message: string }> {
   // Configure SendGrid
   const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
@@ -28,7 +28,6 @@ export async function sendEmail(
     return { success: false, message: 'SendGrid API key not configured' };
   }
   
-  // Set API key using the correct method
   sgMail.setApiKey(sendgridApiKey);
   
   // Add a timestamp to the subject to prevent threading in email clients
@@ -38,8 +37,8 @@ export async function sendEmail(
   console.log(`--------------------------------`);
   console.log(`SENDING EMAIL TO: ${to}`);
   console.log(`EMAIL SUBJECT: ${timestampedSubject}`);
-  console.log(`FILE NAME: ${fileName}`);
-  console.log(`FILE TYPE: ${fileType}`);
+  console.log(`FILE NAME: ${fileName || 'N/A'}`);
+  console.log(`FILE TYPE: ${fileType || 'N/A'}`);
   console.log(`FILE CONTENT LENGTH: ${fileContent ? fileContent.length : 0} bytes`);
 
   if (fileContent) {
@@ -63,7 +62,7 @@ export async function sendEmail(
       const msg: any = {
         to,
         from: {
-          email: 'notifications@lintels.in',
+          email: 'hello@lintels.in',
           name: 'Lintels.in Notifications'
         },
         subject: timestampedSubject,
@@ -86,7 +85,7 @@ export async function sendEmail(
         
         msg.attachments = [{
           content: base64Content,
-          filename: fileName,
+          filename: fileName || 'attachment.csv',
           type: fileType || 'text/csv',
           disposition: 'attachment'
         }];
@@ -116,7 +115,7 @@ export async function sendEmail(
           const backupMsg = {
             to: 'support@lintels.in', // Backup address
             from: {
-              email: 'notifications@lintels.in',
+              email: 'hello@lintels.in',
               name: 'Lintels.in Notifications (Backup)'
             },
             subject: `BACKUP: ${timestampedSubject}`,
