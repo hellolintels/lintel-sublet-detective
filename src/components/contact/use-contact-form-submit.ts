@@ -1,3 +1,4 @@
+
 // src/components/contact/use-contact-form-submit.ts
 import { useState } from "react";
 import { toast } from "sonner";
@@ -72,12 +73,34 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
       // 3. Call the notify-admin function
       console.log(`Calling notify-admin function with payload:`, notificationPayload);
+      
+      // Add a toast notification that we're processing
+      toast.loading("Processing your submission...");
+      
       const { data: functionData, error: functionError } = await supabase.functions.invoke("notify-admin", {
         body: notificationPayload
       });
 
       if (functionError) {
         console.error("notify-admin function invocation error:", functionError);
+        // Check if it's a connection error
+        if (functionError.message?.includes("Failed to fetch") || 
+            functionError.message?.includes("NetworkError") ||
+            functionError.message?.includes("network")) {
+          toast.error("Network error connecting to our servers. Please check your internet connection and try again.");
+          
+          // Attempt to delete the uploaded file if function call fails
+          try {
+            await supabase.storage.from("pending-uploads").remove([storagePath]);
+            console.log("Cleaned up uploaded file after function error.");
+          } catch (cleanupError) {
+            console.error("Failed to cleanup uploaded file after function error:", cleanupError);
+          }
+          
+          setIsSubmitting(false);
+          return false;
+        }
+        
         // Attempt to delete the uploaded file if function call fails
         try {
           await supabase.storage.from("pending-uploads").remove([storagePath]);
@@ -104,7 +127,21 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
     } catch (error) {
       console.error("Form submission error:", error);
-      toast.error(`Sorry, something went wrong. Please try again or contact support@lintels.in. Error: ${error.message}`);
+      
+      // Enhanced error message based on error type
+      let errorMessage = "Sorry, something went wrong.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+          errorMessage = "Network error connecting to our servers. Please check your internet connection and try again.";
+        } else if (error.message.includes("Edge Function")) {
+          errorMessage = "Server processing error. Our team has been notified. Please try again later.";
+        } else {
+          errorMessage = `Error: ${error.message}`;
+        }
+      }
+      
+      toast.error(`${errorMessage} Please contact support@lintels.in if the problem persists.`);
       return false;
     } finally {
       setIsSubmitting(false);
@@ -116,4 +153,3 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
     submitContactForm
   };
 }
-

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/Logo";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,11 +19,7 @@ const Login = () => {
     e.preventDefault();
     
     if (!email) {
-      toast({
-        title: "Error",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      });
+      toast.error("Please enter your email address.");
       return;
     }
 
@@ -34,21 +30,33 @@ const Login = () => {
       // In a real implementation, you might want to store this in a database
       console.log("Access requested with email:", email);
       
-      toast({
-        title: "Request received",
-        description: "Thank you! We'll contact you via email with next steps.",
-      });
+      // Send notification to admin about access request
+      try {
+        const { error } = await supabase.functions.invoke("notify-admin", {
+          body: {
+            full_name: "Access Request",
+            email: email,
+            company: "Access Request",
+            storagePath: "public/access-request.txt", // Dummy path
+          }
+        });
+        
+        if (error) {
+          console.error("Error sending notification:", error);
+          throw new Error(error.message);
+        }
+      } catch (notifyError) {
+        console.error("Failed to notify admin:", notifyError);
+        // Continue with user feedback even if notification fails
+      }
+      
+      toast.success("Request received! We'll contact you via email with next steps.");
       
       // Reset form
       setEmail("");
     } catch (error) {
       console.error("Error requesting access:", error);
-      
-      toast({
-        title: "Request failed",
-        description: "There was an error processing your request. Please try again later.",
-        variant: "destructive",
-      });
+      toast.error("There was an error processing your request. Please try again later.");
     } finally {
       setLoading(false);
     }

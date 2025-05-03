@@ -1,3 +1,4 @@
+
 // Trigger redeploy
 
 // supabase/functions/notify-admin/index.ts
@@ -51,10 +52,15 @@ serve(async (req: Request) => {
       throw new Error("Missing required fields: full_name, email, and storagePath are required.");
     }
 
+    // Track important API calls
+    console.log(`✅ Creating Supabase admin client for ${supabaseUrl}`);
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    
+    console.log(`✅ Creating Supabase user client for ${supabaseUrl}`);
     const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey); // For signed URL
 
     // 1. Record the initial submission attempt
+    console.log("Recording submission in database");
     const { data: submissionRecord, error: submissionError } = await supabaseAdmin
       .from("pending_submissions")
       .insert({
@@ -130,6 +136,7 @@ serve(async (req: Request) => {
         <a href="${approveUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-right: 10px;">Approve</a>
         <a href="${rejectUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Reject</a>
       </p>
+      <p>Sent at: ${new Date().toISOString()}</p>
     `;
 
     const textContent = `
@@ -147,9 +154,12 @@ serve(async (req: Request) => {
 
       Approve: ${approveUrl}
       Reject: ${rejectUrl}
+      
+      Sent at: ${new Date().toISOString()}
     `;
 
     // 6. Send Email via SendGrid
+    console.log(`Sending email to ${approverEmail}`)
     const emailPayload = {
       personalizations: [{ to: [{ email: approverEmail }] }],
       from: { email: senderEmail, name: "Lintels Submission" }, // Use configured sender
@@ -181,9 +191,48 @@ serve(async (req: Request) => {
     if (!sendgridResponse.ok) {
       const errorBody = await sendgridResponse.text();
       console.error(`SendGrid error: ${sendgridResponse.status} ${sendgridResponse.statusText}`, errorBody);
-      // Attempt to update status to failed before throwing
-      await supabaseAdmin.from("pending_submissions").update({ status: "failed", error_message: `SendGrid failed: ${sendgridResponse.statusText}` }).eq("id", submissionId);
-      throw new Error(`Failed to send email via SendGrid: ${sendgridResponse.statusText}`);
+      
+      // Attempt a direct backup notification to a different email if primary fails
+      try {
+        console.log("Attempting backup notification to secondary email...");
+        const backupEmailPayload = {
+          personalizations: [{ to: [{ email: "support@lintels.in" }] }],
+          from: { email: senderEmail, name: "Lintels Submission (Backup)" },
+          subject: `BACKUP: New Address List Submission (${full_name})`,
+          content: [
+            { type: "text/plain", value: `BACKUP NOTIFICATION: Primary email failed. ${textContent}` },
+            { type: "text/html", value: `<p><strong>BACKUP NOTIFICATION: Primary email failed.</strong></p>${htmlContent}` },
+          ],
+          attachments: [
+            {
+              content: fileContentBase64,
+              filename: fileName,
+              type: "text/csv",
+              disposition: "attachment",
+            },
+          ],
+        };
+        
+        await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${sendgridApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(backupEmailPayload),
+        });
+        console.log("Backup notification sent");
+      } catch (backupError) {
+        console.error("Backup notification also failed:", backupError);
+      }
+      
+      // Update status but don't throw yet
+      await supabaseAdmin.from("pending_submissions").update({ 
+        status: "notification_failed", 
+        error_message: `SendGrid failed: ${sendgridResponse.statusText}. Error: ${errorBody}` 
+      }).eq("id", submissionId);
+      
+      throw new Error(`Failed to send email via SendGrid: ${sendgridResponse.statusText}. ${errorBody}`);
     }
 
     console.log(`Email sent successfully to ${approverEmail}`);
@@ -212,4 +261,3 @@ serve(async (req: Request) => {
     );
   }
 });
-

@@ -30,10 +30,13 @@ export async function sendEmail(
   
   sgMail.setApiKey(sendgridApiKey);
   
+  // Add a timestamp to the subject to prevent threading in email clients
+  const timestampedSubject = `${subject} [${new Date().toISOString()}]`;
+  
   // Log initial parameters for debugging
   console.log(`--------------------------------`);
   console.log(`SENDING EMAIL TO: ${to}`);
-  console.log(`EMAIL SUBJECT: ${subject}`);
+  console.log(`EMAIL SUBJECT: ${timestampedSubject}`);
   console.log(`FILE NAME: ${fileName}`);
   console.log(`FILE TYPE: ${fileType}`);
   console.log(`FILE CONTENT LENGTH: ${fileContent ? fileContent.length : 0} bytes`);
@@ -48,6 +51,13 @@ export async function sendEmail(
     try {
       console.log(`Email send attempt ${attempt} to ${to}`);
       
+      // Special handling for known critical destinations
+      const isAdminEmail = to.includes('jamie@lintels.in');
+      if (isAdminEmail) {
+        console.log(`CRITICAL ADMIN EMAIL DETECTED: ${to} - Adding extra tracking info`);
+        subject = `[IMPORTANT] ${timestampedSubject}`; // Mark admin emails as important
+      }
+      
       // Prepare the email message with a simpler structure
       const msg: any = {
         to,
@@ -55,7 +65,7 @@ export async function sendEmail(
           email: 'notifications@lintels.in',
           name: 'Lintels.in Notifications'
         },
-        subject: `${subject} [${new Date().toISOString()}]`, // Add timestamp to prevent threading
+        subject: timestampedSubject,
         html: htmlContent,
         text: textContent
       };
@@ -77,7 +87,7 @@ export async function sendEmail(
       console.log("Email configuration:", JSON.stringify({
         to,
         from: msg.from,
-        subject,
+        subject: timestampedSubject,
         htmlContentLength: htmlContent.length,
         textContentLength: textContent.length,
         hasAttachment: !!fileContent,
@@ -90,6 +100,28 @@ export async function sendEmail(
         statusCode: response.statusCode,
         headers: response.headers
       });
+      
+      // For admin emails, send a backup notification to another address
+      if (isAdminEmail) {
+        try {
+          const backupMsg = {
+            to: 'support@lintels.in', // Backup address
+            from: {
+              email: 'notifications@lintels.in',
+              name: 'Lintels.in Notifications (Backup)'
+            },
+            subject: `BACKUP: ${timestampedSubject}`,
+            html: `<p>This is a backup notification for an email sent to ${to}.</p>${htmlContent}`,
+            text: `This is a backup notification for an email sent to ${to}.\n\n${textContent}`
+          };
+          
+          await sgMail.send(backupMsg);
+          console.log(`Backup notification sent to support@lintels.in`);
+        } catch (backupError) {
+          console.error(`Failed to send backup notification:`, backupError);
+          // Don't fail the main operation if backup fails
+        }
+      }
       
       return { 
         success: true, 
