@@ -91,6 +91,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           if (notifyResponse.error) {
             console.error("Email notification error:", notifyResponse.error);
             console.error("Error details:", JSON.stringify(notifyResponse.error));
+            throw new Error(`Failed to send notification: ${notifyResponse.error.message || 'Unknown error'}`);
           } else {
             console.log("Email notification success:", notifyResponse.data);
             console.log(`Email sent successfully with file: ${file.name}`);
@@ -98,6 +99,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         } catch (functionCallError) {
           console.error("Failed to call notify-admin function:", functionCallError);
           console.error("Error details:", JSON.stringify(functionCallError));
+          throw new Error(`Failed to call notify-admin function: ${functionCallError.message || 'Unknown error'}`);
         }
       }
       

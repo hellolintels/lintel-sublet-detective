@@ -31,7 +31,9 @@ serve(async (req) => {
     if (!sendgridApiKey) {
       throw new Error('SendGrid API key not configured');
     }
+    
     sgMail.setApiKey(sendgridApiKey);
+    console.log('SendGrid API key set successfully');
     
     // Get contact data from Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -69,28 +71,8 @@ serve(async (req) => {
     const fileType = directFileData.fileType || 'text/csv';
     const fileContentBase64 = directFileData.fileContent;
     
-    console.log(`📎 Processing attachment: ${fileName} (${fileType}), content length: ${fileContentBase64.length} chars`);
+    console.log(`📎 Processing attachment: ${fileName} (${fileType}), base64 length: ${fileContentBase64.length} chars`);
     
-    // Decode the Base64 content back to plain text for CSV files
-    let fileContent = fileContentBase64;
-    let contentEncoding = 'base64';
-    
-    if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
-      try {
-        console.log('🔄 Decoding Base64 content to plain text for CSV file');
-        const textDecoder = new TextDecoder('utf-8');
-        const binaryData = Uint8Array.from(atob(fileContentBase64), c => c.charCodeAt(0));
-        fileContent = textDecoder.decode(binaryData);
-        contentEncoding = 'binary'; // Use binary for plain text
-        console.log(`✅ Successfully decoded CSV. First 100 chars: "${fileContent.substring(0, 100)}..."`);
-      } catch (decodeError) {
-        console.error('❌ Error decoding Base64 content:', decodeError);
-        // Fall back to using Base64 if decoding fails
-        fileContent = fileContentBase64;
-        contentEncoding = 'base64';
-      }
-    }
-
     // Build the email HTML body
     const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -123,7 +105,7 @@ Position: ${contact.position || 'Not provided'}
 File: ${fileName}
     `;
     
-    // Prepare the email with attachment
+    // Prepare email data with simpler attachment handling
     const msg = {
       to: 'jamie@lintels.in',
       from: 'notifications@lintels.in',
@@ -132,33 +114,45 @@ File: ${fileName}
       text: textContent,
       attachments: [
         {
-          content: fileContent,
+          content: fileContentBase64,
           filename: fileName,
           type: fileType,
           disposition: 'attachment',
-          content_transfer_encoding: contentEncoding, // Specify how content is encoded
         },
       ],
     };
 
-    // Send the email
-    console.log(`📤 Sending email to jamie@lintels.in with file: ${fileName}`);
-    const result = await sgMail.send(msg);
-    console.log(`📬 Email sent successfully: Status ${result[0]?.statusCode || 'unknown'}`);
+    console.log('Email configuration prepared, about to send...');
+    console.log(`Email will be sent to: jamie@lintels.in`);
+    console.log(`From: notifications@lintels.in`);
+    console.log(`Subject: New Form Submission from ${contact.full_name}`);
+    console.log(`Attachment filename: ${fileName}`);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Email sent to jamie@lintels.in with attachment: ${fileName}`,
-        emailFile: fileName,
-        isDecoded: contentEncoding === 'binary',
-      }), 
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+    try {
+      // Send the email using SendGrid
+      const [response] = await sgMail.send(msg);
+      
+      console.log('SendGrid API Response:');
+      console.log(`Status code: ${response.statusCode}`);
+      console.log(`Headers: ${JSON.stringify(response.headers)}`);
+      console.log('Email sent successfully!');
 
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Email sent to jamie@lintels.in with attachment: ${fileName}`,
+          emailFile: fileName,
+          statusCode: response.statusCode,
+        }), 
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    } catch (sendError) {
+      console.error('SendGrid error:', sendError);
+      throw new Error(`Failed to send email via SendGrid: ${sendError.message}`);
+    }
   } catch (err) {
     console.error('❌ ERROR in notify-admin function:', err);
     return new Response(
