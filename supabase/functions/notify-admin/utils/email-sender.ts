@@ -28,6 +28,7 @@ export async function sendEmail(
     return { success: false, message: 'SendGrid API key not configured' };
   }
   
+  // Set API key using the correct method
   sgMail.setApiKey(sendgridApiKey);
   
   // Add a timestamp to the subject to prevent threading in email clients
@@ -74,9 +75,17 @@ export async function sendEmail(
       if (fileContent) {
         console.log(`Adding file attachment to email, attempt ${attempt}`);
         
-        // For CSV files, use base64 encoded content
+        // Use TextEncoder to convert string to Uint8Array for base64 encoding
+        const encoder = new TextEncoder();
+        const uint8Array = encoder.encode(fileContent);
+        
+        // Convert to base64 using btoa for Deno environment
+        const base64Content = btoa(
+          String.fromCharCode.apply(null, Array.from(uint8Array))
+        );
+        
         msg.attachments = [{
-          content: Buffer.from(fileContent).toString('base64'),
+          content: base64Content,
           filename: fileName,
           type: fileType || 'text/csv',
           disposition: 'attachment'
