@@ -70,14 +70,22 @@ const Login = () => {
         }
         
         console.log("Function response:", data);
+        
+        // If the function succeeded but email sending failed
+        if (data && data.emailSent === false) {
+          console.warn("Admin notification recorded but email delivery failed");
+          toast.success("Your request has been received, but there might be a delay in processing. We'll get back to you soon.", { 
+            duration: 5000 
+          });
+        } else {
+          toast.success("Request received! We'll contact you via email with next steps.");
+        }
       } catch (notifyError) {
         console.error("Failed to notify admin:", notifyError);
         // Set a user-friendly error message
         setError("Network error connecting to our servers. Please try again later or contact support@lintels.in");
         throw notifyError; // Re-throw for the outer catch block
       }
-      
-      toast.success("Request received! We'll contact you via email with next steps.");
       
       // Reset form
       setEmail("");

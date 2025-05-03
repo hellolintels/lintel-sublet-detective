@@ -1,5 +1,5 @@
 
-import sgMail from 'https://esm.sh/@sendgrid/mail@7';
+import * as sgMail from 'https://esm.sh/@sendgrid/mail@7';
 
 /**
  * Sends an email via SendGrid with attachment handling and improved error handling
@@ -76,7 +76,7 @@ export async function sendEmail(
         
         // For CSV files, use plain content
         msg.attachments = [{
-          content: fileContent,
+          content: Buffer.from(fileContent).toString('base64'),
           filename: fileName,
           type: fileType || 'text/csv',
           disposition: 'attachment'
@@ -94,11 +94,11 @@ export async function sendEmail(
         attachmentFilename: fileName
       }));
       
-      const [response] = await sgMail.send(msg);
+      const response = await sgMail.send(msg);
       
       console.log(`Email sent successfully on attempt ${attempt}:`, {
-        statusCode: response.statusCode,
-        headers: response.headers
+        statusCode: response?.[0]?.statusCode,
+        headers: response?.[0]?.headers
       });
       
       // For admin emails, send a backup notification to another address
@@ -129,7 +129,16 @@ export async function sendEmail(
       };
     } catch (error) {
       console.error(`SendGrid error on attempt ${attempt}:`, error);
-      console.error("Error details:", JSON.stringify(error));
+      
+      try {
+        // Attempt to log more detailed error information
+        if (error.response) {
+          console.error("SendGrid API response error:", error.response.body);
+        }
+      } catch (loggingError) {
+        console.error("Error while logging details:", loggingError);
+      }
+      
       lastError = error;
       
       // Only retry for certain types of errors
