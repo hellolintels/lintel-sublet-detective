@@ -13,7 +13,7 @@ const steps = [
   {
     number: "03",
     title: "Evidence Collection",
-    description: "When we find a match, we capture detailed evidence including screenshots, links and listing details."
+    description: "When we find a match, we provide a link to the listing to be checked out by your team"
   },
   {
     number: "04",
