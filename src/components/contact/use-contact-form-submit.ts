@@ -39,9 +39,9 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         // Continue anyway
       }
       
-      // Convert file to base64 - this will be used both for storage and email
+      // Convert file to base64 ONCE - we'll use this for both storage and sending the email
       const fileBase64 = await readFileAsBase64(file);
-      console.log(`File converted to base64, length: ${fileBase64.length}`);
+      console.log(`File converted to base64, final length: ${fileBase64.length}`);
       
       // Prepare contact data for Supabase
       const contactData = {
@@ -74,41 +74,31 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       if (data && data.length > 0) {
         const contactId = data[0].id;
         
-        // Send the email immediately with the already-processed base64 file
+        // Send the email directly with the base64 file we already have
         try {
-          console.log("Sending email with direct file attachment");
-          
-          // Extract the clean base64 content without the data URI prefix
-          let cleanFileContent = fileBase64;
-          if (fileBase64.includes('base64,')) {
-            cleanFileContent = fileBase64.split('base64,')[1];
-            console.log(`Extracted clean base64 content (length: ${cleanFileContent.length})`);
-          }
+          console.log(`Sending email notification for contact ID ${contactId} with direct file attachment: ${file.name}`);
           
           const notifyResponse = await supabase.functions.invoke("notify-admin", {
             body: { 
               contactId: contactId,
+              // Include the file data directly to avoid database lookup
               directFileData: {
                 fileName: file.name,
                 fileType: file.type,
-                fileContent: cleanFileContent
+                fileContent: fileBase64
               }
             }
           });
           
-          console.log("Notify admin response:", notifyResponse);
-          
           if (notifyResponse.error) {
-            console.error("Notification error:", notifyResponse.error);
+            console.error("Email notification error:", notifyResponse.error);
             // Don't block the form submission on email error
-            console.log("Proceeding despite email sending error");
           } else {
-            console.log("Admin notification sent successfully");
+            console.log("Email notification success response:", notifyResponse.data);
           }
         } catch (functionCallError) {
           console.error("Failed to call notify-admin function:", functionCallError);
           // Don't block the form submission on email error
-          console.log("Proceeding despite email sending error");
         }
       }
       

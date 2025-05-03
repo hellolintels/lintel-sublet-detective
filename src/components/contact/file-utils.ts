@@ -13,13 +13,18 @@ export function readFileAsBase64(file: File): Promise<string> {
         if (reader.result) {
           // Get base64 string with data URI
           const base64String = reader.result as string;
-          console.log(`File successfully read, base64 length: ${base64String.length}`);
-          resolve(base64String);
+          console.log(`File successfully read as base64: ${file.name}, length: ${base64String.length}`);
+          
+          // Extract just the base64 content without the data URI prefix
+          const base64Content = base64String.split(',')[1];
+          console.log(`Extracted clean base64 content for ${file.name}, length: ${base64Content.length}`);
+          
+          resolve(base64Content);
         } else {
           reject(new Error("FileReader result is null"));
         }
       } catch (error) {
-        console.error("Error in onload handler:", error);
+        console.error("Error in FileReader onload handler:", error);
         reject(error);
       }
     };
