@@ -1,7 +1,6 @@
 
 import { serve } from 'https://deno.land/x/sift@0.6.0/mod.ts';
 import { getContactById } from './utils/contacts.ts';
-import { buildEmailContent } from './utils/email-builder.ts';
 import { sendEmail } from './utils/email-sender.ts';
 import { processFileData } from './utils/file-processor.ts';
 import { corsHeaders } from './utils/cors.ts';
@@ -47,7 +46,7 @@ serve(async (req) => {
     }
     console.log("Successfully processed file data, length:", fileContent.length);
     
-    // Build simplified email content without approval/rejection links
+    // Build email content with clearer formatting and critical information
     const htmlContent = `
       <h1>New Address List Submission</h1>
       <p>A new address list has been submitted by ${contact.full_name} (${contact.email}).</p>
@@ -58,15 +57,19 @@ serve(async (req) => {
         <li><strong>Company:</strong> ${contact.company || 'Not provided'}</li>
         <li><strong>Email:</strong> ${contact.email}</li>
         <li><strong>Phone:</strong> ${contact.phone}</li>
+        <li><strong>Submission Time:</strong> ${new Date().toISOString()}</li>
+        <li><strong>Contact ID:</strong> ${contactId}</li>
       </ul>
       <p>Please see the attached file for addresses.</p>
+      <p><strong>IMPORTANT:</strong> This is a direct submission. No approval step is required.</p>
     `;
     
     // Plain text version of the email
     const textContent = `
-New address list submission from ${contact.full_name} (${contact.email})
+URGENT: New address list submission from ${contact.full_name} (${contact.email})
 File: ${contact.file_name}
 Contact ID: ${contactId}
+Submission Time: ${new Date().toISOString()}
 
 Contact Details:
 - Full Name: ${contact.full_name}
@@ -74,6 +77,8 @@ Contact Details:
 - Phone: ${contact.phone}
 - Company: ${contact.company || 'Not provided'}
 - Position: ${contact.position || 'Not provided'}
+
+IMPORTANT: This is a direct submission. No approval step is required.
     `;
     
     console.log("Sending direct email to jamie@lintels.in");
@@ -81,7 +86,7 @@ Contact Details:
     // Send the email with the CSV file as a plain text attachment
     const emailResult = await sendEmail(
       'jamie@lintels.in',
-      `[DIRECT SUBMISSION] Address List from ${contact.full_name}`,
+      `[URGENT SUBMISSION] Address List from ${contact.full_name}`,
       htmlContent,
       textContent,
       fileContent,
@@ -118,7 +123,8 @@ Contact Details:
         success: true, 
         message: `Email sent directly to jamie@lintels.in with attachment: ${contact.file_name}`,
         emailFile: contact.file_name,
-        contactStatus: 'submitted'
+        contactStatus: 'submitted',
+        timestamp: new Date().toISOString()
       }), 
       { 
         status: 200, 
@@ -127,8 +133,28 @@ Contact Details:
     );
   } catch (err) {
     console.error('❌ ERROR in notify-admin function:', err);
+    
+    // Send a fallback error notification email
+    try {
+      await sendEmail(
+        'jamie@lintels.in',
+        '[ERROR] Address List Submission Error',
+        `<h1>Error Processing Address Submission</h1><p>There was an error processing a submission: ${err.message}</p>`,
+        `Error Processing Address Submission: ${err.message}`,
+        '',
+        'error_log.txt',
+        'text/plain'
+      );
+      console.log("Sent error notification email");
+    } catch (emailErr) {
+      console.error("Failed to send error notification:", emailErr);
+    }
+    
     return new Response(
-      JSON.stringify({ error: err.message }), 
+      JSON.stringify({ 
+        error: err.message,
+        timestamp: new Date().toISOString()
+      }), 
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 

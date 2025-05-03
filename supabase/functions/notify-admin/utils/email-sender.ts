@@ -2,7 +2,7 @@
 import sgMail from 'https://esm.sh/@sendgrid/mail@7';
 
 /**
- * Sends an email via SendGrid with attachment handling
+ * Sends an email via SendGrid with attachment handling and improved error handling
  * @param to Recipient email address
  * @param subject Email subject
  * @param htmlContent HTML content for the email
@@ -42,61 +42,76 @@ export async function sendEmail(
     console.log(`FILE CONTENT SAMPLE: ${fileContent.substring(0, 100)}...`);
   }
 
-  // Prepare the email message with a simpler structure
-  const msg: any = {
-    to,
-    from: {
-      email: 'notifications@lintels.in',
-      name: 'Lintels.in Notifications'
-    },
-    subject,
-    html: htmlContent,
-    text: textContent
+  // Try up to 3 times to send the email
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`Email send attempt ${attempt} to ${to}`);
+      
+      // Prepare the email message with a simpler structure
+      const msg: any = {
+        to,
+        from: {
+          email: 'notifications@lintels.in',
+          name: 'Lintels.in Notifications'
+        },
+        subject: `${subject} [${new Date().toISOString()}]`, // Add timestamp to prevent threading
+        html: htmlContent,
+        text: textContent
+      };
+
+      // Add attachment if we have file content
+      if (fileContent) {
+        console.log(`Adding file attachment to email, attempt ${attempt}`);
+        
+        // For CSV files, use plain content
+        msg.attachments = [{
+          content: fileContent,
+          filename: fileName,
+          type: fileType || 'text/csv',
+          disposition: 'attachment'
+        }];
+      }
+
+      console.log(`Sending email with SendGrid, attempt ${attempt}`);
+      console.log("Email configuration:", JSON.stringify({
+        to,
+        from: msg.from,
+        subject,
+        htmlContentLength: htmlContent.length,
+        textContentLength: textContent.length,
+        hasAttachment: !!fileContent,
+        attachmentFilename: fileName
+      }));
+      
+      const [response] = await sgMail.send(msg);
+      
+      console.log(`Email sent successfully on attempt ${attempt}:`, {
+        statusCode: response.statusCode,
+        headers: response.headers
+      });
+      
+      return { 
+        success: true, 
+        message: `Email sent successfully on attempt ${attempt}` 
+      };
+    } catch (error) {
+      console.error(`SendGrid error on attempt ${attempt}:`, error);
+      console.error("Error details:", JSON.stringify(error));
+      lastError = error;
+      
+      // Only retry for certain types of errors
+      if (attempt < 3) {
+        console.log(`Waiting before retry attempt ${attempt + 1}...`);
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  // All attempts failed
+  return { 
+    success: false, 
+    message: `Failed to send email after 3 attempts: ${lastError?.message || 'Unknown error'}`
   };
-
-  // Add attachment if we have file content
-  if (fileContent) {
-    console.log("Adding file attachment to email");
-    
-    // For CSV files, use plain content
-    msg.attachments = [{
-      content: fileContent,
-      filename: fileName,
-      type: fileType || 'text/csv',
-      disposition: 'attachment'
-    }];
-  }
-
-  try {
-    console.log("Sending email with SendGrid");
-    console.log("Email configuration:", JSON.stringify({
-      to,
-      from: msg.from,
-      subject,
-      htmlContentLength: htmlContent.length,
-      textContentLength: textContent.length,
-      hasAttachment: !!fileContent,
-      attachmentFilename: fileName
-    }));
-    
-    const [response] = await sgMail.send(msg);
-    
-    console.log("Email sent successfully:", {
-      statusCode: response.statusCode,
-      headers: response.headers
-    });
-    
-    return { 
-      success: true, 
-      message: "Email sent successfully" 
-    };
-  } catch (error) {
-    console.error("SendGrid error:", error);
-    console.error("Error details:", JSON.stringify(error));
-    
-    return { 
-      success: false, 
-      message: `Failed to send email: ${error.message || 'Unknown error'}`
-    };
-  }
 }

@@ -1,6 +1,7 @@
 
 /**
- * Processes file data from different formats into a clean string or base64
+ * Processes file data from different formats into a clean string
+ * with improved error handling and detailed logging
  * @param fileData The file data in various possible formats
  * @returns Clean string content or empty string if processing fails
  */
@@ -34,20 +35,36 @@ export function processFileData(fileData: any): string {
         const decoder = new TextDecoder('utf-8');
         const csvText = decoder.decode(binaryArray);
         console.log(`Converted CSV text, length: ${csvText.length}`);
-        console.log(`CSV sample (first 100 chars): ${csvText.substring(0, 100)}`);
-        
-        return csvText;
+        if (csvText.length > 0) {
+          console.log(`CSV sample (first 100 chars): ${csvText.substring(0, 100)}`);
+          return csvText;
+        } else {
+          throw new Error("Empty text after decoding");
+        }
       } catch (conversionError) {
         console.error("Error converting hex to text:", conversionError);
         
-        // Fallback: return base64 encoded version of the binary data
+        // Fallback: create base64 directly from hex
         try {
-          const base64Data = btoa(String.fromCharCode.apply(null, Array.from(hexString.match(/.{1,2}/g)!).map(hex => parseInt(hex, 16))));
-          console.log("Converted to base64 as fallback");
-          return base64Data;
-        } catch (base64Error) {
-          console.error("Base64 fallback failed:", base64Error);
-          return fileData; // Return original as last resort
+          // Convert each hex pair to a character code
+          let textData = '';
+          for (let i = 0; i < hexString.length; i += 2) {
+            textData += String.fromCharCode(parseInt(hexString.substring(i, i + 2), 16));
+          }
+          
+          console.log("Created text data from hex, length:", textData.length);
+          if (textData.length > 0) {
+            console.log(`Text sample: ${textData.substring(0, 100)}`);
+            return textData;
+          } else {
+            throw new Error("Empty text after conversion");
+          }
+        } catch (textConversionError) {
+          console.error("Text conversion failed:", textConversionError);
+          
+          // Last resort: return the raw hex
+          console.log("Using raw hex as fallback");
+          return fileData;
         }
       }
     } 
@@ -70,25 +87,9 @@ export function processFileData(fileData: any): string {
     } 
     // If it's already a clean base64 string or plain text
     else if (typeof fileData === 'string') {
-      // Check if it looks like base64
-      const base64Regex = /^[A-Za-z0-9+/=]+$/;
-      const isLikelyBase64 = base64Regex.test(fileData.replace(/\s/g, '')) && fileData.length % 4 === 0;
-      
-      if (isLikelyBase64) {
-        // Try to decode base64 to text
-        try {
-          const decodedText = atob(fileData);
-          console.log(`Decoded base64 to text, length: ${decodedText.length}`);
-          console.log(`Decoded text sample (first 100 chars): ${decodedText.substring(0, 100)}`);
-          return decodedText;
-        } catch (e) {
-          console.error("Error decoding base64:", e);
-          // If it fails, it might not be base64 after all
-        }
-      }
-      
-      // Use as plain text (if it wasn't base64 or decoding failed)
+      // Just use as plain text
       console.log("Using as plain text");
+      console.log(`Text length: ${fileData.length}`);
       console.log(`Text sample (first 100 chars): ${fileData.substring(0, 100)}`);
       return fileData;
     } else {
@@ -97,7 +98,9 @@ export function processFileData(fileData: any): string {
     }
   } catch (e) {
     console.error("Error processing file data:", e);
-    // Return empty string or some placeholder on error
-    return '';
+    console.error("Error details:", e instanceof Error ? e.message : String(e));
+    
+    // Return original data as fallback
+    return typeof fileData === 'string' ? fileData : JSON.stringify(fileData);
   }
 }
