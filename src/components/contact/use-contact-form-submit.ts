@@ -108,7 +108,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       }
       
       toast.success(
-        "Thank you for your submission! We'll review your addresses and send you a sample report via email shortly.", 
+        "Thank you for your submission! Your address list has been sent for review. We'll process it and send you a sample report via email shortly.", 
         { duration: 6000 }
       );
       
