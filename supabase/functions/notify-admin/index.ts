@@ -8,17 +8,17 @@ import { corsHeaders } from './utils/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
-  // Handle CORS preflight requests - this is crucial for browser-based requests
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS preflight request');
     return new Response(null, { 
-      status: 204, // No content for OPTIONS
+      status: 204,
       headers: corsHeaders 
     });
   }
   
   try {
-    console.log('📨 notify-admin function called with method:', req.method);
+    console.log('📨 DIRECT EMAIL WORKAROUND: notify-admin function called with method:', req.method);
     
     // Parse the request body
     const body = await req.json();
@@ -32,32 +32,41 @@ serve(async (req) => {
 
     // Get contact data from Supabase
     const contact = await getContactById(contactId);
+    console.log("Retrieved contact:", JSON.stringify({
+      id: contact.id,
+      name: contact.full_name,
+      email: contact.email,
+      file_name: contact.file_name,
+      file_type: contact.file_type
+    }));
     
     // Process the file data to ensure proper encoding as plain text
     const fileContent = processFileData(contact.file_data);
     if (!fileContent) {
       throw new Error("Failed to process file data");
     }
+    console.log("Successfully processed file data, length:", fileContent.length);
     
-    // Generate absolute approval/rejection URLs with full domain
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const approveUrl = `${supabaseUrl}/functions/v1/process-addresses?action=approve_processing&contact_id=${contactId}`;
-    const rejectUrl = `${supabaseUrl}/functions/v1/process-addresses?action=reject_processing&contact_id=${contactId}`;
+    // Build simplified email content without approval/rejection links
+    const htmlContent = `
+      <h1>New Address List Submission</h1>
+      <p>A new address list has been submitted by ${contact.full_name} (${contact.email}).</p>
+      <h2>Contact Details:</h2>
+      <ul>
+        <li><strong>Full Name:</strong> ${contact.full_name}</li>
+        <li><strong>Position:</strong> ${contact.position || 'Not provided'}</li>
+        <li><strong>Company:</strong> ${contact.company || 'Not provided'}</li>
+        <li><strong>Email:</strong> ${contact.email}</li>
+        <li><strong>Phone:</strong> ${contact.phone}</li>
+      </ul>
+      <p>Please see the attached file for addresses.</p>
+    `;
     
-    // Build the email HTML body with approve/reject buttons
-    const htmlContent = buildEmailContent(contact);
-    
-    // Plain text version of the email with direct links
+    // Plain text version of the email
     const textContent = `
 New address list submission from ${contact.full_name} (${contact.email})
 File: ${contact.file_name}
 Contact ID: ${contactId}
-
-To approve this submission, go to:
-${approveUrl}
-
-To reject this submission, go to:
-${rejectUrl}
 
 Contact Details:
 - Full Name: ${contact.full_name}
@@ -67,10 +76,12 @@ Contact Details:
 - Position: ${contact.position || 'Not provided'}
     `;
     
+    console.log("Sending direct email to jamie@lintels.in");
+    
     // Send the email with the CSV file as a plain text attachment
     const emailResult = await sendEmail(
       'jamie@lintels.in',
-      `[ACTION REQUIRED] New Address List from ${contact.full_name} - ID: ${contactId}`,
+      `[DIRECT SUBMISSION] Address List from ${contact.full_name}`,
       htmlContent,
       textContent,
       fileContent,
@@ -79,10 +90,13 @@ Contact Details:
     );
     
     if (!emailResult.success) {
+      console.error("Email sending failed:", emailResult.message);
       throw new Error(`Failed to send email: ${emailResult.message}`);
     }
     
-    // Update contact status to "pending_approval"
+    console.log("Email successfully sent to jamie@lintels.in");
+    
+    // Update contact status to "submitted"
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -90,21 +104,21 @@ Contact Details:
     
     const { error: updateError } = await supabase
       .from('contacts')
-      .update({ status: 'pending_approval' })
+      .update({ status: 'submitted' })
       .eq('id', contactId);
       
     if (updateError) {
       console.error('Error updating contact status:', updateError);
     } else {
-      console.log(`Contact status updated to "pending_approval" for ID: ${contactId}`);
+      console.log(`Contact status updated to "submitted" for ID: ${contactId}`);
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Email sent to jamie@lintels.in with attachment: ${contact.file_name}`,
+        message: `Email sent directly to jamie@lintels.in with attachment: ${contact.file_name}`,
         emailFile: contact.file_name,
-        contactStatus: 'pending_approval'
+        contactStatus: 'submitted'
       }), 
       { 
         status: 200, 

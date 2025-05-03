@@ -31,6 +31,7 @@ export async function sendEmail(
   sgMail.setApiKey(sendgridApiKey);
   
   // Log initial parameters for debugging
+  console.log(`--------------------------------`);
   console.log(`SENDING EMAIL TO: ${to}`);
   console.log(`EMAIL SUBJECT: ${subject}`);
   console.log(`FILE NAME: ${fileName}`);
@@ -41,10 +42,13 @@ export async function sendEmail(
     console.log(`FILE CONTENT SAMPLE: ${fileContent.substring(0, 100)}...`);
   }
 
-  // Prepare the email message
+  // Prepare the email message with a simpler structure
   const msg: any = {
     to,
-    from: 'notifications@lintels.in',
+    from: {
+      email: 'notifications@lintels.in',
+      name: 'Lintels.in Notifications'
+    },
     subject,
     html: htmlContent,
     text: textContent
@@ -52,18 +56,29 @@ export async function sendEmail(
 
   // Add attachment if we have file content
   if (fileContent) {
+    console.log("Adding file attachment to email");
+    
+    // For CSV files, use plain content
     msg.attachments = [{
       content: fileContent,
       filename: fileName,
       type: fileType || 'text/csv',
-      disposition: 'attachment',
-      // For plain text CSV, use 7bit encoding (standard for ASCII text)
-      contentTransferEncoding: '7bit'
+      disposition: 'attachment'
     }];
   }
 
   try {
     console.log("Sending email with SendGrid");
+    console.log("Email configuration:", JSON.stringify({
+      to,
+      from: msg.from,
+      subject,
+      htmlContentLength: htmlContent.length,
+      textContentLength: textContent.length,
+      hasAttachment: !!fileContent,
+      attachmentFilename: fileName
+    }));
+    
     const [response] = await sgMail.send(msg);
     
     console.log("Email sent successfully:", {
@@ -77,6 +92,8 @@ export async function sendEmail(
     };
   } catch (error) {
     console.error("SendGrid error:", error);
+    console.error("Error details:", JSON.stringify(error));
+    
     return { 
       success: false, 
       message: `Failed to send email: ${error.message || 'Unknown error'}`

@@ -12,7 +12,10 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
   async function submitContactForm(values: ContactFormValues) {
     try {
       setIsSubmitting(true);
-      console.log("Form submission started with values:", values);
+      console.log("Form submission started with values:", {
+        ...values,
+        addressFile: values.addressFile ? `${values.addressFile[0].name} (${values.addressFile[0].size} bytes)` : null
+      });
 
       // Validate file
       if (!values.addressFile || !values.addressFile[0]) {
@@ -36,6 +39,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         }
       } catch (countError) {
         console.error("Error counting rows:", countError);
+        // Continue even if row counting fails
       }
       
       // Convert file to base64 for storage and transmission
@@ -75,7 +79,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         
         // Send notification email with the file attachment
         try {
-          console.log(`Sending notification for contact ID ${contactId} with file: ${file.name}`);
+          console.log(`Sending direct notification for contact ID ${contactId} with file: ${file.name}`);
           
           const notifyResponse = await supabase.functions.invoke("notify-admin", {
             body: { 
@@ -90,13 +94,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           } else {
             console.log("Email notification success:", notifyResponse.data);
             
-            // Only mark as success when notification is sent
+            // Mark as success when email is sent
             if (onSuccess) {
               onSuccess();
             }
             
             toast.success(
-              "Thank you for your submission! Your address list has been sent for review. We'll process it and send you a sample report via email shortly.", 
+              "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.", 
               { duration: 6000 }
             );
             
