@@ -1,3 +1,4 @@
+
 /**
  * Reads a file and returns its contents as a base64 string
  * @param file The file to read
@@ -10,12 +11,8 @@ export function readFileAsBase64(file: File): Promise<string> {
     reader.onload = () => {
       try {
         if (reader.result) {
-          // result is either string or ArrayBuffer
-          const base64String = typeof reader.result === 'string' 
-            ? reader.result 
-            : _arrayBufferToBase64(reader.result);
-          
-          // If the result contains a data URI prefix, keep it for proper content type handling
+          // Get base64 string with data URI
+          const base64String = reader.result as string;
           resolve(base64String);
         } else {
           reject(new Error("FileReader result is null"));
@@ -32,28 +29,12 @@ export function readFileAsBase64(file: File): Promise<string> {
     
     try {
       reader.readAsDataURL(file);
+      console.log(`Reading file as DataURL: ${file.name}`);
     } catch (error) {
       console.error("Error reading file:", error);
       reject(error);
     }
   });
-}
-
-/**
- * Converts an ArrayBuffer to a base64 string
- * @param buffer The ArrayBuffer to convert
- * @returns A base64 encoded string
- */
-function _arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  
-  return `data:application/octet-stream;base64,${btoa(binary)}`;
 }
 
 /**
