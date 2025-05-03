@@ -47,31 +47,29 @@ export const countFileRows = async (file: File): Promise<number> => {
 };
 
 /**
- * Converts file to base64 with improved error handling
+ * Converts file to base64 with improved error handling and integrity verification
  */
 export const readFileAsBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
-    reader.onload = () => {
+    reader.onload = async () => {
       if (typeof reader.result === 'string') {
         const base64Result = reader.result;
         console.log(`File converted to base64, length: ${base64Result.length}`);
-        console.log(`File base64 data first 50 chars: ${base64Result.substring(0, 50)}...`);
         
-        // Generate file hash for end-to-end verification
-        generateFileHash(file).then(hash => {
-          console.log(`FORM SUBMISSION INTEGRITY CHECK - File: ${file.name}`);
-          console.log(`FORM SUBMISSION INTEGRITY CHECK - Size: ${file.size} bytes`);
-          console.log(`FORM SUBMISSION INTEGRITY CHECK - Type: ${file.type}`);
-          console.log(`FORM SUBMISSION INTEGRITY CHECK - Content Hash: ${hash}`);
-          
-          resolve(base64Result);
-        }).catch(error => {
-          console.error("Hash generation error:", error);
-          // Still resolve with the base64 data even if hash generation fails
-          resolve(base64Result);
-        });
+        // Generate file hash for integrity verification
+        try {
+          const hashHex = await generateFileHash(file);
+          console.log(`CLIENT FILE HASH: ${hashHex}`);
+          console.log(`File name: ${file.name}`);
+          console.log(`File size: ${file.size} bytes`);
+          console.log(`File type: ${file.type}`);
+        } catch (hashError) {
+          console.error("Error generating file hash:", hashError);
+        }
+        
+        resolve(base64Result);
       } else {
         console.error("FileReader result is not a string:", reader.result);
         reject(new Error("Failed to convert file to base64 - result is not a string"));
@@ -88,13 +86,14 @@ export const readFileAsBase64 = (file: File): Promise<string> => {
       reject(new Error("File reading aborted"));
     };
     
-    // Log file details before reading
     console.log(`Reading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
     reader.readAsDataURL(file);
   });
 };
 
-// Helper function to generate a simple hash for file content verification
+/**
+ * Generates a SHA-256 hash of the file content for end-to-end verification
+ */
 const generateFileHash = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -111,8 +110,7 @@ const generateFileHash = async (file: File): Promise<string> => {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         
-        // Return only the first 16 characters for brevity
-        resolve(hashHex.substring(0, 16));
+        resolve(hashHex);
       } catch (error) {
         console.error("Error generating file hash:", error);
         reject(error);

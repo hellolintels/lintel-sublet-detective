@@ -23,6 +23,13 @@ export async function sendEmail(
 ): Promise<{ success: boolean, message: string, withAttachment: boolean }> {
   // Configure SendGrid
   sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY')!);
+  
+  // Log initial parameters for debugging
+  console.log(`SENDING EMAIL TO: ${to}`);
+  console.log(`EMAIL SUBJECT: ${subject}`);
+  console.log(`FILE NAME: ${fileName}`);
+  console.log(`FILE TYPE: ${fileType}`);
+  console.log(`FILE CONTENT LENGTH: ${fileContent ? fileContent.length : 0} bytes`);
 
   // Prepare the email message
   const msg: any = {
@@ -37,97 +44,64 @@ export async function sendEmail(
   let hasAttachment = false;
   if (fileContent && fileContent.length > 0) {
     console.log(`Adding attachment: ${fileName}`);
-    console.log(`Attachment content length: ${fileContent.length}`);
-    console.log(`Attachment content sample: ${fileContent.substring(0, 50)}...`);
     
-    msg.attachments = [
-      {
-        content: fileContent,
-        filename: fileName,
-        type: fileType,
-        disposition: 'attachment',
-      },
-    ];
-    
-    hasAttachment = true;
-    
-    // Generate simple hash for end-to-end verification
-    const simpleHash = await generateSimpleHash(fileContent);
-    console.log(`EMAIL ATTACHMENT INTEGRITY CHECK - File: ${fileName}`);
-    console.log(`EMAIL ATTACHMENT INTEGRITY CHECK - Content Hash: ${simpleHash}`);
+    // Verify base64 file content integrity with hash
+    try {
+      // Decode a sample to verify it's valid base64
+      const sampleBytes = atob(fileContent.substring(0, Math.min(100, fileContent.length)));
+      console.log(`Base64 decode test successful, first 10 chars: ${sampleBytes.substring(0, 10)}`);
+      
+      // Create a hash of the base64 content for verification
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(fileContent);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      console.log(`EMAIL ATTACHMENT HASH: ${hashHex}`);
+      
+      // Add attachment to email
+      msg.attachments = [
+        {
+          content: fileContent,
+          filename: fileName,
+          type: fileType,
+          disposition: 'attachment',
+        },
+      ];
+      
+      hasAttachment = true;
+    } catch (error) {
+      console.error("Failed to verify base64 content:", error);
+      // Continue without attachment since there's an issue with the base64 data
+    }
   } else {
     console.warn("No valid file content to attach");
   }
 
-  // Send email with retry logic
-  const maxRetries = 3;
-  let retryCount = 0;
-  let lastError = null;
-  
-  while (retryCount <= maxRetries) {
-    try {
-      if (retryCount > 0) {
-        console.log(`Retry attempt ${retryCount} of ${maxRetries}...`);
-        // Short delay between retries, increasing with each attempt
-        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
-      }
-      
-      console.log("Sending email to:", to);
-      console.log("Email subject:", subject);
-      console.log("Email has attachment:", hasAttachment);
-      
-      const [response] = await sgMail.send(msg);
-      
-      console.log("Email sent successfully:", {
-        statusCode: response.statusCode,
-        headers: response.headers,
-        hasAttachment
-      });
-      
-      // Return success response
-      return { 
-        success: true, 
-        message: "Notification sent successfully", 
-        withAttachment: hasAttachment 
-      };
-    } catch (error) {
-      lastError = error;
-      console.error(`SendGrid error (attempt ${retryCount + 1}):`, error);
-      
-      // If we've reached max retries and we have an attachment, try without it
-      if (retryCount === maxRetries - 1 && msg.attachments) {
-        console.log("Trying final attempt without attachment");
-        delete msg.attachments;
-        hasAttachment = false;
-      }
-      
-      retryCount++;
-      if (retryCount <= maxRetries) {
-        // Short delay between retries
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-  }
-
-  // If we're here, all retries failed
-  return { 
-    success: false, 
-    message: `Failed to send email after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`, 
-    withAttachment: hasAttachment
-  };
-}
-
-// Simple function to generate a hash for end-to-end validation
-async function generateSimpleHash(data: string): Promise<string> {
+  // Send email with a single attempt (removed retry logic for simplicity)
   try {
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex.substring(0, 16); // Return first 16 chars of hash for brevity
+    console.log("Sending email to:", to);
+    
+    const [response] = await sgMail.send(msg);
+    
+    console.log("Email sent successfully:", {
+      statusCode: response.statusCode,
+      headers: response.headers,
+      hasAttachment
+    });
+    
+    return { 
+      success: true, 
+      message: "Notification sent successfully", 
+      withAttachment: hasAttachment 
+    };
   } catch (error) {
-    console.error("Error generating hash:", error);
-    return "hash_error";
+    console.error("SendGrid error:", error);
+    return { 
+      success: false, 
+      message: `Failed to send email: ${error.message || 'Unknown error'}`, 
+      withAttachment: hasAttachment
+    };
   }
 }

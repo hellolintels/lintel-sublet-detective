@@ -21,25 +21,40 @@ serve(async (req) => {
     // Get the contact record with file data
     const contact = await getContactById(contactId);
     
+    if (!contact) {
+      throw new Error(`Contact not found with ID: ${contactId}`);
+    }
+    
+    // Log contact details for verification
+    console.log(`Contact found: ${contact.full_name} (${contact.email})`);
+    
     // Process the file data
     const fileName = contact.file_name || `addresses_${contactId}.csv`;
     const fileType = contact.file_type || 'text/csv';
     
     console.log(`Processing file: ${fileName}, type: ${fileType}`);
     console.log(`Raw file_data length: ${contact.file_data ? contact.file_data.length : 0}`);
-    if (contact.file_data) {
-      console.log(`Raw file_data first 50 chars: ${contact.file_data.substring(0, 50)}`);
+    
+    if (!contact.file_data) {
+      console.error("No file data found in the contact record");
+      throw new Error("Missing file data in contact record");
+    }
+    
+    // Log the start of the file data for verification
+    if (contact.file_data.startsWith('\\x')) {
+      console.log(`File data format: PostgreSQL bytea hex`);
+    } else if (contact.file_data.includes('base64,')) {
+      console.log(`File data format: Data URI with base64`);
+    } else {
+      console.log(`File data format: Raw base64 or other format`);
     }
     
     // Convert file data to base64 for email attachment
     const fileContent = processFileData(contact.file_data);
-    console.log(`Processed file content length: ${fileContent ? fileContent.length : 0}`);
-    if (fileContent) {
-      console.log(`Processed file content first 50 chars: ${fileContent.substring(0, 50)}`);
-      
-      // End-to-end test verification
-      console.log(`FILE INTEGRITY CHECK - File: ${fileName}`);
-      console.log(`FILE INTEGRITY CHECK - Content Hash: ${await generateSimpleHash(fileContent)}`);
+    console.log(`Processed file content length: ${fileContent ? fileContent.length : 0} bytes`);
+    
+    if (!fileContent) {
+      throw new Error("Failed to process file data for email attachment");
     }
 
     // Build the email content
@@ -99,18 +114,3 @@ Position: ${contact.position || 'Not provided'}
     );
   }
 });
-
-// Simple function to generate a hash for end-to-end validation
-async function generateSimpleHash(data: string): Promise<string> {
-  try {
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex.substring(0, 16); // Return first 16 chars of hash for brevity
-  } catch (error) {
-    console.error("Error generating hash:", error);
-    return "hash_error";
-  }
-}
