@@ -74,7 +74,7 @@ export async function sendEmail(
       if (fileContent) {
         console.log(`Adding file attachment to email, attempt ${attempt}`);
         
-        // For CSV files, use plain content
+        // For CSV files, use base64 encoded content
         msg.attachments = [{
           content: Buffer.from(fileContent).toString('base64'),
           filename: fileName,
