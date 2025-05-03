@@ -8,13 +8,17 @@ import { corsHeaders } from './utils/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests - this is crucial for browser-based requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    console.log('Handling OPTIONS preflight request');
+    return new Response(null, { 
+      status: 204, // No content for OPTIONS
+      headers: corsHeaders 
+    });
   }
   
   try {
-    console.log('📨 notify-admin function called');
+    console.log('📨 notify-admin function called with method:', req.method);
     
     // Parse the request body
     const body = await req.json();
