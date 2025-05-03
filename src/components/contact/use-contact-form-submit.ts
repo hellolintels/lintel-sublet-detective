@@ -10,10 +10,12 @@ import { v4 as uuidv4 } from "uuid"; // Need to install uuid
 
 export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submitContactForm(values: ContactFormValues) {
     try {
       setIsSubmitting(true);
+      setError(null);
       console.log("Form submission started with values:", {
         ...values,
         addressFile: values.addressFile ? `${values.addressFile[0].name} (${values.addressFile[0].size} bytes)` : null
@@ -50,12 +52,15 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       const storagePath = `public/${uniqueFileName}`; // Store in a 'public' folder within the bucket for simplicity, adjust if needed
 
       console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const uploadPromise = supabase.storage
         .from("pending-uploads") // Ensure this bucket exists and has policies set
         .upload(storagePath, file);
+        
+      const { data: uploadData, error: uploadError } = await uploadPromise;
 
       if (uploadError) {
         console.error("Supabase Storage upload error:", uploadError);
+        setError("Failed to upload file. Please try again or contact support.");
         throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
 
@@ -75,7 +80,10 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       console.log(`Calling notify-admin function with payload:`, notificationPayload);
       
       // Add a toast notification that we're processing
-      toast.loading("Processing your submission...");
+      toast.loading("Processing your submission...", {
+        id: "processing-submission",
+        duration: 10000
+      });
       
       const { data: functionData, error: functionError } = await supabase.functions.invoke("notify-admin", {
         body: notificationPayload
@@ -83,10 +91,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
       if (functionError) {
         console.error("notify-admin function invocation error:", functionError);
+        toast.dismiss("processing-submission");
+        
         // Check if it's a connection error
         if (functionError.message?.includes("Failed to fetch") || 
             functionError.message?.includes("NetworkError") ||
             functionError.message?.includes("network")) {
+          setError("Network error connecting to our servers. Please check your internet connection and try again.");
           toast.error("Network error connecting to our servers. Please check your internet connection and try again.");
           
           // Attempt to delete the uploaded file if function call fails
@@ -108,25 +119,41 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         } catch (cleanupError) {
           console.error("Failed to cleanup uploaded file after function error:", cleanupError);
         }
+        
+        setError(`Failed to process submission: ${functionError.message || "Unknown error"}`);
         throw new Error(`Failed to process submission: ${functionError.message || "Unknown error"}`);
       }
 
       console.log("notify-admin function success:", functionData);
+      toast.dismiss("processing-submission");
 
       // Mark as success
       if (onSuccess) {
         onSuccess();
       }
+      
+      setError(null);
 
-      toast.success(
-        "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
-        { duration: 6000 }
-      );
+      // Check if email was sent successfully
+      if (functionData?.emailSent === false) {
+        // The submission was received but email sending failed
+        toast.success(
+          "Your submission was received! However, there may be a delay in processing. We'll review it as soon as possible.",
+          { duration: 6000 }
+        );
+      } else {
+        // Normal success case
+        toast.success(
+          "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
+          { duration: 6000 }
+        );
+      }
 
       return true;
 
     } catch (error) {
       console.error("Form submission error:", error);
+      toast.dismiss("processing-submission");
       
       // Enhanced error message based on error type
       let errorMessage = "Sorry, something went wrong.";
@@ -141,6 +168,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         }
       }
       
+      setError(errorMessage);
       toast.error(`${errorMessage} Please contact support@lintels.in if the problem persists.`);
       return false;
     } finally {
@@ -150,6 +178,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
   return {
     isSubmitting,
+    error,
     submitContactForm
   };
 }

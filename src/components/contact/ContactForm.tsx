@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { contactFormSchema, ContactFormValues } from "./contact-form-schema";
 import { useContactFormSubmit } from "./use-contact-form-submit";
 import { FileUploadField } from "./FileUploadField";
+import { AlertCircle } from "lucide-react";
 
 interface ContactFormProps {
   onOpenChange?: (open: boolean) => void;
@@ -29,7 +30,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
     },
   });
 
-  const { isSubmitting, submitContactForm } = useContactFormSubmit(formType, () => {
+  const { isSubmitting, error, submitContactForm } = useContactFormSubmit(formType, () => {
     if (onOpenChange) {
       onOpenChange(false);
     }
@@ -151,6 +152,13 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
               />
               
               <FileUploadField form={form} />
+              
+              {error && (
+                <div className="bg-red-500/10 border border-red-800 rounded p-3 flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-red-500 text-sm">{error}</div>
+                </div>
+              )}
               
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? "Submitting..." : "Submit Request"}

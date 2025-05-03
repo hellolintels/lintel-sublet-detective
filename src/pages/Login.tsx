@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleRequestAccess = async (e: React.FormEvent) => {
@@ -24,15 +25,15 @@ const Login = () => {
     }
 
     setLoading(true);
+    setError(null);
 
     try {
       // Here we're just sending a notification that someone wants access
-      // In a real implementation, you might want to store this in a database
       console.log("Access requested with email:", email);
       
       // Send notification to admin about access request
       try {
-        const { error } = await supabase.functions.invoke("notify-admin", {
+        const { error, data } = await supabase.functions.invoke("notify-admin", {
           body: {
             full_name: "Access Request",
             email: email,
@@ -43,20 +44,25 @@ const Login = () => {
         
         if (error) {
           console.error("Error sending notification:", error);
-          throw new Error(error.message);
+          throw new Error(error.message || "Unknown error occurred");
         }
+        
+        console.log("Function response:", data);
       } catch (notifyError) {
         console.error("Failed to notify admin:", notifyError);
-        // Continue with user feedback even if notification fails
+        // Set a user-friendly error message
+        setError("Network error connecting to our servers. Please try again later or contact support@lintels.in");
+        throw notifyError; // Re-throw for the outer catch block
       }
       
       toast.success("Request received! We'll contact you via email with next steps.");
       
       // Reset form
       setEmail("");
+      setError(null);
     } catch (error) {
       console.error("Error requesting access:", error);
-      toast.error("There was an error processing your request. Please try again later.");
+      toast.error(error.message || "There was an error processing your request. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -92,6 +98,12 @@ const Login = () => {
                 required
               />
             </div>
+            
+            {error && (
+              <div className="text-red-500 text-sm p-2 bg-red-500/10 border border-red-800 rounded">
+                {error}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button 
