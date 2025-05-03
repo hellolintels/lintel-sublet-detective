@@ -1,5 +1,4 @@
 
-import sgMail from "https://esm.sh/@sendgrid/mail@7";
 import { EmailAttachment, EmailSendResult } from "./email-types.ts";
 import { 
   logEmailDetails, 
@@ -17,7 +16,7 @@ import {
  * @param to Email address of the recipient
  * @param subject Subject line of the email
  * @param htmlContent HTML content of the email
- * @param emailBody Prepared email body for SendGrid
+ * @param emailPayload Prepared email payload for SendGrid API
  * @param maxRetries Maximum number of retry attempts
  * @returns Response object if successful, or null if all attempts fail
  */
@@ -25,7 +24,7 @@ async function sendWithRetries(
   to: string, 
   subject: string, 
   htmlContent: string, 
-  emailBody: any, 
+  emailPayload: any, 
   maxRetries: number = 2
 ): Promise<Response | null> {
   // Get the SendGrid API key from environment variables
@@ -47,26 +46,26 @@ async function sendWithRetries(
         await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
       }
       
-      // Use SendGrid SDK instead of raw fetch
-      sgMail.setApiKey(sendgridApiKey);
-      const result = await sgMail.send(emailBody);
-      
-      // Create a response-like object from the result
-      response = new Response(JSON.stringify({ 
-        status: "success",
-        statusCode: result[0]?.statusCode || 202,
-        headers: result[0]?.headers || {}
-      }), { status: 200 });
+      // Direct API call to SendGrid
+      response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sendgridApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailPayload)
+      });
       
       logSendGridResponse(to, response);
       
-      if (result[0]?.statusCode >= 200 && result[0]?.statusCode < 300) {
+      if (response.ok) {
         // Success! Break out of retry loop
         return response;
       }
       
       // If we're here, response wasn't ok - prepare error details
-      let errorDetails = `SendGrid returned status code: ${result[0]?.statusCode}`;
+      const errorText = await response.text();
+      let errorDetails = `SendGrid returned status code: ${response.status}, body: ${errorText}`;
       lastError = new Error(errorDetails);
       
       // Continue to next retry attempt
@@ -87,7 +86,7 @@ async function sendWithRetries(
 }
 
 /**
- * Enhanced email sending function with SendGrid integration
+ * Enhanced email sending function with SendGrid API integration
  * @param to Email address of the recipient
  * @param subject Subject line of the email
  * @param htmlContent HTML content of the email
@@ -111,26 +110,42 @@ export async function sendEmail(
     // Clean up the attachment content
     const cleanedAttachment = cleanAttachmentContent(attachment);
     
-    // Prepare the email request body for SendGrid SDK
-    const emailBody = {
-      to,
+    // Prepare the email payload for SendGrid API
+    const emailPayload: any = {
+      personalizations: [
+        {
+          to: [{ email: to }]
+        }
+      ],
       from: {
-        email: 'hello@lintels.in',  // Updated sender address
+        email: 'hello@lintels.in',
         name: 'Lintels.in'
       },
-      subject,
-      html: htmlContent,
-      text: htmlContent.replace(/<[^>]*>?/gm, ''),
-      attachments: cleanedAttachment ? [{
+      subject: subject,
+      content: [
+        {
+          type: 'text/html',
+          value: htmlContent
+        },
+        {
+          type: 'text/plain',
+          value: htmlContent.replace(/<[^>]*>?/gm, '')
+        }
+      ]
+    };
+    
+    // Add attachment if provided
+    if (cleanedAttachment) {
+      emailPayload.attachments = [{
         content: cleanedAttachment.content,
         filename: cleanedAttachment.filename,
         type: cleanedAttachment.contentType,
         disposition: 'attachment'
-      }] : undefined
-    };
+      }];
+    }
     
     // Send the email with retry logic
-    const response = await sendWithRetries(to, subject, htmlContent, emailBody);
+    const response = await sendWithRetries(to, subject, htmlContent, emailPayload);
     
     // If we've exhausted retries and still don't have a successful response
     if (!response) {
@@ -151,31 +166,58 @@ export async function sendEmail(
     if (to === "jamie@lintels.in") {
       console.log("Admin email failed, attempting simplified retry...");
       try {
-        // Prepare the retry email body with minimal HTML and no attachments
-        const retryEmailBody = {
-          to,
+        // Prepare the retry email payload with minimal HTML and no attachments
+        const retryEmailPayload = {
+          personalizations: [
+            {
+              to: [{ email: to }]
+            }
+          ],
           from: {
             email: 'hello@lintels.in',
             name: 'Lintels.in (Retry)'
           },
           subject: `[RETRY] ${subject}`,
-          text: `This is a retry of a failed email. Original subject: ${subject}`,
-          html: `<p>This is a retry of a failed email.</p><p><strong>Original subject:</strong> ${subject}</p>`
+          content: [
+            {
+              type: 'text/html',
+              value: `<p>This is a retry of a failed email.</p><p><strong>Original subject:</strong> ${subject}</p>`
+            },
+            {
+              type: 'text/plain',
+              value: `This is a retry of a failed email. Original subject: ${subject}`
+            }
+          ]
         };
         
-        // Send using the SDK directly
-        sgMail.setApiKey(Deno.env.get("SENDGRID_API_KEY") || "");
-        await sgMail.send(retryEmailBody);
+        // Send directly without attachments
+        const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
+        if (!sendgridApiKey) {
+          throw new Error("SendGrid API key not found for retry");
+        }
         
-        console.log("Admin email retry sent successfully");
+        const retryResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sendgridApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(retryEmailPayload)
+        });
         
-        return { 
-          success: true, 
-          messageId: `sendgrid_retry_${Date.now()}`,
-          recipient: to,
-          subject: subject,
-          note: "Sent with simplified content after initial failure"
-        };
+        if (retryResponse.ok) {
+          console.log("Admin email retry sent successfully");
+          
+          return { 
+            success: true, 
+            messageId: `sendgrid_retry_${Date.now()}`,
+            recipient: to,
+            subject: subject,
+            note: "Sent with simplified content after initial failure"
+          };
+        } else {
+          throw new Error(`Retry also failed with status: ${retryResponse.status}`);
+        }
       } catch (retryError) {
         console.error("Admin email retry also failed:", retryError);
       }

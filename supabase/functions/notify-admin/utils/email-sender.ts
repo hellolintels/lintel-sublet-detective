@@ -1,8 +1,9 @@
 
-import sgMail from "https://esm.sh/@sendgrid/mail@7";
+// Direct implementation of SendGrid API using fetch
+// This avoids using the Node.js SDK which isn't compatible with Deno
 
 /**
- * Sends an email via SendGrid with attachment handling and improved error handling
+ * Sends an email via SendGrid API with attachment handling and improved error handling
  * @param to Recipient email address
  * @param subject Email subject
  * @param htmlContent HTML content for the email
@@ -21,14 +22,12 @@ export async function sendEmail(
   fileName?: string,
   fileType?: string
 ): Promise<{ success: boolean, message: string }> {
-  // Configure SendGrid
+  // Get SendGrid API key
   const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
   if (!sendgridApiKey) {
     console.error('SendGrid API key not configured');
     return { success: false, message: 'SendGrid API key not configured' };
   }
-  
-  sgMail.setApiKey(sendgridApiKey);
   
   // Add a timestamp to the subject to prevent threading in email clients
   const timestampedSubject = `${subject} [${new Date().toISOString()}]`;
@@ -58,23 +57,35 @@ export async function sendEmail(
         subject = `[IMPORTANT] ${timestampedSubject}`; // Mark admin emails as important
       }
       
-      // Prepare the email message with a simpler structure
-      const msg: any = {
-        to,
+      // Prepare the SendGrid API payload
+      const payload: any = {
+        personalizations: [
+          {
+            to: [{ email: to }]
+          }
+        ],
         from: {
           email: 'hello@lintels.in',
           name: 'Lintels.in Notifications'
         },
         subject: timestampedSubject,
-        html: htmlContent,
-        text: textContent
+        content: [
+          {
+            type: 'text/html',
+            value: htmlContent
+          },
+          {
+            type: 'text/plain', 
+            value: textContent
+          }
+        ]
       };
 
       // Add attachment if we have file content
       if (fileContent) {
         console.log(`Adding file attachment to email, attempt ${attempt}`);
         
-        // Use TextEncoder to convert string to Uint8Array for base64 encoding
+        // Use TextEncoder to convert string to Uint8Array
         const encoder = new TextEncoder();
         const uint8Array = encoder.encode(fileContent);
         
@@ -83,7 +94,7 @@ export async function sendEmail(
           String.fromCharCode.apply(null, Array.from(uint8Array))
         );
         
-        msg.attachments = [{
+        payload.attachments = [{
           content: base64Content,
           filename: fileName || 'attachment.csv',
           type: fileType || 'text/csv',
@@ -91,10 +102,10 @@ export async function sendEmail(
         }];
       }
 
-      console.log(`Sending email with SendGrid, attempt ${attempt}`);
+      console.log(`Sending email with direct SendGrid API call, attempt ${attempt}`);
       console.log("Email configuration:", JSON.stringify({
         to,
-        from: msg.from,
+        from: payload.from,
         subject: timestampedSubject,
         htmlContentLength: htmlContent.length,
         textContentLength: textContent.length,
@@ -102,54 +113,88 @@ export async function sendEmail(
         attachmentFilename: fileName
       }));
       
-      const response = await sgMail.send(msg);
-      
-      console.log(`Email sent successfully on attempt ${attempt}:`, {
-        statusCode: response?.[0]?.statusCode,
-        headers: response?.[0]?.headers
+      // Direct API call to SendGrid
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sendgridApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
       });
       
-      // For admin emails, send a backup notification to another address
-      if (isAdminEmail) {
-        try {
-          const backupMsg = {
-            to: 'support@lintels.in', // Backup address
-            from: {
-              email: 'hello@lintels.in',
-              name: 'Lintels.in Notifications (Backup)'
-            },
-            subject: `BACKUP: ${timestampedSubject}`,
-            html: `<p>This is a backup notification for an email sent to ${to}.</p>${htmlContent}`,
-            text: `This is a backup notification for an email sent to ${to}.\n\n${textContent}`
-          };
-          
-          await sgMail.send(backupMsg);
-          console.log(`Backup notification sent to support@lintels.in`);
-        } catch (backupError) {
-          console.error(`Failed to send backup notification:`, backupError);
-          // Don't fail the main operation if backup fails
+      // Check response status
+      if (response.ok) {
+        console.log(`Email sent successfully on attempt ${attempt}:`, {
+          status: response.status,
+          statusText: response.statusText
+        });
+        
+        // For admin emails, send a backup notification to another address
+        if (isAdminEmail) {
+          try {
+            const backupPayload = {
+              personalizations: [
+                {
+                  to: [{ email: 'support@lintels.in' }]
+                }
+              ],
+              from: {
+                email: 'hello@lintels.in',
+                name: 'Lintels.in Notifications (Backup)'
+              },
+              subject: `BACKUP: ${timestampedSubject}`,
+              content: [
+                {
+                  type: 'text/html',
+                  value: `<p>This is a backup notification for an email sent to ${to}.</p>${htmlContent}`
+                },
+                {
+                  type: 'text/plain',
+                  value: `This is a backup notification for an email sent to ${to}.\n\n${textContent}`
+                }
+              ]
+            };
+            
+            await fetch('https://api.sendgrid.com/v3/mail/send', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${sendgridApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(backupPayload)
+            });
+            console.log(`Backup notification sent to support@lintels.in`);
+          } catch (backupError) {
+            console.error(`Failed to send backup notification:`, backupError);
+            // Don't fail the main operation if backup fails
+          }
+        }
+        
+        return { 
+          success: true, 
+          message: `Email sent successfully on attempt ${attempt}` 
+        };
+      } else {
+        // Extract error details from SendGrid response
+        const errorText = await response.text();
+        console.error(`SendGrid API error response (${response.status}): ${errorText}`);
+        lastError = new Error(`SendGrid API returned status ${response.status}: ${errorText}`);
+        
+        // Only retry for certain types of errors (e.g., 5xx errors)
+        if (response.status >= 500 && attempt < 3) {
+          console.log(`Waiting before retry attempt ${attempt + 1}...`);
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        } else if (response.status < 500) {
+          // Don't retry for 4xx errors
+          break;
         }
       }
-      
-      return { 
-        success: true, 
-        message: `Email sent successfully on attempt ${attempt}` 
-      };
     } catch (error) {
-      console.error(`SendGrid error on attempt ${attempt}:`, error);
-      
-      try {
-        // Attempt to log more detailed error information
-        if (error.response) {
-          console.error("SendGrid API response error:", error.response.body);
-        }
-      } catch (loggingError) {
-        console.error("Error while logging details:", loggingError);
-      }
-      
+      console.error(`SendGrid fetch error on attempt ${attempt}:`, error);
       lastError = error;
       
-      // Only retry for certain types of errors
       if (attempt < 3) {
         console.log(`Waiting before retry attempt ${attempt + 1}...`);
         // Wait before retry with exponential backoff
