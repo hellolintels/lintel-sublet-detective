@@ -67,9 +67,29 @@ serve(async (req) => {
 
     const fileName = directFileData.fileName;
     const fileType = directFileData.fileType || 'text/csv';
-    const fileContent = directFileData.fileContent;
+    const fileContentBase64 = directFileData.fileContent;
     
-    console.log(`📎 Preparing email with attachment: ${fileName} (${fileType}), content length: ${fileContent.length} chars`);
+    console.log(`📎 Processing attachment: ${fileName} (${fileType}), content length: ${fileContentBase64.length} chars`);
+    
+    // Decode the Base64 content back to plain text for CSV files
+    let fileContent = fileContentBase64;
+    let contentEncoding = 'base64';
+    
+    if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
+      try {
+        console.log('🔄 Decoding Base64 content to plain text for CSV file');
+        const textDecoder = new TextDecoder('utf-8');
+        const binaryData = Uint8Array.from(atob(fileContentBase64), c => c.charCodeAt(0));
+        fileContent = textDecoder.decode(binaryData);
+        contentEncoding = 'binary'; // Use binary for plain text
+        console.log(`✅ Successfully decoded CSV. First 100 chars: "${fileContent.substring(0, 100)}..."`);
+      } catch (decodeError) {
+        console.error('❌ Error decoding Base64 content:', decodeError);
+        // Fall back to using Base64 if decoding fails
+        fileContent = fileContentBase64;
+        contentEncoding = 'base64';
+      }
+    }
 
     // Build the email HTML body
     const htmlContent = `
@@ -116,6 +136,7 @@ File: ${fileName}
           filename: fileName,
           type: fileType,
           disposition: 'attachment',
+          content_transfer_encoding: contentEncoding, // Specify how content is encoded
         },
       ],
     };
@@ -130,6 +151,7 @@ File: ${fileName}
         success: true, 
         message: `Email sent to jamie@lintels.in with attachment: ${fileName}`,
         emailFile: fileName,
+        isDecoded: contentEncoding === 'binary',
       }), 
       { 
         status: 200, 

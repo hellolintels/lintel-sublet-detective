@@ -38,7 +38,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         console.error("Error counting rows:", countError);
       }
       
-      // Convert file to base64
+      // Convert file to base64 for storage and transmission
       const fileBase64 = await readFileAsBase64(file);
       console.log(`File converted to base64, length: ${fileBase64.length}`);
       
