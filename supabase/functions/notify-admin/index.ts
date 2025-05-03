@@ -18,7 +18,7 @@ serve(async (req) => {
     
     // Parse the request body
     const body = await req.json();
-    const { contactId, directFileData } = body;
+    const { contactId } = body;
 
     console.log(`📝 Processing contact ID: ${contactId}`);
     
@@ -47,7 +47,7 @@ serve(async (req) => {
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get contact data
+    // Get contact data with file content
     const { data: contact, error: contactError } = await supabase
       .from('contacts')
       .select('*')
@@ -62,37 +62,64 @@ serve(async (req) => {
     console.log(`📧 Contact found: ${contact.full_name} (${contact.email})`);
     
     // Verify file data is present
-    if (!directFileData || !directFileData.fileName || !directFileData.fileContent) {
-      console.error('Missing file data:', directFileData ? Object.keys(directFileData) : 'null');
-      throw new Error('Missing file data in request');
+    if (!contact.file_data || !contact.file_name) {
+      console.error('Missing file data in contact record');
+      throw new Error('Missing file data in contact record');
     }
 
-    const fileName = directFileData.fileName;
-    const fileType = directFileData.fileType || 'text/csv';
-    const fileContentBase64 = directFileData.fileContent;
-    
-    console.log(`📎 Processing attachment: ${fileName} (${fileType}), base64 length: ${fileContentBase64.length} chars`);
-    
-    // Process file content based on file type
-    let attachmentContent = fileContentBase64;
-    let contentTransferEncoding = 'base64';
-    
-    // For CSV files, decode from base64 to plain text
-    if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
-      try {
-        console.log('Decoding CSV file from base64 to plain text');
-        const decodedText = atob(fileContentBase64);
-        console.log(`Decoded text length: ${decodedText.length} chars`);
-        console.log(`Decoded text sample (first 100 chars): ${decodedText.substring(0, 100)}`);
+    // Process the file data from bytea format
+    const fileName = contact.file_name;
+    const fileType = contact.file_type || 'text/csv';
+    let fileContent = '';
+
+    try {
+      console.log(`🔄 Processing file data for ${fileName}`);
+
+      // Handle bytea format from Postgres
+      if (typeof contact.file_data === 'string' && contact.file_data.startsWith('\\x')) {
+        const hexString = contact.file_data.substring(2);
+        console.log(`Converting hex-encoded bytea to binary, hex length: ${hexString.length}`);
         
-        // Use plain text for CSV files
-        attachmentContent = decodedText;
-        contentTransferEncoding = '8bit';
-      } catch (decodeError) {
-        console.error('Error decoding base64 content:', decodeError);
-        // Fall back to base64 if decoding fails
-        console.log('Falling back to base64 encoding');
+        const binaryArray = new Uint8Array(hexString.length / 2);
+        for (let i = 0; i < hexString.length; i += 2) {
+          binaryArray[i/2] = parseInt(hexString.substring(i, i + 2), 16);
+        }
+        
+        // For CSV files, convert to text
+        if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
+          const decoder = new TextDecoder('utf-8');
+          fileContent = decoder.decode(binaryArray);
+          console.log(`Decoded CSV text data, length: ${fileContent.length}`);
+          
+          // Log a sample of the decoded content
+          if (fileContent.length > 0) {
+            console.log(`CSV sample (first 100 chars): ${fileContent.substring(0, 100)}`);
+          }
+        } else {
+          // For binary files, base64 encode
+          let binaryString = '';
+          binaryArray.forEach(byte => {
+            binaryString += String.fromCharCode(byte);
+          });
+          fileContent = btoa(binaryString);
+        }
+      } else {
+        // If it's already a base64 string
+        fileContent = contact.file_data;
+        
+        // For CSV files, decode the base64 to get plain text
+        if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
+          fileContent = atob(fileContent);
+          console.log(`Decoded base64 CSV to plain text, length: ${fileContent.length}`);
+        }
       }
+      
+      console.log(`✅ File processing complete for ${fileName}`);
+    } catch (decodeError) {
+      console.error('Error processing file data:', decodeError);
+      // Fall back to original content if decoding fails
+      console.log('Using original file data without transformation');
+      fileContent = contact.file_data;
     }
     
     // Generate approval URLs
@@ -157,6 +184,9 @@ Contact Details:
 - Position: ${contact.position || 'Not provided'}
     `;
     
+    // Determine the correct content-transfer-encoding
+    let contentTransferEncoding = '7bit'; // Default for plain text
+    
     // Prepare email data
     const msg = {
       to: 'jamie@lintels.in',
@@ -164,16 +194,31 @@ Contact Details:
       subject: `[ACTION REQUIRED] New Address List from ${contact.full_name} - ID: ${contactId}`,
       html: htmlContent,
       text: textContent,
-      attachments: [
-        {
-          content: fileType === 'text/csv' ? attachmentContent : fileContentBase64,
+      attachments: []
+    };
+
+    // Add attachment if we have file content
+    if (fileContent) {
+      if (fileType === 'text/csv' || fileName.toLowerCase().endsWith('.csv')) {
+        // For CSV files, attach as plain text with 7bit encoding
+        msg.attachments = [{
+          content: fileContent,
+          filename: fileName,
+          type: 'text/csv',
+          disposition: 'attachment',
+          contentTransferEncoding: contentTransferEncoding,
+        }];
+      } else {
+        // For binary files, use base64
+        msg.attachments = [{
+          content: fileContent, 
           filename: fileName,
           type: fileType,
           disposition: 'attachment',
-          contentTransferEncoding: contentTransferEncoding,
-        },
-      ],
-    };
+          contentTransferEncoding: 'base64',
+        }];
+      }
+    }
 
     console.log('Email configuration prepared, about to send...');
     console.log(`Email will be sent to: jamie@lintels.in`);
