@@ -1,10 +1,11 @@
-
+// src/components/contact/use-contact-form-submit.ts
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactFormValues } from "./contact-form-schema";
-import { countFileRows, readFileAsBase64 } from "./file-utils";
+import { countFileRows } from "./file-utils"; // Keep row counting
 import { MAX_ROWS } from "./contact-form-schema";
+import { v4 as uuidv4 } from "uuid"; // Need to install uuid
 
 export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,12 +27,12 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
       const file = values.addressFile[0];
       console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
-      
-      // Verify row count
+
+      // Verify row count (optional but good to keep)
       try {
         const rowCount = await countFileRows(file);
         console.log("File contains approximately", rowCount, "rows");
-        
+
         if (rowCount > MAX_ROWS) {
           toast.error(`Sorry, only files with up to ${MAX_ROWS} addresses are allowed for the sample report.`);
           setIsSubmitting(false);
@@ -41,82 +42,69 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         console.error("Error counting rows:", countError);
         // Continue even if row counting fails
       }
-      
-      // Convert file to base64 for storage and transmission
-      const fileBase64 = await readFileAsBase64(file);
-      console.log(`File converted to base64, length: ${fileBase64.length}`);
-      
-      // Create contact record in database
-      const contactData = {
+
+      // 1. Upload file to Supabase Storage
+      const fileExt = file.name.split(".").pop();
+      const uniqueFileName = `${uuidv4()}.${fileExt}`;
+      const storagePath = `public/${uniqueFileName}`; // Store in a 'public' folder within the bucket for simplicity, adjust if needed
+
+      console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("pending-uploads") // Ensure this bucket exists and has policies set
+        .upload(storagePath, file);
+
+      if (uploadError) {
+        console.error("Supabase Storage upload error:", uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
+      }
+
+      console.log("File uploaded successfully:", uploadData);
+
+      // 2. Prepare data for the notify-admin function
+      const notificationPayload = {
         full_name: values.fullName,
-        position: values.position,
-        company: values.company,
         email: values.email,
+        company: values.company,
+        position: values.position,
         phone: values.phone,
-        form_type: formType,
-        status: "pending",
-        file_name: file.name,
-        file_type: file.type,
-        file_data: fileBase64
+        storagePath: storagePath, // Pass the storage path
       };
 
-      // Save to Supabase
-      console.log("Saving contact data to Supabase");
-      const { data, error } = await supabase
-        .from('contacts')
-        .insert([contactData])
-        .select();
+      // 3. Call the notify-admin function
+      console.log(`Calling notify-admin function with payload:`, notificationPayload);
+      const { data: functionData, error: functionError } = await supabase.functions.invoke("notify-admin", {
+        body: notificationPayload
+      });
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw new Error(error.message);
-      }
-
-      console.log("Contact successfully created:", data);
-      
-      if (data && data.length > 0) {
-        const contactId = data[0].id;
-        
-        // Send notification email with the file attachment
+      if (functionError) {
+        console.error("notify-admin function invocation error:", functionError);
+        // Attempt to delete the uploaded file if function call fails
         try {
-          console.log(`Sending direct notification for contact ID ${contactId} with file: ${file.name}`);
-          
-          const notifyResponse = await supabase.functions.invoke("notify-admin", {
-            body: { 
-              contactId: contactId
-            }
-          });
-          
-          if (notifyResponse.error) {
-            console.error("Email notification error:", notifyResponse.error);
-            console.error("Error details:", JSON.stringify(notifyResponse.error));
-            throw new Error(`Failed to send notification: ${notifyResponse.error.message || 'Unknown error'}`);
-          } else {
-            console.log("Email notification success:", notifyResponse.data);
-            
-            // Mark as success when email is sent
-            if (onSuccess) {
-              onSuccess();
-            }
-            
-            toast.success(
-              "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.", 
-              { duration: 6000 }
-            );
-            
-            return true;
-          }
-        } catch (functionCallError) {
-          console.error("Failed to call notify-admin function:", functionCallError);
-          console.error("Error details:", JSON.stringify(functionCallError));
-          throw new Error(`Failed to call notify-admin function: ${functionCallError.message || 'Unknown error'}`);
+          await supabase.storage.from("pending-uploads").remove([storagePath]);
+          console.log("Cleaned up uploaded file after function error.");
+        } catch (cleanupError) {
+          console.error("Failed to cleanup uploaded file after function error:", cleanupError);
         }
-      } else {
-        throw new Error("Failed to create contact record");
+        throw new Error(`Failed to process submission: ${functionError.message || "Unknown error"}`);
       }
+
+      console.log("notify-admin function success:", functionData);
+
+      // Mark as success
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      toast.success(
+        "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
+        { duration: 6000 }
+      );
+
+      return true;
+
     } catch (error) {
       console.error("Form submission error:", error);
-      toast.error("Sorry, something went wrong. Please try again or contact support@lintels.in");
+      toast.error(`Sorry, something went wrong. Please try again or contact support@lintels.in. Error: ${error.message}`);
       return false;
     } finally {
       setIsSubmitting(false);
@@ -128,3 +116,4 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
     submitContactForm
   };
 }
+
