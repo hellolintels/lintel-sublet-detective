@@ -28,8 +28,22 @@ const Login = () => {
     setError(null);
 
     try {
-      // Here we're just sending a notification that someone wants access
       console.log("Access requested with email:", email);
+      
+      // First, check if we have the pending-uploads bucket available
+      const { data: buckets, error: bucketsError } = await supabase
+        .storage
+        .listBuckets();
+        
+      if (bucketsError) {
+        console.warn("Could not check storage buckets:", bucketsError.message);
+        // Continue anyway, the function might still work
+      } else {
+        const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads');
+        if (!pendingBucketExists) {
+          console.warn("Warning: pending-uploads bucket not found. Storage operations may fail.");
+        }
+      }
       
       // Send notification to admin about access request
       try {
@@ -44,6 +58,14 @@ const Login = () => {
         
         if (error) {
           console.error("Error sending notification:", error);
+          
+          // Check for specific error types
+          if (error.message?.includes("Failed to fetch") || 
+              error.message?.includes("NetworkError") ||
+              error.message?.includes("network")) {
+            throw new Error("Network error connecting to our servers. Please check your internet connection and try again.");
+          }
+          
           throw new Error(error.message || "Unknown error occurred");
         }
         
@@ -60,9 +82,15 @@ const Login = () => {
       // Reset form
       setEmail("");
       setError(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error requesting access:", error);
-      toast.error(error.message || "There was an error processing your request. Please try again later.");
+      
+      // Show user-friendly error message based on error type
+      if (error.message?.includes("network") || error.message?.includes("connect")) {
+        toast.error("Network error. Please check your internet connection and try again.");
+      } else {
+        toast.error(error.message || "There was an error processing your request. Please try again later.");
+      }
     } finally {
       setLoading(false);
     }

@@ -12,3 +12,9 @@ verify_jwt = false
 
 [functions.setup]
 verify_jwt = false
+
+[storage.pending-uploads]
+public = false
+
+[storage.approved-uploads]
+public = false

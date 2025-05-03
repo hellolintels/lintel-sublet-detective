@@ -54,6 +54,48 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_submissions: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          error_message: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          position: string | null
+          status: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          error_message?: string | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          position?: string | null
+          status?: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          error_message?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          position?: string | null
+          status?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           contact_id: string

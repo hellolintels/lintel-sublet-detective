@@ -46,10 +46,25 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         // Continue even if row counting fails
       }
 
+      // First, check if we have the pending-uploads bucket available
+      const { data: buckets, error: bucketsError } = await supabase
+        .storage
+        .listBuckets();
+        
+      if (bucketsError) {
+        console.warn("Could not check storage buckets:", bucketsError.message);
+        // Continue anyway, the function might still work
+      } else {
+        const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads');
+        if (!pendingBucketExists) {
+          console.warn("Warning: pending-uploads bucket not found. Storage operations may fail.");
+        }
+      }
+
       // 1. Upload file to Supabase Storage
       const fileExt = file.name.split(".").pop();
       const uniqueFileName = `${uuidv4()}.${fileExt}`;
-      const storagePath = `public/${uniqueFileName}`; // Store in a 'public' folder within the bucket for simplicity, adjust if needed
+      const storagePath = `public/${uniqueFileName}`; // Store in a 'public' folder within the bucket
 
       console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
       const uploadPromise = supabase.storage
@@ -74,6 +89,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         position: values.position,
         phone: values.phone,
         storagePath: storagePath, // Pass the storage path
+        form_type: formType
       };
 
       // 3. Call the notify-admin function
@@ -151,7 +167,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
       return true;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Form submission error:", error);
       toast.dismiss("processing-submission");
       
