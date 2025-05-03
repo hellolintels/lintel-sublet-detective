@@ -1,4 +1,5 @@
 
+import sgMail from "https://esm.sh/@sendgrid/mail@7";
 import { EmailAttachment, EmailSendResult } from "./email-types.ts";
 import { 
   logEmailDetails, 

@@ -1,5 +1,5 @@
 
-import * as sgMail from 'https://esm.sh/@sendgrid/mail@7';
+import sgMail from "https://esm.sh/@sendgrid/mail@7";
 
 /**
  * Sends an email via SendGrid with attachment handling and improved error handling
