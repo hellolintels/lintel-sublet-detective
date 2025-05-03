@@ -44,6 +44,7 @@ serve(async (req) => {
     }
 
     console.log(`⭐ Contact found: ${contact.full_name} (${contact.email})`);
+    console.log(`⭐ Received direct file data: ${directFileData?.fileName || 'None'}`);
 
     // Use the direct file data from the request if available
     if (!directFileData || !directFileData.fileName || !directFileData.fileContent) {
@@ -90,7 +91,7 @@ serve(async (req) => {
       File: ${fileName}
     `;
 
-    // Prepare the email message
+    // Prepare the email message with the attachment
     const msg = {
       to: 'jamie@lintels.in',
       from: 'notifications@lintels.in',

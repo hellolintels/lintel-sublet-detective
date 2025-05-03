@@ -92,13 +92,15 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           
           if (notifyResponse.error) {
             console.error("Email notification error:", notifyResponse.error);
-            // Don't block the form submission on email error
+            // Log the detailed error
+            console.error("Notification error details:", JSON.stringify(notifyResponse.error));
           } else {
             console.log("Email notification success response:", notifyResponse.data);
           }
         } catch (functionCallError) {
           console.error("Failed to call notify-admin function:", functionCallError);
-          // Don't block the form submission on email error
+          // Log the detailed error
+          console.error("Function error details:", JSON.stringify(functionCallError));
         }
       }
       
