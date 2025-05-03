@@ -1,164 +1,213 @@
+// supabase/functions/notify-admin/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { Buffer } from "https://deno.land/std@0.168.0/io/buffer.ts";
 
-import { serve } from 'https://deno.land/x/sift@0.6.0/mod.ts';
-import { getContactById } from './utils/contacts.ts';
-import { sendEmail } from './utils/email-sender.ts';
-import { processFileData } from './utils/file-processor.ts';
-import { corsHeaders } from './utils/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// --- Interfaces ---
+interface UserDetails {
+  full_name: string;
+  email: string;
+  company?: string;
+  position?: string;
+  phone?: string;
+}
 
-serve(async (req) => {
+interface SubmissionData extends UserDetails {
+  storagePath: string; // Path to the uploaded file in Supabase Storage
+}
+
+// --- Environment Variables ---
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY")!;
+const approverEmail = Deno.env.get("APPROVER_EMAIL")!;
+const senderEmail = Deno.env.get("SENDER_EMAIL")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!; // Needed for generating signed URLs
+
+// --- Main Function Logic ---
+serve(async (req: Request) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+  if (req.method === "OPTIONS") {
+    console.log("Handling OPTIONS preflight request");
+    return new Response("ok", { headers: corsHeaders });
   }
-  
+
   try {
-    console.log('📨 DIRECT EMAIL WORKAROUND: notify-admin function called with method:', req.method);
-    
-    // Parse the request body
-    const body = await req.json();
-    const { contactId } = body;
+    console.log(`notify-admin function called with method: ${req.method}`);
 
-    console.log(`📝 Processing contact ID: ${contactId}`);
-    
-    if (!contactId) {
-      throw new Error("Contact ID is required");
+    if (req.method !== "POST") {
+      throw new Error("Method Not Allowed: Only POST requests are accepted.");
     }
 
-    // Get contact data from Supabase
-    const contact = await getContactById(contactId);
-    console.log("Retrieved contact:", JSON.stringify({
-      id: contact.id,
-      name: contact.full_name,
-      email: contact.email,
-      file_name: contact.file_name,
-      file_type: contact.file_type
-    }));
-    
-    // Process the file data to ensure proper encoding as plain text
-    const fileContent = processFileData(contact.file_data);
-    if (!fileContent) {
-      throw new Error("Failed to process file data");
+    const body: SubmissionData = await req.json();
+    console.log("Received body:", body);
+
+    const { full_name, email, company, position, phone, storagePath } = body;
+
+    if (!full_name || !email || !storagePath) {
+      throw new Error("Missing required fields: full_name, email, and storagePath are required.");
     }
-    console.log("Successfully processed file data, length:", fileContent.length);
-    
-    // Build email content with clearer formatting and critical information
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey); // For signed URL
+
+    // 1. Record the initial submission attempt
+    const { data: submissionRecord, error: submissionError } = await supabaseAdmin
+      .from("pending_submissions")
+      .insert({
+        full_name,
+        email,
+        company,
+        position,
+        phone,
+        storage_path: storagePath,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (submissionError) {
+      console.error("Error inserting into pending_submissions:", submissionError);
+      throw new Error(`Failed to record submission: ${submissionError.message}`);
+    }
+
+    const submissionId = submissionRecord.id;
+    console.log(`Submission recorded with ID: ${submissionId}`);
+
+    // 2. Download the file content from Storage
+    console.log(`Attempting to download file from path: ${storagePath}`);
+    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+      .from("pending-uploads") // Ensure this matches your bucket name
+      .download(storagePath);
+
+    if (downloadError) {
+      console.error("Error downloading file from storage:", downloadError);
+      // Attempt to update status to failed before throwing
+      await supabaseAdmin.from("pending_submissions").update({ status: "failed", error_message: `File download failed: ${downloadError.message}` }).eq("id", submissionId);
+      throw new Error(`Failed to download file: ${downloadError.message}`);
+    }
+
+    if (!fileData) {
+      await supabaseAdmin.from("pending_submissions").update({ status: "failed", error_message: "File download returned no data." }).eq("id", submissionId);
+      throw new Error("File download returned no data.");
+    }
+
+    console.log(`File downloaded successfully, size: ${fileData.size} bytes`);
+
+    // 3. Process file content (ensure it's plain text CSV)
+    const fileContentArrayBuffer = await fileData.arrayBuffer();
+    const fileContentString = new TextDecoder().decode(fileContentArrayBuffer);
+    const fileContentBase64 = btoa(fileContentString); // Encode as Base64 for SendGrid attachment
+
+    // Extract original filename from path
+    const fileName = storagePath.split("/").pop() || "submitted_data.csv";
+
+    // 4. Generate unique approval/rejection URLs
+    // Use signed URLs for the process-approval function
+    const functionUrl = `${supabaseUrl}/functions/v1/process-approval`;
+    const approveUrl = `${functionUrl}?id=${submissionId}&action=approve`;
+    const rejectUrl = `${functionUrl}?id=${submissionId}&action=reject`;
+
+    // 5. Build Email Content
     const htmlContent = `
-      <h1>New Address List Submission</h1>
-      <p>A new address list has been submitted by ${contact.full_name} (${contact.email}).</p>
+      <h1>New Address List Submission for Approval</h1>
+      <p>A new address list has been submitted by ${full_name} (${email}).</p>
       <h2>Contact Details:</h2>
       <ul>
-        <li><strong>Full Name:</strong> ${contact.full_name}</li>
-        <li><strong>Position:</strong> ${contact.position || 'Not provided'}</li>
-        <li><strong>Company:</strong> ${contact.company || 'Not provided'}</li>
-        <li><strong>Email:</strong> ${contact.email}</li>
-        <li><strong>Phone:</strong> ${contact.phone}</li>
-        <li><strong>Submission Time:</strong> ${new Date().toISOString()}</li>
-        <li><strong>Contact ID:</strong> ${contactId}</li>
+        <li><strong>Full Name:</strong> ${full_name}</li>
+        <li><strong>Email:</strong> ${email}</li>
+        <li><strong>Company:</strong> ${company || "Not provided"}</li>
+        <li><strong>Position:</strong> ${position || "Not provided"}</li>
+        <li><strong>Phone:</strong> ${phone || "Not provided"}</li>
+        <li><strong>Submission ID:</strong> ${submissionId}</li>
       </ul>
-      <p>Please see the attached file for addresses.</p>
-      <p><strong>IMPORTANT:</strong> This is a direct submission. No approval step is required.</p>
+      <p>The submitted file (${fileName}) is attached for your review.</p>
+      <p><strong>Please approve or reject this submission:</strong></p>
+      <p>
+        <a href="${approveUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-right: 10px;">Approve</a>
+        <a href="${rejectUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Reject</a>
+      </p>
     `;
-    
-    // Plain text version of the email
+
     const textContent = `
-URGENT: New address list submission from ${contact.full_name} (${contact.email})
-File: ${contact.file_name}
-Contact ID: ${contactId}
-Submission Time: ${new Date().toISOString()}
+      New address list submission for approval from ${full_name} (${email}).
+      Submission ID: ${submissionId}
+      File: ${fileName}
+      Contact Details:
+      - Full Name: ${full_name}
+      - Email: ${email}
+      - Company: ${company || "Not provided"}
+      - Position: ${position || "Not provided"}
+      - Phone: ${phone || "Not provided"}
 
-Contact Details:
-- Full Name: ${contact.full_name}
-- Email: ${contact.email}
-- Phone: ${contact.phone}
-- Company: ${contact.company || 'Not provided'}
-- Position: ${contact.position || 'Not provided'}
+      The submitted file is attached.
 
-IMPORTANT: This is a direct submission. No approval step is required.
+      Approve: ${approveUrl}
+      Reject: ${rejectUrl}
     `;
-    
-    console.log("Sending direct email to jamie@lintels.in");
-    
-    // Send the email with the CSV file as a plain text attachment
-    const emailResult = await sendEmail(
-      'jamie@lintels.in',
-      `[URGENT SUBMISSION] Address List from ${contact.full_name}`,
-      htmlContent,
-      textContent,
-      fileContent,
-      contact.file_name,
-      contact.file_type || 'text/csv'
-    );
-    
-    if (!emailResult.success) {
-      console.error("Email sending failed:", emailResult.message);
-      throw new Error(`Failed to send email: ${emailResult.message}`);
-    }
-    
-    console.log("Email successfully sent to jamie@lintels.in");
-    
-    // Update contact status to "submitted"
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    
-    const { error: updateError } = await supabase
-      .from('contacts')
-      .update({ status: 'submitted' })
-      .eq('id', contactId);
-      
-    if (updateError) {
-      console.error('Error updating contact status:', updateError);
-    } else {
-      console.log(`Contact status updated to "submitted" for ID: ${contactId}`);
+
+    // 6. Send Email via SendGrid
+    const emailPayload = {
+      personalizations: [{ to: [{ email: approverEmail }] }],
+      from: { email: senderEmail, name: "Lintels Submission" }, // Use configured sender
+      subject: `Approval Required: New Address List Submission (${full_name})`,
+      content: [
+        { type: "text/plain", value: textContent },
+        { type: "text/html", value: htmlContent },
+      ],
+      attachments: [
+        {
+          content: fileContentBase64,
+          filename: fileName,
+          type: "text/csv", // Assuming CSV
+          disposition: "attachment",
+        },
+      ],
+    };
+
+    console.log("Sending email via SendGrid...");
+    const sendgridResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${sendgridApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(emailPayload),
+    });
+
+    if (!sendgridResponse.ok) {
+      const errorBody = await sendgridResponse.text();
+      console.error(`SendGrid error: ${sendgridResponse.status} ${sendgridResponse.statusText}`, errorBody);
+      // Attempt to update status to failed before throwing
+      await supabaseAdmin.from("pending_submissions").update({ status: "failed", error_message: `SendGrid failed: ${sendgridResponse.statusText}` }).eq("id", submissionId);
+      throw new Error(`Failed to send email via SendGrid: ${sendgridResponse.statusText}`);
     }
 
+    console.log(`Email sent successfully to ${approverEmail}`);
+
+    // 7. Return success response to frontend
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Email sent directly to jamie@lintels.in with attachment: ${contact.file_name}`,
-        emailFile: contact.file_name,
-        contactStatus: 'submitted',
-        timestamp: new Date().toISOString()
-      }), 
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      JSON.stringify({
+        success: true,
+        message: `Submission received. Approval email sent to ${approverEmail}. Submission ID: ${submissionId}`,
+        submissionId: submissionId,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
+
   } catch (err) {
-    console.error('❌ ERROR in notify-admin function:', err);
-    
-    // Send a fallback error notification email
-    try {
-      await sendEmail(
-        'jamie@lintels.in',
-        '[ERROR] Address List Submission Error',
-        `<h1>Error Processing Address Submission</h1><p>There was an error processing a submission: ${err.message}</p>`,
-        `Error Processing Address Submission: ${err.message}`,
-        '',
-        'error_log.txt',
-        'text/plain'
-      );
-      console.log("Sent error notification email");
-    } catch (emailErr) {
-      console.error("Failed to send error notification:", emailErr);
-    }
-    
+    console.error("❌ ERROR in notify-admin function:", err);
     return new Response(
-      JSON.stringify({ 
-        error: err.message,
-        timestamp: new Date().toISOString()
-      }), 
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      JSON.stringify({ error: err.message }),
+      {
+        status: err.message.includes("Method Not Allowed") ? 405 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }
 });
+
