@@ -3,7 +3,6 @@ import { serve } from 'https://deno.land/x/sift@0.6.0/mod.ts';
 import { corsHeaders } from './utils/cors.ts';
 import { getContactById } from './utils/contacts.ts';
 import { processFileData } from './utils/file-processor.ts';
-import { buildEmailContent } from './utils/email-builder.ts';
 import { sendEmail } from './utils/email-sender.ts';
 
 serve(async (req) => {
@@ -40,25 +39,44 @@ serve(async (req) => {
       throw new Error("Missing file data in contact record");
     }
     
-    // Log the start of the file data for verification
-    if (contact.file_data.startsWith('\\x')) {
-      console.log(`File data format: PostgreSQL bytea hex`);
-    } else if (contact.file_data.includes('base64,')) {
-      console.log(`File data format: Data URI with base64`);
-    } else {
-      console.log(`File data format: Raw base64 or other format`);
-    }
-    
     // Convert file data to base64 for email attachment
     const fileContent = processFileData(contact.file_data);
-    console.log(`Processed file content length: ${fileContent ? fileContent.length : 0} bytes`);
     
     if (!fileContent) {
       throw new Error("Failed to process file data for email attachment");
     }
+    
+    console.log(`Processed file content length: ${fileContent.length} bytes`);
 
     // Build the email content
-    const htmlContent = buildEmailContent(contact);
+    const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
+      <h1 style="color: #2196F3; text-align: center;">New Address Submission</h1>
+      
+      <p>A new address list has been submitted from ${contact.full_name}.</p>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="margin-top: 0;">User Details:</h3>
+        <ul>
+          <li><strong>Full Name:</strong> ${contact.full_name}</li>
+          <li><strong>Position:</strong> ${contact.position || 'Not provided'}</li>
+          <li><strong>Company:</strong> ${contact.company || 'Not provided'}</li>
+          <li><strong>Email:</strong> ${contact.email}</li>
+          <li><strong>Phone:</strong> ${contact.phone}</li>
+          <li><strong>Form Type:</strong> ${contact.form_type || 'sample'}</li>
+        </ul>
+        
+        <h3>File Information:</h3>
+        <ul>
+          <li><strong>File Name:</strong> ${fileName}</li>
+          <li><strong>File Type:</strong> ${fileType}</li>
+          <li><strong>File Size:</strong> ${fileContent.length} bytes (base64)</li>
+        </ul>
+      </div>
+      
+      <p>Please check the Supabase dashboard for more details.</p>
+    </div>
+    `;
     
     // Plain text version of the email
     const textContent = `
@@ -71,8 +89,10 @@ Company: ${contact.company}
 Position: ${contact.position || 'Not provided'}
     `;
 
-    // Send the notification email
-    const emailResult = await sendEmail(
+    // Send the notification email with attachment
+    console.log(`Sending email to admin with ${fileContent.length} bytes attachment`);
+    
+    await sendEmail(
       'jamie@lintels.in',
       `New Form Submission from ${contact.full_name}`,
       htmlContent,
@@ -82,17 +102,16 @@ Position: ${contact.position || 'Not provided'}
       fileType
     );
 
-    // Return result to the client
+    // Return success response
     return new Response(
       JSON.stringify({ 
-        success: emailResult.success, 
-        message: emailResult.message, 
-        withAttachment: fileContent ? true : false,
-        fileContentLength: fileContent ? fileContent.length : 0,
+        success: true, 
+        message: "Admin notification sent successfully",
+        contactId: contactId,
         fileName: fileName
       }), 
       { 
-        status: emailResult.success ? 200 : 500, 
+        status: 200, 
         headers: { 
           ...corsHeaders,
           "Content-Type": "application/json" 

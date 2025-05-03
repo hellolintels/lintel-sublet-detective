@@ -48,16 +48,18 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           // Continue with submission but log the error
         }
         
-        // Convert file to base64 with improved validation
+        // Convert file to base64
         try {
-          // Read file as base64
           const fileBase64 = await readFileAsBase64(file);
           console.log("File successfully converted to base64");
           console.log(`Base64 data length: ${fileBase64.length}`);
           
+          // Generate and log a content sample for verification
+          const sampleBytes = fileBase64.substring(0, Math.min(100, fileBase64.length));
+          console.log(`Base64 sample (first 20 chars): ${sampleBytes.substring(0, 20)}...`);
+          
           // Store the base64 data in the contact record
           contactData.file_data = fileBase64;
-          console.log(`File data ready for submission, length: ${fileBase64.length}`);
         } catch (fileError) {
           console.error("Error processing file:", fileError);
           toast.error("Unable to process your file. Please try a different file format.");
@@ -97,21 +99,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           
           if (notifyResponse.error) {
             console.error("Notification error:", notifyResponse.error);
+            toast.error("There was an error sending the notification. Our team has been notified.");
           } else {
             console.log("Admin notification sent successfully");
           }
-          
-          // Also call process-addresses for background processing (without waiting for result)
-          console.log("Calling process-addresses edge function");
-          supabase.functions.invoke("process-addresses", {
-            body: { 
-              contactId: data[0].id,
-              action: "initial_process"
-            }
-          });
         } catch (functionCallError) {
-          console.error("Failed to call edge functions:", functionCallError);
-          // Continue without failing
+          console.error("Failed to call notify-admin function:", functionCallError);
+          // Don't fail the form submission if notification fails
         }
       }
       
