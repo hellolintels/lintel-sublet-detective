@@ -110,7 +110,10 @@ export async function sendEmail(
     // Clean up the attachment content
     const cleanedAttachment = cleanAttachmentContent(attachment);
     
-    // Prepare the email payload for SendGrid API
+    // Create a plain text version of the HTML content
+    const plainTextContent = htmlContent.replace(/<[^>]*>?/gm, '');
+    
+    // Prepare the email payload for SendGrid API - IMPORTANT: text/plain must be the first content type
     const emailPayload: any = {
       personalizations: [
         {
@@ -124,12 +127,12 @@ export async function sendEmail(
       subject: subject,
       content: [
         {
-          type: 'text/html',
-          value: htmlContent
+          type: 'text/plain',
+          value: plainTextContent
         },
         {
-          type: 'text/plain',
-          value: htmlContent.replace(/<[^>]*>?/gm, '')
+          type: 'text/html',
+          value: htmlContent
         }
       ]
     };
@@ -167,6 +170,9 @@ export async function sendEmail(
       console.log("Admin email failed, attempting simplified retry...");
       try {
         // Prepare the retry email payload with minimal HTML and no attachments
+        const plainRetryText = `This is a retry of a failed email. Original subject: ${subject}`;
+        const htmlRetryText = `<p>This is a retry of a failed email.</p><p><strong>Original subject:</strong> ${subject}</p>`;
+        
         const retryEmailPayload = {
           personalizations: [
             {
@@ -180,12 +186,12 @@ export async function sendEmail(
           subject: `[RETRY] ${subject}`,
           content: [
             {
-              type: 'text/html',
-              value: `<p>This is a retry of a failed email.</p><p><strong>Original subject:</strong> ${subject}</p>`
+              type: 'text/plain',
+              value: plainRetryText
             },
             {
-              type: 'text/plain',
-              value: `This is a retry of a failed email. Original subject: ${subject}`
+              type: 'text/html',
+              value: htmlRetryText
             }
           ]
         };

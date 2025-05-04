@@ -71,12 +71,12 @@ export async function sendEmail(
         subject: timestampedSubject,
         content: [
           {
-            type: 'text/html',
-            value: htmlContent
-          },
-          {
             type: 'text/plain', 
             value: textContent
+          },
+          {
+            type: 'text/html',
+            value: htmlContent
           }
         ]
       };
@@ -146,12 +146,12 @@ export async function sendEmail(
               subject: `BACKUP: ${timestampedSubject}`,
               content: [
                 {
-                  type: 'text/html',
-                  value: `<p>This is a backup notification for an email sent to ${to}.</p>${htmlContent}`
-                },
-                {
                   type: 'text/plain',
                   value: `This is a backup notification for an email sent to ${to}.\n\n${textContent}`
+                },
+                {
+                  type: 'text/html',
+                  value: `<p>This is a backup notification for an email sent to ${to}.</p>${htmlContent}`
                 }
               ]
             };
