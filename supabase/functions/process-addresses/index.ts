@@ -8,7 +8,7 @@ import { corsHeaders } from './constants.ts';
 // Fetch and validate the Supabase project reference
 const PROJECT_REF = Deno.env.get('PROJECT_REF');
 if (!PROJECT_REF) {
-  throw new Error('PROJECT_REF environment variable is not defined.');
+  console.warn('⚠ PROJECT_REF environment variable is not defined.');
 }
 
 serve(async (req) => {
