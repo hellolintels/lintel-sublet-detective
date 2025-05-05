@@ -1,10 +1,15 @@
-
 import { serve } from 'https://deno.land/x/sift@0.6.0/mod.ts';
 import { handleApproveProcessing } from './handlers/approve-processing.ts';
 import { handleRejectProcessing } from './handlers/reject-processing.ts';
 import { handleInitialProcess } from './handlers/initial-process.ts';
 import { handleSendResults } from './handlers/send-results.ts';
 import { corsHeaders } from './constants.ts';
+
+// Fetch and validate the Supabase project reference
+const PROJECT_REF = Deno.env.get('PROJECT_REF');
+if (!PROJECT_REF) {
+  throw new Error('PROJECT_REF environment variable is not defined.');
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
