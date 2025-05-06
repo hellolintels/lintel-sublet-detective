@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-        uses: supabase/setup@v1
+      - uses: supabase/setup@v1
         with:
           version: 'latest'
 
@@ -24,3 +24,6 @@ jobs:
         run: supabase functions deploy process-addresses \
                --project-ref uejymkgeevuvuerldzhv \
                --no-verify-jwt
+
+      - name: Output Deployed URL
+        run: echo "Deployed URL: https://uejymkgeevuvuerldzhv.functions.supabase.co/process-addresses"
