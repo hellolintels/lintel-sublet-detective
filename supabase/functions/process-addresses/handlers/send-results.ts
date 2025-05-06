@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
@@ -52,10 +51,10 @@ export async function handleSendResults(
   
   console.log("Updated report status to 'sent'");
   
-  // Send email with report link to client
+  // ✅ Send email with report link to JAMIE during beta
   const clientEmailResult = await sendEmail(
-    contact.email, 
-    "Your Lintels Sample Report is Ready",
+    "jamie@lintels.in", 
+    "[TEST MODE] Your Lintels Sample Report is Ready",
     `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
       <h1 style="color: #2196F3; text-align: center;">Your Sample Report is Ready</h1>
@@ -89,7 +88,7 @@ export async function handleSendResults(
     `
   );
   
-  console.log("Client email result:", clientEmailResult);
+  console.log("Client email (sent to Jamie in beta) result:", clientEmailResult);
   
   // Send confirmation to admin
   const adminEmailResult = await sendEmail(
