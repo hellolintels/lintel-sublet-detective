@@ -41,7 +41,7 @@ export async function handleInitialProcess(
     }
 
     await sendEmail(
-      "jamie@lintels.in",
+      "jamie@lintels.in",  // ✅ Send to Jamie in beta
       "Regarding Your Address List Submission - Lintels.in",
       `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff6b6b; border-radius: 5px;">
@@ -114,7 +114,10 @@ export async function handleInitialProcess(
         "Content-Type": "application/json",
         "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`
       },
-      body: JSON.stringify({ contactId: contact.id, approvalLink: approvalLink })
+      body: JSON.stringify({
+        contactId: contact.id,
+        approvalLink: approvalLink  // ✅ pass approvalLink to admin
+      })
     });
 
     if (notifyResult.ok) {
