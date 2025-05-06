@@ -1,13 +1,11 @@
-
 /**
  * Builds the HTML content for the admin notification email
  * @param contact The contact data to include in the email
  * @returns HTML string for the email
  */
 export function buildEmailContent(contact: any): string {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const approveUrl = `${supabaseUrl}/functions/v1/process-addresses?action=approve_processing&contact_id=${contact.id}`;
-  const rejectUrl = `${supabaseUrl}/functions/v1/process-addresses?action=reject_processing&contact_id=${contact.id}`;
+  const approveUrl = `https://lintels.in/approve?contact_id=${contact.id}`;
+  const rejectUrl = `https://lintels.in/reject?contact_id=${contact.id}`;
   
   return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
