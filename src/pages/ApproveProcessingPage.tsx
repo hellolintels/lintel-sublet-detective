@@ -13,7 +13,7 @@ export default function ApproveProcessingPage() {
       return;
     }
 
-    const supabaseFunctionUrl = `https://uejymkggevuvuuerldzhv.supabase.co/functions/v1/process-addresses?action=${action}&contact_id=${contactId}`;
+    const supabaseFunctionUrl = `https://uejymkggevuvuuerldzhv.supabase.co/functions/v1/process-approval?action=${action}&contact_id=${contactId}`;
 
     fetch(supabaseFunctionUrl, {
       method: "GET",
