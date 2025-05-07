@@ -13,15 +13,11 @@ export default function ApproveProcessingPage() {
       return;
     }
 
-    fetch("https://uejymkggevuvuuerldzhv.supabase.co/functions/v1/process-addresses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        action: action,
-        contact_id: contactId
-      })
+    // 🔥 Send GET request directly to Supabase function
+    const supabaseFunctionUrl = `https://uejymkggevuvuuerldzhv.supabase.co/functions/v1/process-addresses?action=${action}&contact_id=${contactId}`;
+
+    fetch(supabaseFunctionUrl, {
+      method: "GET",
     })
       .then((res) => {
         if (res.ok) {
@@ -42,3 +38,4 @@ export default function ApproveProcessingPage() {
     </div>
   );
 }
+
