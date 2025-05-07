@@ -6,7 +6,6 @@ import { handleSendResults } from './handlers/send-results.ts';
 import { corsHeaders } from './constants.ts';
 
 const PROJECT_REF = Deno.env.get('PROJECT_REF');
-
 if (!PROJECT_REF) {
   console.warn('⚠ PROJECT_REF environment variable is not defined.');
 }
@@ -24,6 +23,7 @@ serve(async (req) => {
     const action = url.searchParams.get('action');
     const contactId = url.searchParams.get('contact_id');
     const reportId = url.searchParams.get('report_id');
+
     console.log(`Action requested: ${action}, Contact ID: ${contactId}, Report ID: ${reportId}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -31,19 +31,30 @@ serve(async (req) => {
 
     if (!supabaseUrl || !supabaseKey) {
       console.error('Supabase credentials not configured');
-      return new Response('Server error: Supabase credentials missing', { status: 500, headers: corsHeaders });
+      return new Response('Server error: Supabase credentials missing', {
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch the contact record
+    // 🔥 CHANGED LINE: now fetching from pending_submissions instead of contacts
     let contact = null;
     if (contactId) {
-      const { data, error } = await supabase.from('contacts').select('*').eq('id', contactId).single();
+      const { data, error } = await supabase
+        .from('pending_submissions')  // <-- switched from 'contacts' to 'pending_submissions'
+        .select('*')
+        .eq('id', contactId)
+        .single();
+
       if (error || !data) {
-        console.error('❌ Contact not found or error fetching:', error);
-        return new Response('Contact not found', { status: 404, headers: corsHeaders });
+        console.error('❌ Contact not found or error fetching from pending_submissions:', error);
+        return new Response('Submission not found', {
+          status: 404,
+          headers: corsHeaders
+        });
       }
       contact = data;
     }
@@ -64,16 +75,21 @@ serve(async (req) => {
       return await handleSendResults(supabase, contact, reportId);
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid action or missing contact ID' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'Invalid action or missing contact ID' }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   } catch (err) {
     console.error('Error in process-addresses function:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: err.message || 'Unknown error' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
 });
-
