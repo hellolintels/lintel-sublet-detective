@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import SampleOffer from "./components/SampleOffer";
+import ApproveProcessingPage from "./pages/ApproveProcessingPage"; // ✅ ADD THIS IMPORT
 
 const queryClient = new QueryClient();
 
@@ -41,6 +41,10 @@ const App = () => (
                   <AdminDashboard />
                 </AdminRoute>
               } 
+            />
+            <Route 
+              path="/approve-processing"  // ✅ ADD THIS ROUTE
+              element={<ApproveProcessingPage />} 
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
