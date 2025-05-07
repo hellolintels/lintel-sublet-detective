@@ -18,7 +18,7 @@ export default function ApproveProcessingPage() {
     fetch(supabaseFunctionUrl, {
       method: "GET",
       headers: {
-        apikey: "<YOUR_ANON_KEY_HERE>"
+        apikey: "<eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlanlta2dnZXZ1dnVlcmxkemh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTg0MDUsImV4cCI6MjA2MTY3NDQwNX0.SooHrfGFnVZo4EjXwU5dVDydlKN4J7wCt7ImkRaGryU"
       }
     })
       .then((res) => {
