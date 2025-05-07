@@ -13,11 +13,13 @@ export default function ApproveProcessingPage() {
       return;
     }
 
-    // 🔥 Send GET request directly to Supabase function
     const supabaseFunctionUrl = `https://uejymkggevuvuuerldzhv.supabase.co/functions/v1/process-addresses?action=${action}&contact_id=${contactId}`;
 
     fetch(supabaseFunctionUrl, {
       method: "GET",
+      headers: {
+        apikey: "<YOUR_ANON_KEY_HERE>"
+      }
     })
       .then((res) => {
         if (res.ok) {
@@ -38,4 +40,3 @@ export default function ApproveProcessingPage() {
     </div>
   );
 }
-
