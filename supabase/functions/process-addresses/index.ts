@@ -22,6 +22,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
     const contactId = url.searchParams.get('contact_id');
+    console.log(`DEBUG: contactId param received = ${contactId}`);
     const reportId = url.searchParams.get('report_id');
 
     console.log(`Action requested: ${action}, Contact ID: ${contactId}, Report ID: ${reportId}`);
