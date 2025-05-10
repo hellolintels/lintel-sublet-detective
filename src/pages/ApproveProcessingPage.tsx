@@ -1,3 +1,4 @@
+// ApproveProcessingPage.tsx
 import { useEffect, useState } from "react";
 
 export default function ApproveProcessingPage() {
@@ -6,31 +7,35 @@ export default function ApproveProcessingPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
-    const contactId = params.get("contact_id");
+    const submissionId = params.get("id"); // ✅ NOW matches Supabase backend
 
-    if (!action || !contactId) {
-      setStatus("Missing required parameters.");
+    if (!action || !submissionId) {
+      setStatus("❌ Missing required parameters.");
       return;
     }
 
-    const supabaseFunctionUrl = `https://uejymkggevuvuuerldzhv.supabase.co/functions/v1/process-approval?action=${action}&contact_id=${contactId}`;
+    const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval?action=${action}&id=${submissionId}`;
+    console.log("📤 Sending GET to Supabase Edge Function:", supabaseFunctionUrl);
 
     fetch(supabaseFunctionUrl, {
       method: "GET",
       headers: {
-        apikey: "<eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlanlta2dnZXZ1dnVlcmxkemh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTg0MDUsImV4cCI6MjA2MTY3NDQwNX0.SooHrfGFnVZo4EjXwU5dVDydlKN4J7wCt7ImkRaGryU"
+        apikey: "YOUR_ANON_KEY_HERE" // Optional if not using RLS
       }
     })
-      .then((res) => {
+      .then(res => {
         if (res.ok) {
-          setStatus("Approval processed successfully.");
+          setStatus("✅ Approval processed successfully.");
         } else {
-          setStatus(`Error: ${res.status}`);
+          res.text().then(text => {
+            console.error("❌ Error from Supabase:", text);
+            setStatus(`❌ Error ${res.status}: ${text}`);
+          });
         }
       })
-      .catch((err) => {
-        console.error(err);
-        setStatus("Error sending approval.");
+      .catch(err => {
+        console.error("❌ Network error:", err);
+        setStatus("❌ Network error sending approval.");
       });
   }, []);
 
