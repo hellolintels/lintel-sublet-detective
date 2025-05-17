@@ -1,9 +1,15 @@
-
 {
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/approve-processing",
+      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ]
 }
