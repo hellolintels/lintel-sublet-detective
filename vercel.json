@@ -1,12 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/approve-processing",
-      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval"
-    },
-    {
-      "source": "/approve-processing/:match*",
-      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval/:match*"
+      "source": "/approve-processing/:slug*",
+      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval/:slug*"
     },
     {
       "source": "/(.*)",
