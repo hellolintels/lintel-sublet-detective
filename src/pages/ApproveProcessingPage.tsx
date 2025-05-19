@@ -28,7 +28,11 @@ export default function ApproveProcessingPage() {
         if (res.ok) {
           setStatus("✅ Approval processed successfully.");
           res.text().then(html => {
-            document.getElementById('response-container')?.innerHTML = html;
+            // Fix: Check for element existence first, then assign innerHTML
+            const responseContainer = document.getElementById('response-container');
+            if (responseContainer) {
+              responseContainer.innerHTML = html;
+            }
           });
         } else {
           res.text().then(text => {
