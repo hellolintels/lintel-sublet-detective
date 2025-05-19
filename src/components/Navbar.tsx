@@ -12,12 +12,8 @@ const Navbar = () => {
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.email === "jamie@lintels.in";
 
-  // Function to scroll to contact section
-  const scrollToContact = () => {
-    const contactSection = document.getElementById('contact-section');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
+  const handleContactClick = () => {
+    window.location.href = "mailto:support@lintels.in";
   };
 
   return (
@@ -67,7 +63,7 @@ const Navbar = () => {
             
             {!isAuthenticated ? (
               <button 
-                onClick={scrollToContact}
+                onClick={handleContactClick}
                 className="rounded-md px-3.5 py-2.5 text-sm font-semibold bg-[hsl(24,97%,40%)] text-white hover:bg-[hsl(24,97%,35%)] transition-colors"
               >
                 Contact
@@ -137,7 +133,7 @@ const Navbar = () => {
               <button 
                 onClick={() => {
                   setIsOpen(false);
-                  setTimeout(() => scrollToContact(), 100);
+                  window.location.href = "mailto:support@lintels.in";
                 }}
                 className="rounded-md px-3.5 py-2.5 text-sm font-semibold bg-[hsl(24,97%,40%)] text-white hover:bg-[hsl(24,97%,35%)] text-center"
               >
