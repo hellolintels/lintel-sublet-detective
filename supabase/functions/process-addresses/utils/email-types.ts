@@ -1,16 +1,16 @@
 
 /**
- * Email attachment interface
+ * Interface for email attachments
  */
 export interface EmailAttachment {
   filename: string;
-  content: string;
-  type: string;
-  disposition?: string;
+  content: string;  // Base64 encoded content
+  contentType?: string;
+  type?: string;
 }
 
 /**
- * Email sending result interface
+ * Interface for email sending results
  */
 export interface EmailSendResult {
   success: boolean;
