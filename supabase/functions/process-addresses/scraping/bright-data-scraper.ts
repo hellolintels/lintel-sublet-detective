@@ -4,7 +4,7 @@
  */
 
 // Configuration for Bright Data API access
-const BRIGHT_DATA_API_KEY = Deno.env.get("BRIGHT_DATA_API_KEY");
+const BRIGHT_DATA_API_KEY = "a97be7a8ee8f503d433734d7bc4d3ec53ccf10fe394f6bf20c04bb3cada8d4f9";
 const BRIGHT_DATA_BROWSER_ZONE = Deno.env.get("BRIGHT_DATA_BROWSER_ZONE") || "scraping_browser1";
 
 export async function scrapePostcodes(postcodes: string[]) {
