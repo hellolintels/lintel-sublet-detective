@@ -32,7 +32,7 @@ export function cleanAttachmentContent(attachment?: EmailAttachment): EmailAttac
 export function prepareEmailBody(templateHtml: string, subject: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">${subject}</h2>
+      <h2 style="color: #F97316;">${subject}</h2>
       ${templateHtml}
       <p style="font-size: 12px; color: #666; margin-top: 30px; text-align: center;">
         This is an automated message from Lintels.in
@@ -47,7 +47,7 @@ export function prepareEmailBody(templateHtml: string, subject: string): string 
 export function prepareAdminRetryEmailBody(originalSubject: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #f44336;">Email Delivery Retry</h2>
+      <h2 style="color: #F97316;">Email Delivery Retry</h2>
       <p>This is a retry of a previously failed email.</p>
       <p><strong>Original subject:</strong> ${originalSubject}</p>
       <p>Please check the system logs for more details about the original error.</p>

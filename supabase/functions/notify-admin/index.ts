@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { sendEmail } from './utils/email-sender.ts';
@@ -51,6 +50,16 @@ serve(async (req) => {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     console.log('Supabase client initialized with service role');
 
+    // Check if this is an access request
+    const isAccessRequest = payload.storagePath === "public/access-request.txt" || 
+                           payload.full_name === "Access Request";
+    
+    // For access requests, we want to keep the company as the user provided
+    // Otherwise, for normal access requests, we'll use the provided company field
+    const company = isAccessRequest ? payload.email : (payload.company || "");
+    
+    console.log(`Company field: "${company}" (Is access request: ${isAccessRequest})`);
+
     // 1. Record the submission in pending_submissions table
     try {
       console.log('Inserting submission into pending_submissions table...');
@@ -58,7 +67,7 @@ serve(async (req) => {
       const submissionData = {
         full_name: payload.full_name,
         email: payload.email,
-        company: payload.company || null,
+        company: company,
         position: payload.position || null,
         phone: payload.phone || null,
         storage_path: payload.storagePath,
@@ -91,7 +100,7 @@ serve(async (req) => {
       let fileName = `addresses_${insertData[0].id}.csv`;
       
       // Only try to download if we have a storage path
-      if (payload.storagePath) {
+      if (payload.storagePath && !isAccessRequest) {
         try {
           console.log(`Attempting to download file from storage: ${payload.storagePath}`);
           
@@ -115,6 +124,11 @@ serve(async (req) => {
           console.error('Exception during file download:', downloadError);
           fileContent = `Error processing file: ${downloadError.message || 'Unknown error'}`;
         }
+      } else if (isAccessRequest) {
+        // For access requests, we create a simple text file
+        fileContent = `Access request from: ${payload.email}\nTime: ${new Date().toISOString()}`;
+        fileName = "access_request.txt";
+        console.log("Created access request content");
       }
 
       // 3. Send email notification to admin
@@ -126,7 +140,7 @@ serve(async (req) => {
         id: submissionId,
         full_name: payload.full_name,
         position: payload.position || '',
-        company: payload.company || '',
+        company: company, // Use our processed company value
         email: payload.email,
         phone: payload.phone || '',
         form_type: payload.form_type || 'sample',
@@ -134,21 +148,23 @@ serve(async (req) => {
         file_type: fileType
       };
       
+      console.log('Contact object for email:', JSON.stringify(contact, null, 2));
+      
       // Build email content
       const htmlContent = buildEmailContent(contact);
       // Plain text version
-      const plainText = `New submission from ${payload.full_name} (${payload.email}) - ${payload.company || ''}. Please review the attached file.`;
+      const plainText = `New submission from ${payload.full_name} (${payload.email}) - ${company || ''}. Please review the attached file.`;
       
       // Send email notification
       console.log(`Sending email notification to ${adminEmail}...`);
       
-      // Process the file content for cleaner email attachment - FIX HERE
+      // Process the file content for cleaner email attachment
       const base64Content = processFileData(fileContent);
       console.log(`Processed base64 content length: ${base64Content.length}`);
       
       const emailResult = await sendEmail(
         adminEmail,
-        `New Address Submission from ${payload.full_name}`,
+        `New ${isAccessRequest ? 'Access Request' : 'Address Submission'} from ${payload.full_name}`,
         htmlContent,
         plainText,
         {

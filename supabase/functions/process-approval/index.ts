@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -80,7 +79,7 @@ Deno.serve(async (req) => {
         
         return new Response(`<html><body>
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-            <h2 style="color: #F44336;">Access Restricted</h2>
+            <h2 style="color: #F97316;">Access Restricted</h2>
             <p>This feature is currently restricted to @lintels.in email addresses only.</p>
             <p>Your submission has been rejected.</p>
           </div></body></html>`, {
@@ -257,7 +256,7 @@ Deno.serve(async (req) => {
       console.log("Updated submission status to rejected");
 
       responseMessage = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2 style="color: #F44336;">Submission Rejected</h2>
+        <h2 style="color: #000000;">Submission Rejected</h2>
         <p>Submission ID: ${submissionId}</p>
         <p>The uploaded data has been rejected and removed from our system.</p>
       </div>`;

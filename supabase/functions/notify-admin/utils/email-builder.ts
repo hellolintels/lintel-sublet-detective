@@ -1,10 +1,11 @@
+
 export function buildEmailContent(contact) {
   const approveUrl = `https://lintels.in/approve-processing?action=approve&id=${contact.id}`;
   const rejectUrl = `https://lintels.in/approve-processing?action=reject&id=${contact.id}`;
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #d3d3d3; border-radius: 5px;">
-      <h2 style="color: #2196f3; text-align: center;">New Address Submission</h2>
+      <h2 style="color: #F97316; text-align: center;">New Address Submission</h2>
 
       <h3>📄 User Details</h3>
       <ul>
@@ -26,8 +27,8 @@ export function buildEmailContent(contact) {
         <strong>✅ Suggested Actions</strong>
         <p>Please review the attached CSV file and approve or reject this submission:</p>
 
-        <a href="${approveUrl}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; margin-right: 10px; text-decoration: none; border-radius: 4px;">✅ Approve</a>
-        <a href="${rejectUrl}" style="display: inline-block; background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">❌ Reject</a>
+        <a href="${approveUrl}" style="display: inline-block; background-color: #F97316; color: white; padding: 10px 20px; margin-right: 10px; text-decoration: none; border-radius: 4px;">✅ Approve</a>
+        <a href="${rejectUrl}" style="display: inline-block; background-color: #000000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">❌ Reject</a>
       </div>
 
       <p style="font-size: 12px; color: #666;">This is an automated message from Lintels.in</p>

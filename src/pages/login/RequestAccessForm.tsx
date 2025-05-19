@@ -48,7 +48,9 @@ const RequestAccessForm = () => {
           body: {
             full_name: "Access Request",
             email: requestEmail,
-            company: "Access Request",
+            position: "",
+            company: requestEmail, // Set the company field to the email to ensure it's displayed correctly
+            phone: "",
             storagePath: "public/access-request.txt", // Dummy path
           }
         });
@@ -132,7 +134,7 @@ const RequestAccessForm = () => {
       <CardFooter className="flex flex-col space-y-4">
         <Button 
           type="submit" 
-          className="w-full bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-center" 
+          className="w-full bg-[#F97316] hover:bg-[#F97316]/90 text-center" 
           disabled={loading}
         >
           {loading ? "Submitting..." : "Request Access"}
