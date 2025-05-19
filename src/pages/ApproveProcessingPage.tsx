@@ -6,6 +6,7 @@ export default function ApproveProcessingPage() {
   const [status, setStatus] = useState("Processing approval...");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -18,6 +19,9 @@ export default function ApproveProcessingPage() {
       return;
     }
 
+    // Add debug info
+    setDebugInfo(`Processing ${action} for submission ID: ${submissionId}`);
+    
     // Use the process-approval Edge Function directly
     const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval?action=${action}&id=${submissionId}`;
     console.log("📤 Sending request to:", supabaseFunctionUrl);
@@ -27,11 +31,17 @@ export default function ApproveProcessingPage() {
         setIsLoading(false);
         if (res.ok) {
           setStatus("✅ Approval processed successfully.");
+          console.log("✅ Approval request succeeded with status:", res.status);
           res.text().then(html => {
             // Fix: Check for element existence first, then assign innerHTML
             const responseContainer = document.getElementById('response-container');
             if (responseContainer) {
               responseContainer.innerHTML = html;
+              
+              // Add more debug info about the response
+              setDebugInfo(prev => `${prev || ''}\n\nResponse received and processed successfully.`);
+            } else {
+              setDebugInfo(prev => `${prev || ''}\n\nWarning: response-container element not found in the DOM.`);
             }
           });
         } else {
@@ -39,6 +49,7 @@ export default function ApproveProcessingPage() {
             console.error("❌ Error from process-approval:", text);
             setStatus(`❌ Error ${res.status}`);
             setErrorDetails(text);
+            setDebugInfo(prev => `${prev || ''}\n\nServer returned error ${res.status}: ${text}`);
           });
         }
       })
@@ -47,6 +58,7 @@ export default function ApproveProcessingPage() {
         console.error("❌ Network error:", err);
         setStatus("❌ Network error sending approval.");
         setErrorDetails(err.message);
+        setDebugInfo(prev => `${prev || ''}\n\nNetwork error: ${err.message}`);
       });
   }, []);
 
@@ -84,6 +96,20 @@ export default function ApproveProcessingPage() {
         }}>
           <h3>Error Details:</h3>
           <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{errorDetails}</pre>
+        </div>
+      )}
+      
+      {debugInfo && (
+        <div style={{ 
+          padding: "1rem", 
+          backgroundColor: "#e8f5e9", 
+          border: "1px solid #c8e6c9",
+          borderRadius: "4px",
+          marginTop: "1rem",
+          fontSize: "14px"
+        }}>
+          <h3>Debug Information:</h3>
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{debugInfo}</pre>
         </div>
       )}
       
