@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,9 +44,11 @@ const App = () => (
               } 
             />
             <Route 
-              path="/approve-processing"  // ✅ ADD THIS ROUTE
+              path="/approve-processing"  
               element={<ApproveProcessingPage />} 
             />
+            {/* Temporary route to access Dashboard without authentication */}
+            <Route path="/temp-dashboard" element={<Dashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
