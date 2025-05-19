@@ -7,23 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+interface PlatformResult {
+  status: string;
+  count?: number;
+  url?: string;
+  message?: string;
+}
+
 interface TestResult {
   postcode: string;
-  airbnb: {
-    status: string;
-    count?: number;
-    url?: string;
-  };
-  spareroom: {
-    status: string;
-    count?: number;
-    url?: string;
-  };
-  gumtree: {
-    status: string;
-    count?: number;
-    url?: string;
-  };
+  airbnb: PlatformResult;
+  spareroom: PlatformResult;
+  gumtree: PlatformResult;
 }
 
 interface BrightDataTestResults {
@@ -97,37 +92,42 @@ const BrightDataTester = () => {
             <h4 className="font-medium text-white mb-2">Postcode: {result.postcode}</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {['airbnb', 'spareroom', 'gumtree'].map((platform) => (
-                <div key={platform} className="p-3 rounded-md bg-gray-700">
-                  <h5 className="font-medium capitalize text-white">{platform}</h5>
-                  <p className="text-sm text-gray-300">
-                    Status: <span className={`font-medium ${
-                      result[platform as keyof TestResult].status === 'investigate' 
-                        ? 'text-yellow-400' 
-                        : result[platform as keyof TestResult].status === 'no match' 
-                          ? 'text-gray-400' 
-                          : 'text-red-400'
-                    }`}>
-                      {result[platform as keyof TestResult].status}
-                    </span>
-                  </p>
-                  {result[platform as keyof TestResult].count !== undefined && (
+              {['airbnb', 'spareroom', 'gumtree'].map((platformKey) => {
+                const platform = platformKey as keyof Pick<TestResult, 'airbnb' | 'spareroom' | 'gumtree'>;
+                const platformResult = result[platform];
+                
+                return (
+                  <div key={platformKey} className="p-3 rounded-md bg-gray-700">
+                    <h5 className="font-medium capitalize text-white">{platformKey}</h5>
                     <p className="text-sm text-gray-300">
-                      Matching listings: {result[platform as keyof TestResult].count}
+                      Status: <span className={`font-medium ${
+                        platformResult.status === 'investigate' 
+                          ? 'text-yellow-400' 
+                          : platformResult.status === 'no match' 
+                            ? 'text-gray-400' 
+                            : 'text-red-400'
+                      }`}>
+                        {platformResult.status}
+                      </span>
                     </p>
-                  )}
-                  {result[platform as keyof TestResult].url && (
-                    <a 
-                      href={result[platform as keyof TestResult].url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:underline mt-1 block truncate"
-                    >
-                      View search results
-                    </a>
-                  )}
-                </div>
-              ))}
+                    {platformResult.count !== undefined && (
+                      <p className="text-sm text-gray-300">
+                        Matching listings: {platformResult.count}
+                      </p>
+                    )}
+                    {platformResult.url && (
+                      <a 
+                        href={platformResult.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:underline mt-1 block truncate"
+                      >
+                        View search results
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
