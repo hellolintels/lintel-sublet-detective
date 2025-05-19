@@ -31,11 +31,10 @@ const SampleOffer = () => {
         </p>
         <div className="flex items-center gap-2">
           <Button
-            size="lg"
-            className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
             onClick={handleClick}
+            className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-6 sm:px-8 py-6 text-base sm:text-lg rounded-full font-medium transition-colors duration-200 min-h-[3.5rem] flex items-center gap-2"
           >
-            <MailPlus className="mr-2" />
+            <MailPlus className="w-5 h-5" />
             Request a Sample Report
           </Button>
           <TooltipProvider>

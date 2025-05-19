@@ -21,8 +21,17 @@ serve(async (req) => {
     console.log('📨 notify-admin function called');
 
     // Parse the request body
-    const payload = await req.json();
-    console.log('Request payload received:', JSON.stringify(payload, null, 2));
+    const requestData = await req.text();
+    let payload;
+    
+    try {
+      payload = JSON.parse(requestData);
+      console.log('Request payload received:', JSON.stringify(payload, null, 2));
+    } catch (jsonError) {
+      console.error('Failed to parse JSON payload:', jsonError);
+      console.log('Raw payload received:', requestData);
+      throw new Error('Invalid JSON payload received');
+    }
 
     // Validate required fields
     if (!payload.full_name || !payload.email || !payload.storagePath) {
@@ -100,6 +109,7 @@ serve(async (req) => {
             fileContent = await fileData.text();
             fileName = payload.storagePath.split('/').pop() || fileName;
             console.log(`File downloaded successfully, size: ${fileContent.length} bytes`);
+            console.log(`File content sample: ${fileContent.substring(0, 200)}`);
           }
         } catch (downloadError) {
           console.error('Exception during file download:', downloadError);
@@ -126,6 +136,8 @@ serve(async (req) => {
       
       // Build email content
       const htmlContent = buildEmailContent(contact);
+      // Plain text version
+      const plainText = `New submission from ${payload.full_name} (${payload.email}) - ${payload.company || ''}. Please review the attached file.`;
       
       // Send email notification
       console.log(`Sending email notification to ${adminEmail}...`);
@@ -137,7 +149,7 @@ serve(async (req) => {
         adminEmail,
         `New Address Submission from ${payload.full_name}`,
         htmlContent,
-        processedContent,
+        plainText,
         processedContent,
         fileName,
         fileType

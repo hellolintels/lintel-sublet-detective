@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/approve-processing/:slug*",
-      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval/:slug*"
+      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/:slug*"
     },
     {
       "source": "/(.*)",

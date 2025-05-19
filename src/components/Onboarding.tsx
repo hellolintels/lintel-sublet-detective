@@ -1,4 +1,6 @@
 
+import { Button } from "./ui/button";
+
 const Onboarding = () => {
   const scrollToContact = () => {
     const contactSection = document.getElementById('contact-section');
@@ -20,12 +22,12 @@ const Onboarding = () => {
             lintels.in, fill out the sample report form and we'll get back to you with a report.
           </p>
         </div>
-        <button 
+        <Button
           onClick={scrollToContact}
-          className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-6 py-3 text-base rounded-full font-medium transition-colors duration-200"
+          className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-6 sm:px-8 py-6 text-base sm:text-lg rounded-full font-medium transition-colors duration-200 min-h-[3.5rem] w-full sm:w-auto"
         >
           Request a Sample Report
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -40,7 +40,7 @@ export async function sendEmail(
   console.log(`FILE TYPE: ${fileType || 'N/A'}`);
   console.log(`FILE CONTENT LENGTH: ${fileContent ? fileContent.length : 0} bytes`);
 
-  if (fileContent) {
+  if (fileContent && fileContent.length > 0) {
     console.log(`FILE CONTENT SAMPLE: ${fileContent.substring(0, 100)}...`);
   }
 
@@ -82,27 +82,34 @@ export async function sendEmail(
       };
 
       // Add attachment if we have file content
-      if (fileContent) {
+      if (fileContent && fileContent.length > 0) {
         console.log(`Adding file attachment to email, attempt ${attempt}`);
         
-        // Use TextEncoder to convert string to Uint8Array
-        const encoder = new TextEncoder();
-        const uint8Array = encoder.encode(fileContent);
-        
-        // Convert to base64 using btoa for Deno environment
-        const base64Content = btoa(
-          String.fromCharCode.apply(null, Array.from(uint8Array))
-        );
-        
-        payload.attachments = [{
-          content: base64Content,
-          filename: fileName || 'attachment.csv',
-          type: fileType || 'text/csv',
-          disposition: 'attachment'
-        }];
+        try {
+          // Use TextEncoder to convert string to Uint8Array
+          const encoder = new TextEncoder();
+          const uint8Array = encoder.encode(fileContent);
+          
+          // Convert to base64
+          const base64Content = btoa(
+            String.fromCharCode.apply(null, Array.from(uint8Array))
+          );
+          
+          payload.attachments = [{
+            content: base64Content,
+            filename: fileName || 'attachment.csv',
+            type: fileType || 'text/csv',
+            disposition: 'attachment'
+          }];
+          
+          console.log("Attachment encoded successfully");
+        } catch (encodeError) {
+          console.error("Error encoding attachment:", encodeError);
+          // Continue without attachment if encoding fails
+        }
       }
 
-      console.log(`Sending email with direct SendGrid API call, attempt ${attempt}`);
+      console.log(`Sending email with SendGrid API, attempt ${attempt}`);
       console.log("Email configuration:", JSON.stringify({
         to,
         from: payload.from,
@@ -113,7 +120,7 @@ export async function sendEmail(
         attachmentFilename: fileName
       }));
       
-      // Direct API call to SendGrid
+      // Send without logging the full payload (can be large with attachments)
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
         headers: {
@@ -129,47 +136,6 @@ export async function sendEmail(
           status: response.status,
           statusText: response.statusText
         });
-        
-        // For admin emails, send a backup notification to another address
-        if (isAdminEmail) {
-          try {
-            const backupPayload = {
-              personalizations: [
-                {
-                  to: [{ email: 'support@lintels.in' }]
-                }
-              ],
-              from: {
-                email: 'hello@lintels.in',
-                name: 'Lintels.in Notifications (Backup)'
-              },
-              subject: `BACKUP: ${timestampedSubject}`,
-              content: [
-                {
-                  type: 'text/plain',
-                  value: `This is a backup notification for an email sent to ${to}.\n\n${textContent}`
-                },
-                {
-                  type: 'text/html',
-                  value: `<p>This is a backup notification for an email sent to ${to}.</p>${htmlContent}`
-                }
-              ]
-            };
-            
-            await fetch('https://api.sendgrid.com/v3/mail/send', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${sendgridApiKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(backupPayload)
-            });
-            console.log(`Backup notification sent to support@lintels.in`);
-          } catch (backupError) {
-            console.error(`Failed to send backup notification:`, backupError);
-            // Don't fail the main operation if backup fails
-          }
-        }
         
         return { 
           success: true, 

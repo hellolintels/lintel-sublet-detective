@@ -1,12 +1,11 @@
 
-// src/components/contact/use-contact-form-submit.ts
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactFormValues } from "./contact-form-schema";
-import { countFileRows } from "./file-utils"; // Keep row counting
+import { countFileRows } from "./file-utils";
 import { MAX_ROWS } from "./contact-form-schema";
-import { v4 as uuidv4 } from "uuid"; // Need to install uuid
+import { v4 as uuidv4 } from "uuid";
 
 export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,7 +30,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       const file = values.addressFile[0];
       console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
 
-      // Verify row count (optional but good to keep)
+      // Verify row count
       try {
         const rowCount = await countFileRows(file);
         console.log("File contains approximately", rowCount, "rows");
@@ -46,20 +45,24 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         // Continue even if row counting fails
       }
 
-      // First, check if we have the pending-uploads bucket available
-      const { data: buckets, error: bucketsError } = await supabase
-        .storage
-        .listBuckets();
-        
+      // Check for the pending-uploads bucket and create it if it doesn't exist
+      let pendingBucketExists = false;
+      
+      // First, check if bucket exists
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
       if (bucketsError) {
         console.warn("Could not check storage buckets:", bucketsError.message);
-        // Continue anyway, the function might still work
       } else {
-        const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads');
-        if (!pendingBucketExists) {
-          // Create the bucket if it doesn't exist
-          const { data: newBucket, error: createError } = await supabase
-            .storage
+        pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
+        console.log("Pending bucket exists:", pendingBucketExists);
+      }
+      
+      // Create the bucket if needed
+      if (!pendingBucketExists) {
+        console.log("Creating pending-uploads bucket...");
+        try {
+          const { data: newBucket, error: createError } = await supabase.storage
             .createBucket('pending-uploads', { public: false });
             
           if (createError) {
@@ -69,7 +72,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
             return false;
           } else {
             console.log("Created pending-uploads bucket:", newBucket);
+            pendingBucketExists = true;
           }
+        } catch (bucketError) {
+          console.error("Exception creating bucket:", bucketError);
+          setError("Storage setup failed. Please try again later.");
+          setIsSubmitting(false);
+          return false;
         }
       }
 
@@ -79,11 +88,17 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       const storagePath = `public/${uniqueFileName}`;
 
       console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
-      const uploadPromise = supabase.storage
+      
+      // Ensure the bucket exists before uploading
+      if (!pendingBucketExists) {
+        setError("Storage system unavailable. Please try again later.");
+        setIsSubmitting(false);
+        return false;
+      }
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("pending-uploads")
         .upload(storagePath, file);
-        
-      const { data: uploadData, error: uploadError } = await uploadPromise;
 
       if (uploadError) {
         console.error("Supabase Storage upload error:", uploadError);
@@ -97,48 +112,66 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       const notificationPayload = {
         full_name: values.fullName,
         email: values.email,
-        company: values.company,
-        position: values.position,
-        phone: values.phone,
+        company: values.company || '',
+        position: values.position || '',
+        phone: values.phone || '',
         storagePath: storagePath,
         form_type: formType
       };
 
-      // 3. Call the notify-admin function
       console.log(`Calling notify-admin function with payload:`, notificationPayload);
       
-      // Add a toast notification that we're processing
+      // Show loading toast
       toast.loading("Processing your submission...", {
         id: "processing-submission",
         duration: 10000
       });
       
-      const { data: functionData, error: functionError } = await supabase.functions.invoke("notify-admin", {
-        body: notificationPayload
-      });
-
-      if (functionError) {
-        console.error("notify-admin function invocation error:", functionError);
+      // 3. Call the notify-admin function through our API endpoint
+      try {
+        const response = await fetch('/approve-processing/notify-admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(notificationPayload)
+        });
+        
+        const functionData = await response.json();
+        
+        console.log("notify-admin response:", functionData);
         toast.dismiss("processing-submission");
         
-        // Check if it's a connection error
-        if (functionError.message?.includes("Failed to fetch") || 
-            functionError.message?.includes("NetworkError") ||
-            functionError.message?.includes("network")) {
-          setError("Network error connecting to our servers. Please check your internet connection and try again.");
-          toast.error("Network error connecting to our servers. Please check your internet connection and try again.");
-          
-          // Attempt to delete the uploaded file if function call fails
-          try {
-            await supabase.storage.from("pending-uploads").remove([storagePath]);
-            console.log("Cleaned up uploaded file after function error.");
-          } catch (cleanupError) {
-            console.error("Failed to cleanup uploaded file after function error:", cleanupError);
-          }
-          
-          setIsSubmitting(false);
-          return false;
+        if (!response.ok) {
+          throw new Error(functionData.error || 'Unknown error from server');
         }
+
+        // 4. Mark as success
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        setError(null);
+
+        // Check if email was sent successfully
+        if (functionData?.emailSent === false) {
+          // The submission was received but email sending failed
+          toast.success(
+            "Your submission was received! However, there may be a delay in processing. We'll review it as soon as possible.",
+            { duration: 6000 }
+          );
+        } else {
+          // Normal success case
+          toast.success(
+            "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
+            { duration: 6000 }
+          );
+        }
+
+        return true;
+      } catch (functionError: any) {
+        console.error("notify-admin function error:", functionError);
+        toast.dismiss("processing-submission");
         
         // Attempt to delete the uploaded file if function call fails
         try {
@@ -151,34 +184,6 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         setError(`Failed to process submission: ${functionError.message || "Unknown error"}`);
         throw new Error(`Failed to process submission: ${functionError.message || "Unknown error"}`);
       }
-
-      console.log("notify-admin function success:", functionData);
-      toast.dismiss("processing-submission");
-
-      // Mark as success
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      setError(null);
-
-      // Check if email was sent successfully
-      if (functionData?.emailSent === false) {
-        // The submission was received but email sending failed
-        toast.success(
-          "Your submission was received! However, there may be a delay in processing. We'll review it as soon as possible.",
-          { duration: 6000 }
-        );
-      } else {
-        // Normal success case
-        toast.success(
-          "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
-          { duration: 6000 }
-        );
-      }
-
-      return true;
-
     } catch (error: any) {
       console.error("Form submission error:", error);
       toast.dismiss("processing-submission");
