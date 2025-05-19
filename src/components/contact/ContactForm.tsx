@@ -14,10 +14,11 @@ import { AlertCircle } from "lucide-react";
 interface ContactFormProps {
   onOpenChange?: (open: boolean) => void;
   formType?: string;
+  defaultOpen?: boolean;
 }
 
-export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormProps) {
-  const [open, setOpen] = useState(false);
+export function ContactForm({ onOpenChange, formType = "sample", defaultOpen = false }: ContactFormProps) {
+  const [open, setOpen] = useState(defaultOpen);
   
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -37,6 +38,13 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
     setOpen(false);
     form.reset();
   });
+
+  useEffect(() => {
+    // Initialize with defaultOpen value
+    if (defaultOpen) {
+      setOpen(true);
+    }
+  }, [defaultOpen]);
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -59,12 +67,18 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
   }
 
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      setOpen(newOpen);
-      if (!newOpen) {
-        form.reset();
-      }
-    }}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (onOpenChange) {
+          onOpenChange(newOpen);
+        }
+        if (!newOpen) {
+          form.reset();
+        }
+      }}
+    >
       <div id="contact-section" className="flex flex-col gap-4 w-full items-center py-8">
         <Button
           size="lg"
@@ -74,6 +88,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
           Request a Sample Report
         </Button>
       </div>
+      
       {open && (
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -98,6 +113,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="position"
@@ -111,6 +127,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="company"
@@ -124,6 +141,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="email"
@@ -137,6 +155,7 @@ export function ContactForm({ onOpenChange, formType = "sample" }: ContactFormPr
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="phone"

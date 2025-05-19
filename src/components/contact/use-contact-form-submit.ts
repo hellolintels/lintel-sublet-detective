@@ -57,18 +57,30 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       } else {
         const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads');
         if (!pendingBucketExists) {
-          console.warn("Warning: pending-uploads bucket not found. Storage operations may fail.");
+          // Create the bucket if it doesn't exist
+          const { data: newBucket, error: createError } = await supabase
+            .storage
+            .createBucket('pending-uploads', { public: false });
+            
+          if (createError) {
+            console.error("Failed to create pending-uploads bucket:", createError);
+            setError("Storage setup failed. Please contact support.");
+            setIsSubmitting(false);
+            return false;
+          } else {
+            console.log("Created pending-uploads bucket:", newBucket);
+          }
         }
       }
 
       // 1. Upload file to Supabase Storage
       const fileExt = file.name.split(".").pop();
       const uniqueFileName = `${uuidv4()}.${fileExt}`;
-      const storagePath = `public/${uniqueFileName}`; // Store in a 'public' folder within the bucket
+      const storagePath = `public/${uniqueFileName}`;
 
       console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
       const uploadPromise = supabase.storage
-        .from("pending-uploads") // Ensure this bucket exists and has policies set
+        .from("pending-uploads")
         .upload(storagePath, file);
         
       const { data: uploadData, error: uploadError } = await uploadPromise;
@@ -88,7 +100,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         company: values.company,
         position: values.position,
         phone: values.phone,
-        storagePath: storagePath, // Pass the storage path
+        storagePath: storagePath,
         form_type: formType
       };
 

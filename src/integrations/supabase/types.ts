@@ -11,6 +11,9 @@ export type Database = {
     Tables: {
       contacts: {
         Row: {
+          approved_at: string | null
+          approved_file_path: string | null
+          approved_for_matching: boolean | null
           company: string
           created_at: string
           email: string
@@ -25,6 +28,9 @@ export type Database = {
           status: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_file_path?: string | null
+          approved_for_matching?: boolean | null
           company: string
           created_at?: string
           email: string
@@ -39,6 +45,9 @@ export type Database = {
           status?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_file_path?: string | null
+          approved_for_matching?: boolean | null
           company?: string
           created_at?: string
           email?: string
@@ -53,6 +62,47 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      match_results: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          match_score: number | null
+          matched_listing_url: string
+          notes: string | null
+          outcome: string
+          platform: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_score?: number | null
+          matched_listing_url: string
+          notes?: string | null
+          outcome: string
+          platform: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_score?: number | null
+          matched_listing_url?: string
+          notes?: string | null
+          outcome?: string
+          platform?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_results_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "pending_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pending_submissions: {
         Row: {

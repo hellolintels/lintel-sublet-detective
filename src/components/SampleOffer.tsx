@@ -32,7 +32,7 @@ const SampleOffer = () => {
         <div className="flex items-center gap-2">
           <Button
             size="lg"
-            className="bg-[#9b87f5] hover:bg-[#8B5CF6] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
+            className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-8 py-4 text-lg rounded-full font-medium transition-colors duration-200"
             onClick={handleClick}
           >
             <MailPlus className="mr-2" />
