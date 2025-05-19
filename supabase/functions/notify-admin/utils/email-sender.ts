@@ -95,8 +95,26 @@ export async function sendEmail(
       throw new Error(`Invalid recipient email: ${to}`);
     }
     
-    // Clean up the attachment content
-    const cleanedAttachment = cleanAttachmentContent(attachment);
+    // Clean up the attachment content - CRITICAL FIX HERE
+    let cleanedAttachment = null;
+    if (attachment && attachment.content) {
+      // Ensure attachment content is properly base64 encoded
+      if (typeof attachment.content === 'string' && attachment.content.length > 0) {
+        // This is critical - many attachment encoding issues come from improper base64
+        try {
+          // Test if it's already valid base64
+          atob(attachment.content);
+          cleanedAttachment = attachment;
+        } catch (e) {
+          // If not valid base64, try to encode it
+          console.log("Attachment is not valid base64, attempting to encode...");
+          cleanedAttachment = {
+            ...attachment,
+            content: btoa(attachment.content)
+          };
+        }
+      }
+    }
     
     // Get the SendGrid API key from environment variables
     const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
@@ -128,14 +146,19 @@ export async function sendEmail(
       ]
     };
     
-    // Add attachment if provided
-    if (cleanedAttachment) {
-      emailPayload.attachments = [{
-        content: cleanedAttachment.content,
-        filename: cleanedAttachment.filename,
-        type: cleanedAttachment.contentType,
-        disposition: 'attachment'
-      }];
+    // Add attachment if provided and content is valid
+    if (cleanedAttachment && cleanedAttachment.content && cleanedAttachment.content.length > 0) {
+      console.log(`Adding attachment: ${cleanedAttachment.filename}`);
+      console.log(`Attachment content length: ${cleanedAttachment.content.length}`);
+      
+      emailPayload.attachments = [
+        {
+          content: cleanedAttachment.content,
+          filename: cleanedAttachment.filename,
+          type: cleanedAttachment.contentType || 'text/csv',
+          disposition: 'attachment'
+        }
+      ];
     }
     
     // Send the email using SendGrid API

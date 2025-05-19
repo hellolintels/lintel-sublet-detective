@@ -142,8 +142,9 @@ serve(async (req) => {
       // Send email notification
       console.log(`Sending email notification to ${adminEmail}...`);
       
-      // Process the file content for cleaner email attachment
-      const processedContent = processFileData(fileContent);
+      // Process the file content for cleaner email attachment - FIX HERE
+      const base64Content = processFileData(fileContent);
+      console.log(`Processed base64 content length: ${base64Content.length}`);
       
       const emailResult = await sendEmail(
         adminEmail,
@@ -151,7 +152,7 @@ serve(async (req) => {
         htmlContent,
         plainText,
         {
-          content: processedContent,
+          content: base64Content,
           filename: fileName,
           contentType: fileType
         }

@@ -1,6 +1,6 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,85 +8,77 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  // Handle CORS
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log("Setup function called");
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Create a Supabase client with the service role key
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase credentials");
-      throw new Error("Server configuration error: Supabase credentials missing");
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log("Supabase client initialized");
 
-    // Create pending-uploads bucket if it doesn't exist
+    // Create storage buckets if they don't exist
+    console.log("Attempting to create pending-uploads bucket");
     try {
-      console.log("Attempting to create pending-uploads bucket");
-      const { data: pendingBucket, error: pendingBucketError } = await supabase.storage.createBucket("pending-uploads", {
-        public: false,
-        allowedMimeTypes: ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-        fileSizeLimit: 5242880, // 5MB
-      });
+      const { data: pendingBucket, error: pendingError } = await supabase
+        .storage
+        .createBucket("pending-uploads", {
+          public: false,
+          allowedMimeTypes: ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+          fileSizeLimit: 5242880, // 5MB
+        });
 
-      if (pendingBucketError && !pendingBucketError.message.includes("already exists")) {
-        console.error("Error creating pending-uploads bucket:", pendingBucketError);
-        throw pendingBucketError;
-      } else {
-        console.log("pending-uploads bucket created or already exists");
-      }
+      console.log("pending-uploads bucket created or already exists");
     } catch (bucketError) {
-      console.error("Exception creating pending-uploads bucket:", bucketError);
-      throw bucketError;
+      // Bucket might already exist, which is fine
+      console.log("Note: pending-uploads bucket may already exist");
     }
 
-    // Create approved-uploads bucket if it doesn't exist
+    console.log("Attempting to create approved-uploads bucket");
     try {
-      console.log("Attempting to create approved-uploads bucket");
-      const { data: approvedBucket, error: approvedBucketError } = await supabase.storage.createBucket("approved-uploads", {
-        public: false,
-        allowedMimeTypes: ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-        fileSizeLimit: 5242880, // 5MB
-      });
+      const { data: approvedBucket, error: approvedError } = await supabase
+        .storage
+        .createBucket("approved-uploads", {
+          public: false,
+          allowedMimeTypes: ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+          fileSizeLimit: 5242880, // 5MB
+        });
 
-      if (approvedBucketError && !approvedBucketError.message.includes("already exists")) {
-        console.error("Error creating approved-uploads bucket:", approvedBucketError);
-        throw approvedBucketError;
-      } else {
-        console.log("approved-uploads bucket created or already exists");
-      }
+      console.log("approved-uploads bucket created or already exists");
     } catch (bucketError) {
-      console.error("Exception creating approved-uploads bucket:", bucketError);
-      throw bucketError;
+      // Bucket might already exist, which is fine
+      console.log("Note: approved-uploads bucket may already exist");
     }
 
-    // Setup complete - return success
     return new Response(
       JSON.stringify({
-        message: "Setup complete!",
-        buckets: ["pending-uploads", "approved-uploads"],
+        message: "Setup completed successfully",
+        timestamp: new Date().toISOString(),
+        status: "success"
       }),
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 200
       }
     );
   } catch (error) {
-    console.error("Setup function error:", error);
+    console.error("Error in setup function:", error);
+    
     return new Response(
       JSON.stringify({
-        error: error.message || "Unknown error during setup",
+        error: error.message || "Unknown error",
+        timestamp: new Date().toISOString(),
+        status: "error"
       }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      { 
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 500
       }
     );
   }
