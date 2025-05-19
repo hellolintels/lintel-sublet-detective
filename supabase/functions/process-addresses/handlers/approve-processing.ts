@@ -4,7 +4,7 @@ import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
 import { extractPostcodesFromContact } from "../utils/postcode-extractor.ts";
 import { scrapePostcodes } from "../scraping/bright-data-scraper.ts";
-import { generateHtmlReport, generateCsvReport } from "../utils/report-generator.ts";
+import { generateHtmlReport, generateExcelReport } from "../utils/report-generator.ts";
 import { countMatches } from "../utils/report-metrics.ts";
 
 /**
@@ -62,7 +62,7 @@ export async function handleApproveProcessing(
     }));
   }
   
-  // Generate HTML report from scraping results
+  // Generate HTML report from scraping results - still needed for database storage
   console.log("Generating HTML report from scraping results...");
   const htmlReport = generateHtmlReport(scrapingResults);
   
@@ -104,33 +104,42 @@ export async function handleApproveProcessing(
   // Create a direct link to send results
   const viewReportUrl = `${supabaseUrl}/functions/v1/process-addresses?action=send_results&contact_id=${contact.id}&report_id=${newReportId}`;
   
-  // Send notification email to the admin with the report attached
+  // Generate Excel report
+  console.log("Generating Excel report from scraping results...");
+  const excelReport = generateExcelReport(scrapingResults, contact);
+  
+  // Send notification email to the admin with the Excel report attached
   console.log("Sending report email to admin...");
   
-  const csvReport = generateCsvReport(scrapingResults);
+  const reportFileName = `lintels-report-${contact.full_name.replace(/\s+/g, '-')}-${contact.company.replace(/\s+/g, '-')}`;
   const emailResult = await sendEmail(
     "jamie@lintels.in", 
-    `[Lintels] Address Matching Results - ${contact.full_name}`,
+    `[Lintels] Address Results - ${contact.company} - ${contact.full_name}`,
     `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #4CAF50; border-radius: 5px;">
       <h1 style="color: #4CAF50; text-align: center;">Address Matching Report</h1>
       
-      <p style="font-size: 16px;">The address matching process for <strong>${contact.full_name}</strong> (${contact.email}) is now complete.</p>
+      <p style="font-size: 16px;">The address matching process for <strong>${contact.full_name}</strong> from <strong>${contact.company}</strong> (${contact.email}) is now complete.</p>
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <h3 style="margin-top: 0;">Report Summary:</h3>
+        <h3 style="margin-top: 0;">Client Details:</h3>
+        <p><strong>Company:</strong> ${contact.company}</p>
+        <p><strong>Position:</strong> ${contact.position}</p>
+        <p><strong>Full Name:</strong> ${contact.full_name}</p>
+        <p><strong>Email:</strong> ${contact.email}</p>
+        <p><strong>Phone:</strong> ${contact.phone}</p>
+        
+        <h3>Report Summary:</h3>
         <p><strong>Total Postcodes Processed:</strong> ${reportData.properties_count}</p>
         <p><strong>Postcodes Requiring Investigation:</strong> ${reportData.matches_count}</p>
       </div>
       
-      <p>The complete report is attached to this email. Below is a preview of the matching results:</p>
-      
-      ${htmlReport}
+      <p>The complete report is attached to this email in Excel format (XLS). This report includes hyperlinks to the property listings that require investigation.</p>
       
       <div style="text-align: center; margin: 30px 0;">
         <a href="${viewReportUrl}" 
            style="background-color: #4CAF50; color: white; padding: 15px 25px; text-decoration: none; font-weight: bold; font-size: 18px; border-radius: 5px; display: inline-block;">
-          Send Report to Client
+          Mark as Reviewed
         </a>
       </div>
       
@@ -140,9 +149,9 @@ export async function handleApproveProcessing(
     </div>
     `,
     {
-      filename: `lintels-report-${contact.full_name.replace(/\s+/g, '-')}.csv`,
-      content: Buffer.from(csvReport).toString('base64'),
-      type: 'text/csv'
+      filename: `${reportFileName}.xls`,
+      content: Buffer.from(excelReport).toString('base64'),
+      type: 'application/vnd.ms-excel'
     }
   );
   

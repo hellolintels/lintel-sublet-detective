@@ -1,6 +1,8 @@
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
+import { generateExcelReport } from "../utils/report-generator.ts";
 
 /**
  * Handle sending results to the contact
@@ -51,54 +53,15 @@ export async function handleSendResults(
   
   console.log("Updated report status to 'sent'");
   
-  // ✅ Send email with report link to JAMIE during beta
-  const clientEmailResult = await sendEmail(
-    "jamie@lintels.in", 
-    "[TEST MODE] Your Lintels Sample Report is Ready",
-    `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
-      <h1 style="color: #2196F3; text-align: center;">Your Sample Report is Ready</h1>
-      
-      <p>Hello ${contact.full_name},</p>
-      
-      <p>Thank you for submitting your addresses to Lintels. We have analyzed your property data and found:</p>
-      
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <ul>
-          <li><strong>${report.properties_count}</strong> properties analyzed</li>
-          <li><strong>${report.matches_count}</strong> potential short-term rental matches found</li>
-        </ul>
-      </div>
-      
-      <p>This sample report demonstrates the capabilities of our full service.</p>
-      
-      <p>For the full report and detailed analysis of all your properties, please contact us at <a href="mailto:info@lintels.in">info@lintels.in</a>.</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="https://lintels.in/contact" 
-           style="background-color: #2196F3; color: white; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
-          Get Full Analysis
-        </a>
-      </div>
-      
-      <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
-        This is an automated message from lintels.in
-      </p>
-    </div>
-    `
-  );
-  
-  console.log("Client email (sent to Jamie in beta) result:", clientEmailResult);
-  
-  // Send confirmation to admin
+  // Send confirmation to admin only - client emails will be sent manually for more personalized approach
   const adminEmailResult = await sendEmail(
     "jamie@lintels.in", 
-    `[Lintels] Report Sent to ${contact.full_name}`,
+    `[Lintels] Report Marked as Reviewed - ${contact.company} - ${contact.full_name}`,
     `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
-      <h1 style="color: #2196F3; text-align: center;">Report Sent Successfully</h1>
+      <h1 style="color: #2196F3; text-align: center;">Report Marked as Reviewed</h1>
       
-      <p>The sample report for <strong>${contact.full_name}</strong> has been sent.</p>
+      <p>The report for <strong>${contact.full_name}</strong> from <strong>${contact.company}</strong> has been marked as reviewed.</p>
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
         <h3 style="margin-top: 0;">User Details:</h3>
@@ -117,6 +80,8 @@ export async function handleSendResults(
         </ul>
       </div>
       
+      <p><strong>Next Steps:</strong> You can now download the report from the Admin Dashboard and send it to the client manually with a personalized email.</p>
+      
       <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
         This is an automated message from lintels.in
       </p>
@@ -128,7 +93,7 @@ export async function handleSendResults(
   
   return new Response(
     JSON.stringify({
-      message: "Report sent successfully",
+      message: "Report marked as reviewed",
       contact_id: contact.id,
       report_id: report.id,
       status: "sent"

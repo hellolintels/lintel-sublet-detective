@@ -1,6 +1,6 @@
 
 /**
- * Utilities for generating HTML and CSV reports from scraping results
+ * Utilities for generating HTML and Excel reports from scraping results
  */
 
 /**
@@ -42,7 +42,188 @@ export function generateHtmlReport(scrapingResults: any[]): string {
 }
 
 /**
- * Generate a CSV report from scraping results
+ * Generate an Excel (.xls) report from scraping results
+ */
+export function generateExcelReport(scrapingResults: any[], contactInfo?: any): string {
+  // Create Excel XML format (compatible with .xls)
+  const companyHeader = contactInfo ? 
+    `<Row>
+      <Cell><Data ss:Type="String">Company:</Data></Cell>
+      <Cell><Data ss:Type="String">${contactInfo.company || 'Not provided'}</Data></Cell>
+    </Row>
+    <Row>
+      <Cell><Data ss:Type="String">Contact:</Data></Cell>
+      <Cell><Data ss:Type="String">${contactInfo.full_name || 'Not provided'}</Data></Cell>
+    </Row>
+    <Row>
+      <Cell><Data ss:Type="String">Email:</Data></Cell>
+      <Cell><Data ss:Type="String">${contactInfo.email || 'Not provided'}</Data></Cell>
+    </Row>
+    <Row></Row>` : '';
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Lintels.in</Author>
+  <LastAuthor>Lintels.in</LastAuthor>
+  <Created>${new Date().toISOString()}</Created>
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>9000</WindowHeight>
+  <WindowWidth>13860</WindowWidth>
+  <WindowTopX>0</WindowTopX>
+  <WindowTopY>0</WindowTopY>
+  <ProtectStructure>False</ProtectStructure>
+  <ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="s62">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#5B9BD5" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="s63">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FF0000"/>
+  </Style>
+  <Style ss:ID="s64">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#999999"/>
+  </Style>
+  <Style ss:ID="s65">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FF9900" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="hyperlink">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#0563C1" ss:Underline="Single"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Postcode Matching Results">
+  <Table ss:ExpandedColumnCount="4" ss:ExpandedRowCount="${scrapingResults.length + 5}" x:FullColumns="1" x:FullRows="1" ss:DefaultColumnWidth="65" ss:DefaultRowHeight="15">
+   <Column ss:Width="80"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="120"/>
+   
+   ${companyHeader}
+   
+   <Row>
+    <Cell ss:StyleID="s62"><Data ss:Type="String">Postcode</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="String">Airbnb</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="String">SpareRoom</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="String">Gumtree</Data></Cell>
+   </Row>
+   ${scrapingResults.map(result => `
+   <Row>
+    <Cell><Data ss:Type="String">${result.postcode}</Data></Cell>
+    ${formatExcelCell(result.airbnb)}
+    ${formatExcelCell(result.spareroom)}
+    ${formatExcelCell(result.gumtree)}
+   </Row>
+   `).join('')}
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0.3"/>
+    <Footer x:Margin="0.3"/>
+    <PageMargins x:Bottom="0.75" x:Left="0.7" x:Right="0.7" x:Top="0.75"/>
+   </PageSetup>
+   <Selected/>
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>1</SplitHorizontal>
+   <TopRowBottomPane>1</TopRowBottomPane>
+   <ActivePane>2</ActivePane>
+   <Panes>
+    <Pane>
+     <Number>3</Number>
+    </Pane>
+    <Pane>
+     <Number>2</Number>
+     <ActiveRow>0</ActiveRow>
+    </Pane>
+   </Panes>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>`;
+}
+
+/**
+ * Format a cell in the Excel report
+ */
+export function formatExcelCell(platformResult: any): string {
+  if (!platformResult) {
+    return `<Cell ss:StyleID="s64"><Data ss:Type="String">error</Data></Cell>`;
+  }
+  
+  if (platformResult.status === "error") {
+    return `<Cell ss:StyleID="s64"><Data ss:Type="String">error</Data></Cell>`;
+  }
+  
+  if (platformResult.status === "no match") {
+    if (platformResult.url) {
+      return `<Cell ss:StyleID="hyperlink" ss:HRef="${platformResult.url}"><Data ss:Type="String">no match</Data></Cell>`;
+    }
+    return `<Cell ss:StyleID="s64"><Data ss:Type="String">no match</Data></Cell>`;
+  }
+  
+  if (platformResult.status === "investigate") {
+    if (platformResult.url) {
+      return `<Cell ss:StyleID="hyperlink" ss:HRef="${platformResult.url}"><Data ss:Type="String">investigate</Data></Cell>`;
+    }
+    return `<Cell ss:StyleID="s65"><Data ss:Type="String">investigate</Data></Cell>`;
+  }
+  
+  return `<Cell><Data ss:Type="String">${platformResult.status}</Data></Cell>`;
+}
+
+/**
+ * Format a cell in the HTML report
+ */
+export function formatCell(platformResult: any): string {
+  if (!platformResult) {
+    return `<span style="color: #999;">error</span>`;
+  }
+  
+  if (platformResult.status === "error") {
+    return `<span style="color: #999;">error</span>`;
+  }
+  
+  if (platformResult.status === "no match") {
+    if (platformResult.url) {
+      return `<a href="${platformResult.url}" target="_blank" style="color: #888; text-decoration: underline;">no match</a>`;
+    }
+    return `<span style="color: #888;">no match</span>`;
+  }
+  
+  if (platformResult.status === "investigate") {
+    if (platformResult.url) {
+      return `<a href="${platformResult.url}" target="_blank" style="color: #d9534f; font-weight: bold; text-decoration: underline;">investigate</a>`;
+    }
+    return `<span style="color: #d9534f; font-weight: bold;">investigate</span>`;
+  }
+  
+  return `<span>${platformResult.status}</span>`;
+}
+
+/**
+ * Generate a CSV report from scraping results (legacy)
+ * @deprecated Use generateExcelReport instead
  */
 export function generateCsvReport(scrapingResults: any[]): string {
   const headers = "Postcode,Airbnb,SpareRoom,Gumtree,Airbnb URL,SpareRoom URL,Gumtree URL\n";
@@ -59,27 +240,4 @@ export function generateCsvReport(scrapingResults: any[]): string {
   }).join("\n");
   
   return headers + rows;
-}
-
-/**
- * Format a cell in the HTML report
- */
-export function formatCell(platformResult: any): string {
-  if (!platformResult) {
-    return `<span style="color: #999;">error</span>`;
-  }
-  
-  if (platformResult.status === "error") {
-    return `<span style="color: #999;">error</span>`;
-  }
-  
-  if (platformResult.status === "no match") {
-    return `<span style="color: #888;">no match</span>`;
-  }
-  
-  if (platformResult.status === "investigate") {
-    return `<a href="${platformResult.url}" target="_blank" style="color: #d9534f; font-weight: bold; text-decoration: underline;">investigate</a>`;
-  }
-  
-  return `<span>${platformResult.status}</span>`;
 }
