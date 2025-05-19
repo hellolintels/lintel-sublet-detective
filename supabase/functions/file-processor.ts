@@ -13,7 +13,7 @@ export function processFileData(fileContent: string): string {
     console.log(`Text sample (first 100 chars): ${fileContent.substring(0, 100)}`);
     
     // For text files (CSV, TXT), convert to base64
-    // Fix: use TextEncoder + btoa for Deno compatibility instead of Buffer
+    // Fix: use TextEncoder instead of Buffer for Deno compatibility
     return btoa(fileContent);
   } catch (error) {
     console.error("Error processing file data:", error);
