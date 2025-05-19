@@ -21,8 +21,7 @@ export default function ApproveProcessingPage() {
     // Add debug info
     setDebugInfo(`Processing ${action} for submission ID: ${submissionId}`);
     
-    // UPDATED: Use the correct URL path for accessing the Edge Function
-    // The issue might be with the vercel.json rewrites not matching correctly
+    // Direct call to the Supabase Edge Function (correct URL format)
     const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-approval?action=${action}&id=${submissionId}`;
     
     console.log("📤 Sending request to:", supabaseFunctionUrl);
@@ -48,7 +47,7 @@ export default function ApproveProcessingPage() {
         } else {
           res.text().then(text => {
             console.error("❌ Error from process-approval:", text);
-            setStatus(`❌ Error ${res.status}`);
+            setStatus(`❌ Error ${res.status}: ${res.statusText}`);
             setErrorDetails(text);
             setDebugInfo(prev => `${prev || ''}\n\nServer returned error ${res.status}: ${text}`);
           });

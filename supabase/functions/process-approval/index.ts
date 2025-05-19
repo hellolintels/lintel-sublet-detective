@@ -12,15 +12,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("🔄 process-approval function called");
+    
     const url = new URL(req.url);
     const submissionId = url.searchParams.get("id");
     const action = url.searchParams.get("action");
-
+    
     console.log(`Process approval function called with: action=${action}, id=${submissionId}`);
 
     if (!submissionId || (action !== "approve" && action !== "reject")) {
+      console.error(`Invalid parameters: action=${action}, id=${submissionId}`);
       return new Response(`<html><body><h1>Missing required parameters.</h1><p>Please ensure both action and id are provided.</p></body></html>`, {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "text/html" }
+      });
+    }
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing Supabase credentials", { supabaseUrl: !!supabaseUrl, serviceRoleKey: !!serviceRoleKey });
+      return new Response(`<html><body><h1>Server Configuration Error</h1><p>Missing Supabase credentials</p></body></html>`, {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "text/html" }
       });
     }
@@ -114,7 +125,10 @@ Deno.serve(async (req) => {
       // Trigger Bright Data processing by calling the process-addresses function
       console.log(`Triggering address processing for contact ID: ${contact.id}`);
       try {
-        const processUrl = `https://${projectRef}.supabase.co/functions/v1/process-addresses?action=initial_process&contact_id=${contact.id}`;
+        // Fixed URL format to use functions.supabase.co domain
+        const processUrl = `https://${projectRef}.functions.supabase.co/process-addresses?action=initial_process&contact_id=${contact.id}`;
+        console.log(`Calling process-addresses at URL: ${processUrl}`);
+        
         const processResponse = await fetch(processUrl, { 
           method: "GET",
           headers: {
@@ -127,7 +141,8 @@ Deno.serve(async (req) => {
           const errorText = await processResponse.text();
           console.error("Error response from process-addresses:", errorText);
         } else {
-          console.log("Address processing triggered successfully");
+          const responseData = await processResponse.json();
+          console.log("Address processing triggered successfully:", responseData);
         }
       } catch (processError) {
         console.error("Error triggering address processing:", processError);
@@ -138,10 +153,20 @@ Deno.serve(async (req) => {
     if (action === "reject") {
       console.log("Rejecting submission. Removing file and updating status.");
       const sourcePath = submission.storage_path;
-      await supabaseAdmin.storage.from("pending-uploads").remove([sourcePath]);
+      
+      try {
+        await supabaseAdmin.storage.from("pending-uploads").remove([sourcePath]);
+        console.log(`Removed file: ${sourcePath}`);
+      } catch (removeError) {
+        console.error("Error removing file:", removeError);
+        // Continue with rejection even if file removal fails
+      }
+      
       await supabaseAdmin.from("pending_submissions").update({
         status: "rejected"
       }).eq("id", submissionId);
+      
+      console.log("Updated submission status to rejected");
 
       responseMessage = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <h2 style="color: #F44336;">Submission Rejected</h2>
