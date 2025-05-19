@@ -120,9 +120,14 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         duration: 10000
       });
       
-      // Call the notify-admin function through our API endpoint
+      // Call the notify-admin function directly instead of through a proxy
       try {
-        const response = await fetch('/approve-processing/notify-admin', {
+        // Use direct function call with the project reference
+        const functionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/notify-admin`;
+        
+        console.log(`Sending direct request to notify-admin at: ${functionUrl}`);
+        
+        const response = await fetch(functionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -131,9 +136,10 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         });
         
         if (!response.ok) {
+          const statusCode = response.status;
           const errorText = await response.text();
-          console.error("Error from notify-admin function:", errorText);
-          throw new Error(`Server processing error: ${response.status}`);
+          console.error(`Error from notify-admin function: Status ${statusCode}`, errorText);
+          throw new Error(`Server processing error (${statusCode}): ${errorText || response.statusText}`);
         }
         
         const functionData = await response.json();
@@ -193,6 +199,8 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           errorMessage = "Storage system error. Please contact support@lintels.in for assistance.";
         } else if (error.message.includes("Bucket not found")) {
           errorMessage = "Storage configuration error. Please contact support@lintels.in for assistance.";
+        } else if (error.message.includes("405")) {
+          errorMessage = "Server rejected the request method. Please contact support@lintels.in for assistance.";
         } else {
           errorMessage = `Error: ${error.message}`;
         }

@@ -7,7 +7,12 @@ const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const projectRef = Deno.env.get("PROJECT_REF");
 
 Deno.serve(async (req) => {
+  console.log(`Request received: ${req.method} ${req.url}`);
+  console.log("Headers:", Object.fromEntries(req.headers.entries()));
+  
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
+    console.log("Handling OPTIONS request with CORS headers");
     return new Response("ok", { headers: corsHeaders });
   }
 
@@ -37,6 +42,8 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    console.log(`Fetching submission with ID: ${submissionId}`);
+    
     const { data: submission, error: fetchError } = await supabaseAdmin
       .from("pending_submissions")
       .select("*")
@@ -110,10 +117,12 @@ Deno.serve(async (req) => {
       
       // Clean up the original file from pending-uploads
       await supabaseAdmin.storage.from("pending-uploads").remove([sourcePath]);
+      console.log(`Cleaned up original file from pending-uploads: ${sourcePath}`);
 
       await supabaseAdmin.from("pending_submissions").update({
         status: "approved"
       }).eq("id", submissionId);
+      console.log(`Updated pending_submission status to 'approved' for ID: ${submissionId}`);
 
       responseMessage = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <h2 style="color: #4CAF50;">Submission Approved Successfully</h2>
@@ -125,14 +134,15 @@ Deno.serve(async (req) => {
       // Trigger Bright Data processing by calling the process-addresses function
       console.log(`Triggering address processing for contact ID: ${contact.id}`);
       try {
-        // Fixed URL format to use functions.supabase.co domain
-        const processUrl = `https://${projectRef}.functions.supabase.co/process-addresses?action=initial_process&contact_id=${contact.id}`;
+        // Fixed URL format using the project ref
+        const processUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-addresses?action=initial_process&contact_id=${contact.id}`;
         console.log(`Calling process-addresses at URL: ${processUrl}`);
         
         const processResponse = await fetch(processUrl, { 
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${serviceRoleKey}`
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json"
           }
         });
         
@@ -175,6 +185,7 @@ Deno.serve(async (req) => {
       </div>`;
     }
 
+    console.log("Returning success response");
     return new Response(`<html><body>${responseMessage}</body></html>`, {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "text/html" }

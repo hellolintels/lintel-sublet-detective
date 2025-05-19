@@ -21,34 +21,47 @@ export default function ApproveProcessingPage() {
     // Add debug info
     setDebugInfo(`Processing ${action} for submission ID: ${submissionId}`);
     
-    // Direct call to the Supabase Edge Function (correct URL format)
+    // Direct call to the Supabase Edge Function with the full URL
     const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-approval?action=${action}&id=${submissionId}`;
     
     console.log("📤 Sending request to:", supabaseFunctionUrl);
 
-    fetch(supabaseFunctionUrl)
+    fetch(supabaseFunctionUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/html,application/json',
+        'Content-Type': 'application/json'
+      }
+    })
       .then(res => {
         setIsLoading(false);
+        setDebugInfo(prev => `${prev || ''}\n\nResponse status: ${res.status} ${res.statusText}`);
+        
         if (res.ok) {
           setStatus("✅ Approval processed successfully.");
           console.log("✅ Approval request succeeded with status:", res.status);
           res.text().then(html => {
-            // Fix: Check for element existence first, then assign innerHTML
-            const responseContainer = document.getElementById('response-container');
-            if (responseContainer) {
-              responseContainer.innerHTML = html;
-              
-              // Add more debug info about the response
-              setDebugInfo(prev => `${prev || ''}\n\nResponse received and processed successfully.`);
-            } else {
-              setDebugInfo(prev => `${prev || ''}\n\nWarning: response-container element not found in the DOM.`);
+            // Adding debug info about the response
+            setDebugInfo(prev => `${prev || ''}\n\nResponse content type: ${res.headers.get('content-type')}`);
+            
+            try {
+              // Fix: Check for element existence first, then assign innerHTML
+              const responseContainer = document.getElementById('response-container');
+              if (responseContainer) {
+                responseContainer.innerHTML = html;
+                setDebugInfo(prev => `${prev || ''}\n\nResponse HTML loaded into container (${html.length} bytes)`);
+              } else {
+                setDebugInfo(prev => `${prev || ''}\n\nWarning: response-container element not found in the DOM.`);
+              }
+            } catch (domError) {
+              setDebugInfo(prev => `${prev || ''}\n\nError setting HTML: ${domError.message}`);
             }
           });
         } else {
           res.text().then(text => {
-            console.error("❌ Error from process-approval:", text);
+            console.error(`❌ Error from process-approval: ${res.status} ${res.statusText}`, text);
             setStatus(`❌ Error ${res.status}: ${res.statusText}`);
-            setErrorDetails(text);
+            setErrorDetails(text || "No error details provided by the server");
             setDebugInfo(prev => `${prev || ''}\n\nServer returned error ${res.status}: ${text}`);
           });
         }
@@ -58,7 +71,7 @@ export default function ApproveProcessingPage() {
         console.error("❌ Network error:", err);
         setStatus("❌ Network error sending approval.");
         setErrorDetails(err.message);
-        setDebugInfo(prev => `${prev || ''}\n\nNetwork error: ${err.message}`);
+        setDebugInfo(prev => `${prev || ''}\n\nNetwork error: ${err.message}\n\nStack: ${err.stack || 'No stack trace available'}`);
       });
   }, []);
 
@@ -96,6 +109,7 @@ export default function ApproveProcessingPage() {
         }}>
           <h3>Error Details:</h3>
           <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{errorDetails}</pre>
+          <p>If this problem persists, please contact <a href="mailto:support@lintels.in">support@lintels.in</a> with the above error details.</p>
         </div>
       )}
       
