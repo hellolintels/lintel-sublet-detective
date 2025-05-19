@@ -5,7 +5,6 @@ export default function ApproveProcessingPage() {
   const [status, setStatus] = useState("Processing approval...");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
@@ -18,9 +17,6 @@ export default function ApproveProcessingPage() {
       setIsLoading(false);
       return;
     }
-
-    // Add debug info
-    setDebugInfo(`Processing ${action} for submission ID: ${submissionId}`);
     
     // Direct call to the Supabase Edge Function with the full URL
     const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-approval?action=${action}&id=${submissionId}`;
@@ -36,35 +32,16 @@ export default function ApproveProcessingPage() {
     })
       .then(res => {
         setIsLoading(false);
-        setDebugInfo(prev => `${prev || ''}\n\nResponse status: ${res.status} ${res.statusText}`);
         
         if (res.ok) {
           setStatus("✅ Approval processed successfully.");
           setIsSuccess(true);
           console.log("✅ Approval request succeeded with status:", res.status);
-          res.text().then(html => {
-            // Adding debug info about the response
-            setDebugInfo(prev => `${prev || ''}\n\nResponse content type: ${res.headers.get('content-type')}`);
-            
-            try {
-              // Fix: Check for element existence first, then assign innerHTML
-              const responseContainer = document.getElementById('response-container');
-              if (responseContainer) {
-                responseContainer.innerHTML = html;
-                setDebugInfo(prev => `${prev || ''}\n\nResponse HTML loaded into container (${html.length} bytes)`);
-              } else {
-                setDebugInfo(prev => `${prev || ''}\n\nWarning: response-container element not found in the DOM.`);
-              }
-            } catch (domError) {
-              setDebugInfo(prev => `${prev || ''}\n\nError setting HTML: ${domError.message}`);
-            }
-          });
         } else {
           res.text().then(text => {
             console.error(`❌ Error from process-approval: ${res.status} ${res.statusText}`, text);
             setStatus(`❌ Error ${res.status}: ${res.statusText}`);
             setErrorDetails(text || "No error details provided by the server");
-            setDebugInfo(prev => `${prev || ''}\n\nServer returned error ${res.status}: ${text}`);
           });
         }
       })
@@ -73,16 +50,15 @@ export default function ApproveProcessingPage() {
         console.error("❌ Network error:", err);
         setStatus("❌ Network error sending approval.");
         setErrorDetails(err.message);
-        setDebugInfo(prev => `${prev || ''}\n\nNetwork error: ${err.message}\n\nStack: ${err.stack || 'No stack trace available'}`);
       });
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white">
-      {/* Header section similar to site branding */}
+      {/* Header section with lintels.in branding */}
       <div className="bg-black py-4 shadow-md">
         <div className="container mx-auto px-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-[hsl(24,85%,50%)]">lintels.in</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">lintels.in</h1>
         </div>
       </div>
 
@@ -130,13 +106,6 @@ export default function ApproveProcessingPage() {
                 <p className="text-gray-300">If this problem persists, please contact <a href="mailto:support@lintels.in" className="text-[hsl(24,85%,50%)] hover:underline">support@lintels.in</a> with the error details above.</p>
               </div>
             </div>
-          </div>
-        )}
-
-        {debugInfo && (
-          <div className="mt-8 p-6 bg-gray-800 bg-opacity-50 rounded-lg shadow-md text-sm">
-            <h3 className="text-lg font-semibold text-gray-300 mb-3">Debug Information:</h3>
-            <pre className="bg-gray-900 p-4 rounded text-gray-300 whitespace-pre-wrap break-words text-xs">{debugInfo}</pre>
           </div>
         )}
         
