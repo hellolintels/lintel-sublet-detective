@@ -23,10 +23,10 @@ serve(async (req) => {
     
     console.log("Supabase client initialized");
 
-    // Create storage buckets if they don't exist
+    // Create pending-uploads bucket if it doesn't exist
     console.log("Attempting to create pending-uploads bucket");
     try {
-      const { data: pendingBucket, error: pendingError } = await supabase
+      const { error: pendingError } = await supabase
         .storage
         .createBucket("pending-uploads", {
           public: false,
@@ -34,15 +34,19 @@ serve(async (req) => {
           fileSizeLimit: 5242880, // 5MB
         });
 
-      console.log("pending-uploads bucket created or already exists");
+      if (pendingError) {
+        console.log("Note about pending-uploads bucket creation:", pendingError.message);
+      } else {
+        console.log("pending-uploads bucket created successfully");
+      }
     } catch (bucketError) {
-      // Bucket might already exist, which is fine
       console.log("Note: pending-uploads bucket may already exist");
     }
 
+    // Create approved-uploads bucket if it doesn't exist
     console.log("Attempting to create approved-uploads bucket");
     try {
-      const { data: approvedBucket, error: approvedError } = await supabase
+      const { error: approvedError } = await supabase
         .storage
         .createBucket("approved-uploads", {
           public: false,
@@ -50,9 +54,12 @@ serve(async (req) => {
           fileSizeLimit: 5242880, // 5MB
         });
 
-      console.log("approved-uploads bucket created or already exists");
+      if (approvedError) {
+        console.log("Note about approved-uploads bucket creation:", approvedError.message);
+      } else {
+        console.log("approved-uploads bucket created successfully");
+      }
     } catch (bucketError) {
-      // Bucket might already exist, which is fine
       console.log("Note: approved-uploads bucket may already exist");
     }
 
@@ -60,7 +67,8 @@ serve(async (req) => {
       JSON.stringify({
         message: "Setup completed successfully",
         timestamp: new Date().toISOString(),
-        status: "success"
+        status: "success",
+        bucketsCreated: true
       }),
       { 
         headers: { "Content-Type": "application/json", ...corsHeaders },

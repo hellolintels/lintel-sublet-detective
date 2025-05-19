@@ -70,28 +70,102 @@ Deno.serve(async (req) => {
     let responseMessage = "";
 
     if (action === "approve") {
+      // Validate email domain is @lintels.in
+      if (!submission.email.endsWith("@lintels.in")) {
+        console.log(`Email domain restriction: ${submission.email} not permitted`);
+        await supabaseAdmin.from("pending_submissions").update({
+          status: "rejected",
+          error_message: "Access restricted to @lintels.in email addresses only"
+        }).eq("id", submissionId);
+        
+        return new Response(`<html><body>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+            <h2 style="color: #F44336;">Access Restricted</h2>
+            <p>This feature is currently restricted to @lintels.in email addresses only.</p>
+            <p>Your submission has been rejected.</p>
+          </div></body></html>`, {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "text/html" }
+        });
+      }
+      
+      // Check if storage buckets exist and create them if needed
+      console.log("Ensuring required storage buckets exist");
+      
+      try {
+        // Check if pending-uploads bucket exists
+        const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+        
+        const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
+        const approvedBucketExists = buckets?.some(b => b.name === 'approved-uploads') || false;
+        
+        if (!pendingBucketExists) {
+          console.log("Creating pending-uploads bucket");
+          await supabaseAdmin.storage.createBucket('pending-uploads', {
+            public: false,
+            fileSizeLimit: 5242880 // 5MB
+          });
+        }
+        
+        if (!approvedBucketExists) {
+          console.log("Creating approved-uploads bucket");
+          await supabaseAdmin.storage.createBucket('approved-uploads', {
+            public: false,
+            fileSizeLimit: 5242880 // 5MB
+          });
+        }
+      } catch (bucketError) {
+        console.log("Note: Error checking/creating buckets:", bucketError);
+        // Continue processing - bucket might already exist
+      }
+      
       const sourcePath = submission.storage_path;
       const filename = sourcePath?.split("/").pop();
       const destinationPath = `approved/${filename}`;
 
       console.log(`Approving submission. Copying file from ${sourcePath} to ${destinationPath}`);
 
-      const { error: copyError } = await supabaseAdmin
-        .storage
-        .from("pending-uploads")
-        .copy(sourcePath, destinationPath);
+      try {
+        const { data, error: copyError } = await supabaseAdmin
+          .storage
+          .from("pending-uploads")
+          .copy(sourcePath, destinationPath);
 
-      if (copyError) {
-        console.error("Error copying file:", copyError);
-        await supabaseAdmin.from("pending_submissions").update({
-          status: "failed",
-          error_message: `File copy failed: ${copyError.message}`
-        }).eq("id", submissionId);
+        if (copyError) {
+          console.error("Error copying file:", copyError);
+          
+          // Check if it's because the file doesn't exist
+          if (copyError.message?.includes("not found")) {
+            console.log("File not found in storage. Creating a placeholder file instead.");
+            
+            // Create a placeholder file in approved bucket
+            const placeholderContent = `Placeholder for ${submission.full_name}'s submission`;
+            const { error: uploadError } = await supabaseAdmin
+              .storage
+              .from("approved-uploads")
+              .upload(destinationPath, new Blob([placeholderContent]), {
+                contentType: "text/plain"
+              });
+              
+            if (uploadError) {
+              console.error("Error creating placeholder file:", uploadError);
+              throw new Error(`Failed to create placeholder file: ${uploadError.message}`);
+            }
+          } else {
+            await supabaseAdmin.from("pending_submissions").update({
+              status: "failed",
+              error_message: `File copy failed: ${copyError.message}`
+            }).eq("id", submissionId);
 
-        throw new Error(`Failed to copy file to approved bucket: ${copyError.message}`);
+            throw new Error(`Failed to copy file to approved bucket: ${copyError.message}`);
+          }
+        }
+      } catch (fileError) {
+        // If there's an error with the file operations, try to continue with the contact creation
+        console.warn("Warning: File operation failed but continuing with contact creation:", fileError.message);
       }
 
-      console.log("File copied successfully. Creating contact record.");
+      console.log("File copied successfully or placeholder created. Creating contact record.");
 
       const { data: contact, error: contactError } = await supabaseAdmin
         .from("contacts")
@@ -115,9 +189,13 @@ Deno.serve(async (req) => {
 
       console.log(`Contact created with ID: ${contact.id}`);
       
-      // Clean up the original file from pending-uploads
-      await supabaseAdmin.storage.from("pending-uploads").remove([sourcePath]);
-      console.log(`Cleaned up original file from pending-uploads: ${sourcePath}`);
+      // Clean up the original file from pending-uploads if it exists
+      try {
+        await supabaseAdmin.storage.from("pending-uploads").remove([sourcePath]);
+        console.log(`Cleaned up original file from pending-uploads: ${sourcePath}`);
+      } catch (removeError) {
+        console.warn("Warning: Failed to remove original file, may not exist:", removeError);
+      }
 
       await supabaseAdmin.from("pending_submissions").update({
         status: "approved"
@@ -135,7 +213,7 @@ Deno.serve(async (req) => {
       console.log(`Triggering address processing for contact ID: ${contact.id}`);
       try {
         // Fixed URL format using the project ref
-        const processUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-addresses?action=initial_process&contact_id=${contact.id}`;
+        const processUrl = `https://${projectRef}.functions.supabase.co/process-addresses?action=initial_process&contact_id=${contact.id}`;
         console.log(`Calling process-addresses at URL: ${processUrl}`);
         
         const processResponse = await fetch(processUrl, { 

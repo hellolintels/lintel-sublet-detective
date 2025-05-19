@@ -10,6 +10,51 @@ import { v4 as uuidv4 } from "uuid";
 export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupAttempted, setSetupAttempted] = useState(false);
+
+  async function ensureStorageSetup() {
+    try {
+      console.log("Checking if storage buckets exist");
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error("Could not check storage buckets:", bucketsError);
+        throw new Error("Unable to access storage system");
+      }
+      
+      const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
+      console.log("pending-uploads bucket exists:", pendingBucketExists);
+      
+      if (!pendingBucketExists && !setupAttempted) {
+        console.log("pending-uploads bucket doesn't exist, calling setup function");
+        setSetupAttempted(true);
+        
+        // Call the setup function to create the buckets
+        const { error: setupError } = await supabase.functions.invoke("setup");
+        
+        if (setupError) {
+          console.error("Setup function error:", setupError);
+          throw new Error("Storage system setup failed");
+        }
+        
+        // Verify buckets were created successfully
+        const { data: verifyBuckets } = await supabase.storage.listBuckets();
+        const bucketsExist = verifyBuckets?.some(b => b.name === 'pending-uploads') || false;
+        
+        if (!bucketsExist) {
+          throw new Error("Storage buckets setup failed");
+        }
+        
+        console.log("Storage buckets created successfully");
+        return true;
+      }
+      
+      return pendingBucketExists;
+    } catch (setupError) {
+      console.error("Error setting up storage:", setupError);
+      throw new Error(`Storage system setup failed: ${setupError.message}`);
+    }
+  }
 
   async function submitContactForm(values: ContactFormValues) {
     try {
@@ -45,35 +90,17 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         // Continue even if row counting fails
       }
 
-      // Check if pending-uploads bucket exists before uploading
+      // Ensure storage buckets exist
       try {
-        console.log("Checking if pending-uploads bucket exists");
-        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-        
-        if (bucketsError) {
-          console.error("Could not check storage buckets:", bucketsError);
-          throw new Error("Unable to access storage system");
+        const storageReady = await ensureStorageSetup();
+        if (!storageReady) {
+          throw new Error("Storage system is not available");
         }
-        
-        const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
-        console.log("pending-uploads bucket exists:", pendingBucketExists);
-        
-        if (!pendingBucketExists) {
-          console.log("pending-uploads bucket doesn't exist, calling setup function");
-          
-          // Call the setup function to create the buckets
-          const { data: setupData, error: setupError } = await supabase.functions.invoke("setup");
-          
-          if (setupError) {
-            console.error("Setup function error:", setupError);
-            throw new Error("Storage system setup failed");
-          }
-          
-          console.log("Setup function response:", setupData);
-        }
-      } catch (setupError) {
-        console.error("Error setting up storage:", setupError);
-        throw new Error("Storage system setup failed");
+      } catch (storageError) {
+        console.error("Storage setup error:", storageError);
+        toast.error("Could not access storage system. Please try again later.");
+        setIsSubmitting(false);
+        return false;
       }
 
       // Generate a unique file path
@@ -123,7 +150,8 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       // Call the notify-admin function directly instead of through a proxy
       try {
         // Use direct function call with the project reference
-        const functionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/notify-admin`;
+        const projectRef = "uejymkggevuvuerldzhv";
+        const functionUrl = `https://${projectRef}.functions.supabase.co/notify-admin`;
         
         console.log(`Sending direct request to notify-admin at: ${functionUrl}`);
         
