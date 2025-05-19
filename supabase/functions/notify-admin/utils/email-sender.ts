@@ -1,177 +1,175 @@
 
-// Direct implementation of SendGrid API using fetch
-// This avoids using the Node.js SDK which isn't compatible with Deno
+// Import necessary types
+import { EmailAttachment, EmailSendResult } from "../utils/email-types.ts";
 
 /**
- * Sends an email via SendGrid API with attachment handling and improved error handling
- * @param to Recipient email address
+ * Cleans and prepares attachment content for email sending
+ * @param attachment Optional attachment information
+ * @returns Cleaned attachment or null
+ */
+export function cleanAttachmentContent(attachment?: EmailAttachment): EmailAttachment | null {
+  if (!attachment || !attachment.content) {
+    return null;
+  }
+
+  try {
+    // If the content is a string, ensure it's valid base64
+    if (typeof attachment.content === 'string') {
+      // Clean the string by removing non-base64 characters
+      const cleanContent = attachment.content.replace(/[^A-Za-z0-9+/=]/g, '');
+      return {
+        ...attachment,
+        content: cleanContent
+      };
+    }
+    return attachment;
+  } catch (error) {
+    console.error('Error cleaning attachment content:', error);
+    return null;
+  }
+}
+
+/**
+ * Log details about an email being sent
+ * @param to Recipient email
  * @param subject Email subject
- * @param htmlContent HTML content for the email
- * @param textContent Plain text content for the email
- * @param fileContent Plain text file content for attachment
- * @param fileName Name of the attachment file
- * @param fileType MIME type of the attachment
- * @returns Promise that resolves when the email is sent
+ * @param htmlContentLength Length of HTML content
+ * @param attachment Optional attachment
+ */
+export function logEmailDetails(
+  to: string,
+  subject: string,
+  htmlContentLength: number,
+  attachment?: EmailAttachment
+): void {
+  console.log(`Sending email to: ${to}`);
+  console.log(`Subject: ${subject}`);
+  console.log(`HTML Content Length: ${htmlContentLength} bytes`);
+  if (attachment) {
+    console.log(`Attachment: ${attachment.filename} (${attachment.content.length} bytes)`);
+  } else {
+    console.log('No attachment');
+  }
+}
+
+/**
+ * Log details about a SendGrid response
+ * @param to Recipient email
+ * @param response SendGrid API response
+ */
+export function logSendGridResponse(to: string, response: Response): void {
+  console.log(`SendGrid response for ${to}: status=${response.status}, ok=${response.ok}`);
+}
+
+/**
+ * Log details about a failed email sending attempt
+ * @param to Recipient email
+ * @param subject Email subject
+ * @param error The error that occurred
+ */
+export function logSendingFailure(to: string, subject: string, error: unknown): void {
+  console.error(`❌ Failed to send email to ${to} with subject "${subject}":`, error);
+}
+
+/**
+ * Enhanced email sending function with SendGrid API integration
+ * @param to Email address of the recipient
+ * @param subject Subject line of the email
+ * @param htmlContent HTML content of the email
+ * @param plainContent Plain text content of the email
+ * @param attachment Optional file attachment (base64 encoded)
+ * @returns Object indicating success or failure
  */
 export async function sendEmail(
   to: string,
   subject: string,
   htmlContent: string,
-  textContent: string,
-  fileContent?: string,
-  fileName?: string,
-  fileType?: string
-): Promise<{ success: boolean, message: string }> {
-  // Get SendGrid API key
-  const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
-  if (!sendgridApiKey) {
-    console.error('SendGrid API key not configured');
-    return { success: false, message: 'SendGrid API key not configured' };
-  }
-  
-  // Add a timestamp to the subject to prevent threading in email clients
-  const timestampedSubject = `${subject} [${new Date().toISOString()}]`;
-  
-  // Log initial parameters for debugging
-  console.log(`--------------------------------`);
-  console.log(`SENDING EMAIL TO: ${to}`);
-  console.log(`EMAIL SUBJECT: ${timestampedSubject}`);
-  console.log(`FILE NAME: ${fileName || 'N/A'}`);
-  console.log(`FILE TYPE: ${fileType || 'N/A'}`);
-  console.log(`FILE CONTENT LENGTH: ${fileContent ? fileContent.length : 0} bytes`);
-
-  if (fileContent && fileContent.length > 0) {
-    console.log(`FILE CONTENT SAMPLE: ${fileContent.substring(0, 100)}...`);
-  }
-
-  // Try up to 3 times to send the email
-  let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      console.log(`Email send attempt ${attempt} to ${to}`);
-      
-      // Special handling for known critical destinations
-      const isAdminEmail = to.includes('jamie@lintels.in');
-      if (isAdminEmail) {
-        console.log(`CRITICAL ADMIN EMAIL DETECTED: ${to} - Adding extra tracking info`);
-        subject = `[IMPORTANT] ${timestampedSubject}`; // Mark admin emails as important
-      }
-      
-      // Prepare the SendGrid API payload
-      const payload: any = {
-        personalizations: [
-          {
-            to: [{ email: to }]
-          }
-        ],
-        from: {
-          email: 'hello@lintels.in',
-          name: 'Lintels.in Notifications'
-        },
-        subject: timestampedSubject,
-        content: [
-          {
-            type: 'text/plain', 
-            value: textContent
-          },
-          {
-            type: 'text/html',
-            value: htmlContent
-          }
-        ]
-      };
-
-      // Add attachment if we have file content
-      if (fileContent && fileContent.length > 0) {
-        console.log(`Adding file attachment to email, attempt ${attempt}`);
-        
-        try {
-          // Use TextEncoder to convert string to Uint8Array
-          const encoder = new TextEncoder();
-          const uint8Array = encoder.encode(fileContent);
-          
-          // Convert to base64
-          const base64Content = btoa(
-            String.fromCharCode.apply(null, Array.from(uint8Array))
-          );
-          
-          payload.attachments = [{
-            content: base64Content,
-            filename: fileName || 'attachment.csv',
-            type: fileType || 'text/csv',
-            disposition: 'attachment'
-          }];
-          
-          console.log("Attachment encoded successfully");
-        } catch (encodeError) {
-          console.error("Error encoding attachment:", encodeError);
-          // Continue without attachment if encoding fails
-        }
-      }
-
-      console.log(`Sending email with SendGrid API, attempt ${attempt}`);
-      console.log("Email configuration:", JSON.stringify({
-        to,
-        from: payload.from,
-        subject: timestampedSubject,
-        htmlContentLength: htmlContent.length,
-        textContentLength: textContent.length,
-        hasAttachment: !!fileContent,
-        attachmentFilename: fileName
-      }));
-      
-      // Send without logging the full payload (can be large with attachments)
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sendgridApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      // Check response status
-      if (response.ok) {
-        console.log(`Email sent successfully on attempt ${attempt}:`, {
-          status: response.status,
-          statusText: response.statusText
-        });
-        
-        return { 
-          success: true, 
-          message: `Email sent successfully on attempt ${attempt}` 
-        };
-      } else {
-        // Extract error details from SendGrid response
-        const errorText = await response.text();
-        console.error(`SendGrid API error response (${response.status}): ${errorText}`);
-        lastError = new Error(`SendGrid API returned status ${response.status}: ${errorText}`);
-        
-        // Only retry for certain types of errors (e.g., 5xx errors)
-        if (response.status >= 500 && attempt < 3) {
-          console.log(`Waiting before retry attempt ${attempt + 1}...`);
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-        } else if (response.status < 500) {
-          // Don't retry for 4xx errors
-          break;
-        }
-      }
-    } catch (error) {
-      console.error(`SendGrid fetch error on attempt ${attempt}:`, error);
-      lastError = error;
-      
-      if (attempt < 3) {
-        console.log(`Waiting before retry attempt ${attempt + 1}...`);
-        // Wait before retry with exponential backoff
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-      }
+  plainContent: string = '',
+  attachment?: EmailAttachment
+): Promise<EmailSendResult> {
+  try {
+    logEmailDetails(to, subject, htmlContent.length, attachment);
+    
+    // Validate recipient email
+    if (!to || !to.includes('@')) {
+      throw new Error(`Invalid recipient email: ${to}`);
     }
+    
+    // Clean up the attachment content
+    const cleanedAttachment = cleanAttachmentContent(attachment);
+    
+    // Get the SendGrid API key from environment variables
+    const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
+    if (!sendgridApiKey) {
+      throw new Error("SendGrid API key is not configured");
+    }
+    
+    // Prepare the email payload for SendGrid API
+    const emailPayload: any = {
+      personalizations: [
+        {
+          to: [{ email: to }]
+        }
+      ],
+      from: {
+        email: 'hello@lintels.in',
+        name: 'Lintels.in'
+      },
+      subject: subject,
+      content: [
+        {
+          type: 'text/plain',
+          value: plainContent || htmlContent.replace(/<[^>]*>?/gm, '')
+        },
+        {
+          type: 'text/html',
+          value: htmlContent
+        }
+      ]
+    };
+    
+    // Add attachment if provided
+    if (cleanedAttachment) {
+      emailPayload.attachments = [{
+        content: cleanedAttachment.content,
+        filename: cleanedAttachment.filename,
+        type: cleanedAttachment.contentType,
+        disposition: 'attachment'
+      }];
+    }
+    
+    // Send the email using SendGrid API
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sendgridApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(emailPayload)
+    });
+    
+    logSendGridResponse(to, response);
+    
+    if (response.ok) {
+      return { 
+        success: true, 
+        messageId: `sendgrid_${Date.now()}`,
+        recipient: to,
+        subject: subject
+      };
+    } else {
+      const errorText = await response.text();
+      throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
+    }
+    
+  } catch (error) {
+    logSendingFailure(to, subject, error);
+    
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error),
+      recipient: to,
+      subject: subject
+    };
   }
-  
-  // All attempts failed
-  return { 
-    success: false, 
-    message: `Failed to send email after 3 attempts: ${lastError?.message || 'Unknown error'}`
-  };
 }

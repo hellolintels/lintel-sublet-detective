@@ -150,9 +150,11 @@ serve(async (req) => {
         `New Address Submission from ${payload.full_name}`,
         htmlContent,
         plainText,
-        processedContent,
-        fileName,
-        fileType
+        {
+          content: processedContent,
+          filename: fileName,
+          contentType: fileType
+        }
       );
       
       console.log('Email sending result:', emailResult);

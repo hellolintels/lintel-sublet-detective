@@ -9,15 +9,23 @@ import { useState, useEffect } from "react";
 import { contactFormSchema, ContactFormValues } from "./contact-form-schema";
 import { useContactFormSubmit } from "./use-contact-form-submit";
 import { FileUploadField } from "./FileUploadField";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 interface ContactFormProps {
   onOpenChange?: (open: boolean) => void;
   formType?: string;
   defaultOpen?: boolean;
+  setupComplete?: boolean;
+  isSettingUp?: boolean;
 }
 
-export function ContactForm({ onOpenChange, formType = "sample", defaultOpen = false }: ContactFormProps) {
+export function ContactForm({ 
+  onOpenChange, 
+  formType = "sample", 
+  defaultOpen = false,
+  setupComplete = false,
+  isSettingUp = false
+}: ContactFormProps) {
   const [open, setOpen] = useState(defaultOpen);
   
   const form = useForm<ContactFormValues>({
@@ -63,6 +71,10 @@ export function ContactForm({ onOpenChange, formType = "sample", defaultOpen = f
   }, [onOpenChange, form]);
 
   async function onSubmit(values: ContactFormValues) {
+    if (!setupComplete && !isSettingUp) {
+      // Don't submit if setup isn't complete
+      return;
+    }
     await submitContactForm(values);
   }
 
@@ -168,7 +180,14 @@ export function ContactForm({ onOpenChange, formType = "sample", defaultOpen = f
               )}
             />
             
-            <FileUploadField form={form} />
+            {isSettingUp ? (
+              <div className="bg-blue-500/10 border border-blue-800 rounded p-3 flex items-center gap-2">
+                <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                <div className="text-blue-500 text-sm">Setting up storage system...</div>
+              </div>
+            ) : (
+              <FileUploadField form={form} disabled={!setupComplete} />
+            )}
             
             {error && (
               <div className="bg-red-500/10 border border-red-800 rounded p-3 flex items-start gap-2">
@@ -177,8 +196,22 @@ export function ContactForm({ onOpenChange, formType = "sample", defaultOpen = f
               </div>
             )}
             
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit Request"}
+            {!setupComplete && !isSettingUp && (
+              <div className="bg-red-500/10 border border-red-800 rounded p-3 flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="text-red-500 text-sm">Storage setup failed. Please try again later.</div>
+              </div>
+            )}
+            
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isSubmitting || isSettingUp || !setupComplete}
+            >
+              {isSubmitting ? "Submitting..." : 
+                isSettingUp ? "Setting up..." : 
+                !setupComplete ? "Setup Required" : 
+                "Submit Request"}
             </Button>
           </form>
         </Form>

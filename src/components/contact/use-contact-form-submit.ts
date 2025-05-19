@@ -45,56 +45,44 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         // Continue even if row counting fails
       }
 
-      // Check for the pending-uploads bucket and create it if it doesn't exist
-      let pendingBucketExists = false;
-      
-      // First, check if bucket exists
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.warn("Could not check storage buckets:", bucketsError.message);
-      } else {
-        pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
-        console.log("Pending bucket exists:", pendingBucketExists);
-      }
-      
-      // Create the bucket if needed
-      if (!pendingBucketExists) {
-        console.log("Creating pending-uploads bucket...");
-        try {
-          const { data: newBucket, error: createError } = await supabase.storage
-            .createBucket('pending-uploads', { public: false });
-            
-          if (createError) {
-            console.error("Failed to create pending-uploads bucket:", createError);
-            setError("Storage setup failed. Please contact support.");
-            setIsSubmitting(false);
-            return false;
-          } else {
-            console.log("Created pending-uploads bucket:", newBucket);
-            pendingBucketExists = true;
-          }
-        } catch (bucketError) {
-          console.error("Exception creating bucket:", bucketError);
-          setError("Storage setup failed. Please try again later.");
-          setIsSubmitting(false);
-          return false;
+      // Check if pending-uploads bucket exists before uploading
+      try {
+        console.log("Checking if pending-uploads bucket exists");
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        
+        if (bucketsError) {
+          console.error("Could not check storage buckets:", bucketsError);
+          throw new Error("Unable to access storage system");
         }
+        
+        const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
+        console.log("pending-uploads bucket exists:", pendingBucketExists);
+        
+        if (!pendingBucketExists) {
+          console.log("pending-uploads bucket doesn't exist, calling setup function");
+          
+          // Call the setup function to create the buckets
+          const { data: setupData, error: setupError } = await supabase.functions.invoke("setup");
+          
+          if (setupError) {
+            console.error("Setup function error:", setupError);
+            throw new Error("Storage system setup failed");
+          }
+          
+          console.log("Setup function response:", setupData);
+        }
+      } catch (setupError) {
+        console.error("Error setting up storage:", setupError);
+        throw new Error("Storage system setup failed");
       }
 
-      // 1. Upload file to Supabase Storage
-      const fileExt = file.name.split(".").pop();
+      // Generate a unique file path
+      const fileExt = file.name.split(".").pop() || "";
       const uniqueFileName = `${uuidv4()}.${fileExt}`;
-      const storagePath = `public/${uniqueFileName}`;
+      const storagePath = `${values.email.split('@')[0]}-${uniqueFileName}`;
 
+      // Upload file to Supabase Storage
       console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
-      
-      // Ensure the bucket exists before uploading
-      if (!pendingBucketExists) {
-        setError("Storage system unavailable. Please try again later.");
-        setIsSubmitting(false);
-        return false;
-      }
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("pending-uploads")
@@ -102,13 +90,18 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
 
       if (uploadError) {
         console.error("Supabase Storage upload error:", uploadError);
-        setError("Failed to upload file. Please try again or contact support.");
+        
+        // Handle specific error cases
+        if (uploadError.message.includes("Bucket not found")) {
+          throw new Error("Storage system not configured properly");
+        }
+        
         throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
 
       console.log("File uploaded successfully:", uploadData);
 
-      // 2. Prepare data for the notify-admin function
+      // Prepare data for the notify-admin function
       const notificationPayload = {
         full_name: values.fullName,
         email: values.email,
@@ -127,7 +120,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         duration: 10000
       });
       
-      // 3. Call the notify-admin function through our API endpoint
+      // Call the notify-admin function through our API endpoint
       try {
         const response = await fetch('/approve-processing/notify-admin', {
           method: 'POST',
@@ -137,16 +130,17 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           body: JSON.stringify(notificationPayload)
         });
         
-        const functionData = await response.json();
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error from notify-admin function:", errorText);
+          throw new Error(`Server processing error: ${response.status}`);
+        }
         
+        const functionData = await response.json();
         console.log("notify-admin response:", functionData);
         toast.dismiss("processing-submission");
         
-        if (!response.ok) {
-          throw new Error(functionData.error || 'Unknown error from server');
-        }
-
-        // 4. Mark as success
+        // Success handling
         if (onSuccess) {
           onSuccess();
         }
@@ -181,7 +175,6 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           console.error("Failed to cleanup uploaded file after function error:", cleanupError);
         }
         
-        setError(`Failed to process submission: ${functionError.message || "Unknown error"}`);
         throw new Error(`Failed to process submission: ${functionError.message || "Unknown error"}`);
       }
     } catch (error: any) {
@@ -196,6 +189,10 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           errorMessage = "Network error connecting to our servers. Please check your internet connection and try again.";
         } else if (error.message.includes("Edge Function")) {
           errorMessage = "Server processing error. Our team has been notified. Please try again later.";
+        } else if (error.message.includes("Storage system")) {
+          errorMessage = "Storage system error. Please contact support@lintels.in for assistance.";
+        } else if (error.message.includes("Bucket not found")) {
+          errorMessage = "Storage configuration error. Please contact support@lintels.in for assistance.";
         } else {
           errorMessage = `Error: ${error.message}`;
         }

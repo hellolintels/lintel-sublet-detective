@@ -15,6 +15,10 @@ verify_jwt = false
 
 [storage.pending-uploads]
 public = false
+allowed_mime_types = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+file_size_limit = 5242880
 
 [storage.approved-uploads]
 public = false
+allowed_mime_types = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+file_size_limit = 5242880
