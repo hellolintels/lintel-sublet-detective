@@ -2,8 +2,8 @@
 {
   "rewrites": [
     {
-      "source": "/approve-processing/:slug*",
-      "destination": "https://uejymkggevuvuerldzhv.supabase.co/functions/v1/:slug*"
+      "source": "/approve-processing",
+      "destination": "/"
     },
     {
       "source": "/(.*)",

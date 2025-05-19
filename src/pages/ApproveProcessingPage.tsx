@@ -1,5 +1,4 @@
 
-// ApproveProcessingPage.tsx
 import { useEffect, useState } from "react";
 
 export default function ApproveProcessingPage() {
@@ -22,8 +21,10 @@ export default function ApproveProcessingPage() {
     // Add debug info
     setDebugInfo(`Processing ${action} for submission ID: ${submissionId}`);
     
-    // Use the process-approval Edge Function directly
-    const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.supabase.co/functions/v1/process-approval?action=${action}&id=${submissionId}`;
+    // UPDATED: Use the correct URL path for accessing the Edge Function
+    // The issue might be with the vercel.json rewrites not matching correctly
+    const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-approval?action=${action}&id=${submissionId}`;
+    
     console.log("📤 Sending request to:", supabaseFunctionUrl);
 
     fetch(supabaseFunctionUrl)
