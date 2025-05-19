@@ -1,14 +1,9 @@
 
 import React from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  "https://uejymkggevuvuerldzhv.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlanlta2dnZXZ1dnVlcmxkemh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTg0MDUsImV4cCI6MjA2MTY3NDQwNX0.SooHrfGFnVZo4EjXwU5dVDydlKN4J7wCt7ImkRaGryU"
-);
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
-  const sendToNotifyAdmin = async (contactId) => {
+  const sendToNotifyAdmin = async (contactId: string) => {
     const { data, error } = await supabase.functions.invoke('notify-admin', {
       body: { contactId },
     });
