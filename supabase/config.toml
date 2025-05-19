@@ -1,5 +1,17 @@
 
-project_id = "uejymkggevuvuerldzhv"
+# This file controls the configuration of the Lovable backed by Supabase project.
+project_id = "process-addresses"
+
+# Email sender function debug logging configuration
+[global.env_variables]
+LOG_LEVEL = "INFO"
+
+# Function configurations
+[functions.setup]
+verify_jwt = false
+
+[functions.email-sender]
+verify_jwt = false
 
 [functions.process-addresses]
 verify_jwt = false
@@ -9,16 +21,3 @@ verify_jwt = false
 
 [functions.process-approval]
 verify_jwt = false
-
-[functions.setup]
-verify_jwt = false
-
-[storage.pending-uploads]
-public = false
-allowed_mime_types = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
-file_size_limit = 5242880
-
-[storage.approved-uploads]
-public = false
-allowed_mime_types = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
-file_size_limit = 5242880
