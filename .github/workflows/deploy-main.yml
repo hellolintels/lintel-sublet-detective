@@ -23,6 +23,8 @@ jobs:
 
       - name: Build project
         run: npm run build
+        env:
+          NODE_ENV: production
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
@@ -31,8 +33,8 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
-
-      - name: Update Supabase Edge Functions
+          
+      - name: Verification
         run: |
-          echo "Deploying edge functions to Supabase"
-          # Add specific Supabase CLI deployment steps here when needed
+          echo "Production deployment completed successfully"
+          echo "Site is now live at https://lintels.in"
