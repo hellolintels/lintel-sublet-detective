@@ -20,7 +20,7 @@ const Footer = () => {
           <Button
             variant="ghost"
             className="text-gray-300 hover:text-[hsl(24,97%,40%)] hover:bg-transparent transition-colors"
-            onClick={() => window.location.href = "mailto:hello@lintels.in"}
+            onClick={() => window.location.href = "mailto:support@lintels.in"}
           >
             <Mail className="mr-2 h-4 w-4" />
             Contact Us

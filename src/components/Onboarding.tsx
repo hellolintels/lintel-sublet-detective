@@ -2,11 +2,8 @@
 import { Button } from "./ui/button";
 
 const Onboarding = () => {
-  const scrollToContact = () => {
-    const contactSection = document.getElementById('contact-section');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
+  const handleContactClick = () => {
+    window.location.href = "mailto:support@lintels.in";
   };
 
   return (
@@ -22,7 +19,7 @@ const Onboarding = () => {
           </p>
         </div>
         <Button
-          onClick={scrollToContact}
+          onClick={handleContactClick}
           className="bg-[hsl(24,97%,40%)] hover:bg-[hsl(24,97%,35%)] text-white px-6 sm:px-8 py-6 text-base sm:text-lg rounded-full font-medium transition-colors duration-200 min-h-[3.5rem] w-full sm:w-auto"
         >
           Request a Sample Report
