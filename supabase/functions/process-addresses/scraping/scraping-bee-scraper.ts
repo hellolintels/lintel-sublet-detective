@@ -6,6 +6,8 @@ const SCRAPINGBEE_API_KEY = Deno.env.get("SCRAPINGBEE_API_KEY");
 
 export interface ScrapeResult {
   postcode: string;
+  address?: string;
+  streetName?: string;
   airbnb: string;
   spareroom: string;
   gumtree: string;
@@ -67,14 +69,20 @@ export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<Scra
   const results: ScrapeResult[] = [];
   
   for (const item of limitedPostcodes) {
-    console.log(`ScrapingBee: Processing ${item.postcode}`);
+    console.log(`ScrapingBee: Processing ${item.postcode}, Street: ${item.streetName || "Unknown"}`);
     
     const address = item.address || "";
+    const streetName = item.streetName || "";
     const postcode = item.postcode.replace(/\s/g, "");
+    
+    // Create a search query that includes street name if available
+    const searchQuery = streetName ? `${streetName}, ${postcode}` : postcode;
     
     // Initialize result with default "No match" values
     const result: ScrapeResult = {
       postcode: item.postcode,
+      address: address,
+      streetName: streetName,
       airbnb: "No match",
       spareroom: "No match",
       gumtree: "No match",
@@ -82,10 +90,10 @@ export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<Scra
     
     // Airbnb scraping
     try {
-      console.log(`ScrapingBee: Scraping Airbnb for ${postcode}`);
+      console.log(`ScrapingBee: Scraping Airbnb for ${searchQuery}`);
       
       // ScrapingBee API call using environment variable
-      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.airbnb.com/s/${postcode}/homes`)}&render_js=true`;
+      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`)}&render_js=true`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -95,24 +103,35 @@ export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<Scra
       
       const html = await response.text();
       
-      // Check if there are listings in the postcode area
-      if (html.includes(postcode) && html.includes("data-testid=\"card-container\"")) {
-        console.log(`ScrapingBee: Found Airbnb listings for ${postcode}`);
-        // For this test implementation, we'll mark it as "Investigate" if we find any listings
-        const mapLink = `https://www.airbnb.co.uk/s/${postcode}/homes?map=true`;
-        result.airbnb = `=HYPERLINK("${mapLink}","Investigate")`;
+      // Check if there are listings in the search area
+      if (html.includes(`"${searchQuery}"`) || html.includes(postcode)) {
+        // Additional check for street name match if available
+        let confidenceLevel = "Medium";
+        
+        if (streetName && html.toLowerCase().includes(streetName.toLowerCase())) {
+          console.log(`ScrapingBee: Found Airbnb listings with street match for ${searchQuery}`);
+          confidenceLevel = "High";
+          const mapLink = `https://www.airbnb.co.uk/s/${encodeURIComponent(searchQuery)}/homes?map=true`;
+          result.airbnb = `=HYPERLINK("${mapLink}","Investigate (${confidenceLevel})")`;
+        } else if (html.includes("data-testid=\"card-container\"")) {
+          console.log(`ScrapingBee: Found Airbnb listings for ${searchQuery}`);
+          const mapLink = `https://www.airbnb.co.uk/s/${encodeURIComponent(searchQuery)}/homes?map=true`;
+          result.airbnb = `=HYPERLINK("${mapLink}","Investigate (${confidenceLevel})")`;
+        } else {
+          console.log(`ScrapingBee: No Airbnb listings found for ${searchQuery}`);
+        }
       } else {
-        console.log(`ScrapingBee: No Airbnb listings found for ${postcode}`);
+        console.log(`ScrapingBee: No Airbnb listings found for ${searchQuery}`);
       }
     } catch (error) {
-      console.error(`ScrapingBee: Error scraping Airbnb for ${postcode}:`, error);
+      console.error(`ScrapingBee: Error scraping Airbnb for ${searchQuery}:`, error);
     }
     
-    // SpareRoom scraping - simplified for testing
+    // SpareRoom scraping
     try {
-      console.log(`ScrapingBee: Scraping SpareRoom for ${postcode}`);
+      console.log(`ScrapingBee: Scraping SpareRoom for ${searchQuery}`);
       
-      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.spareroom.co.uk/flatshare/?search=${postcode}`)}&render_js=true`;
+      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.spareroom.co.uk/flatshare/?search=${encodeURIComponent(searchQuery)}`)}&render_js=true`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -122,23 +141,35 @@ export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<Scra
       
       const html = await response.text();
       
-      // Check if there are listings in the postcode area
-      if (html.includes("listing-") && html.includes(postcode)) {
-        console.log(`ScrapingBee: Found SpareRoom listings for ${postcode}`);
-        const mapLink = `https://www.spareroom.co.uk/flatshare/?search=${postcode}`;
-        result.spareroom = `=HYPERLINK("${mapLink}","Investigate")`;
+      // Check if there are listings in the search area
+      if (html.includes("listing-")) {
+        // Additional check for street name match if available
+        let confidenceLevel = "Medium";
+        
+        if (streetName && html.toLowerCase().includes(streetName.toLowerCase())) {
+          console.log(`ScrapingBee: Found SpareRoom listings with street match for ${searchQuery}`);
+          confidenceLevel = "High";
+          const mapLink = `https://www.spareroom.co.uk/flatshare/?search=${encodeURIComponent(searchQuery)}`;
+          result.spareroom = `=HYPERLINK("${mapLink}","Investigate (${confidenceLevel})")`;
+        } else if (html.includes(postcode)) {
+          console.log(`ScrapingBee: Found SpareRoom listings for ${searchQuery}`);
+          const mapLink = `https://www.spareroom.co.uk/flatshare/?search=${encodeURIComponent(searchQuery)}`;
+          result.spareroom = `=HYPERLINK("${mapLink}","Investigate (${confidenceLevel})")`;
+        } else {
+          console.log(`ScrapingBee: No exact SpareRoom listings found for ${searchQuery}`);
+        }
       } else {
-        console.log(`ScrapingBee: No SpareRoom listings found for ${postcode}`);
+        console.log(`ScrapingBee: No SpareRoom listings found for ${searchQuery}`);
       }
     } catch (error) {
-      console.error(`ScrapingBee: Error scraping SpareRoom for ${postcode}:`, error);
+      console.error(`ScrapingBee: Error scraping SpareRoom for ${searchQuery}:`, error);
     }
     
-    // Gumtree scraping - simplified for testing
+    // Gumtree scraping
     try {
-      console.log(`ScrapingBee: Scraping Gumtree for ${postcode}`);
+      console.log(`ScrapingBee: Scraping Gumtree for ${searchQuery}`);
       
-      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.gumtree.com/search?search_location=${postcode}`)}&render_js=true`;
+      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.gumtree.com/search?search_location=${encodeURIComponent(searchQuery)}`)}&render_js=true`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -148,20 +179,32 @@ export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<Scra
       
       const html = await response.text();
       
-      // Check if there are listings in the postcode area
-      if (html.includes("listing-") && html.includes(postcode)) {
-        console.log(`ScrapingBee: Found Gumtree listings for ${postcode}`);
-        const mapLink = `https://www.gumtree.com/search?search_location=${postcode}`;
-        result.gumtree = `=HYPERLINK("${mapLink}","Investigate")`;
+      // Check if there are listings in the search area
+      if (html.includes("listing-")) {
+        // Additional check for street name match if available
+        let confidenceLevel = "Medium";
+        
+        if (streetName && html.toLowerCase().includes(streetName.toLowerCase())) {
+          console.log(`ScrapingBee: Found Gumtree listings with street match for ${searchQuery}`);
+          confidenceLevel = "High";
+          const mapLink = `https://www.gumtree.com/search?search_location=${encodeURIComponent(searchQuery)}`;
+          result.gumtree = `=HYPERLINK("${mapLink}","Investigate (${confidenceLevel})")`;
+        } else if (html.includes(postcode)) {
+          console.log(`ScrapingBee: Found Gumtree listings for ${searchQuery}`);
+          const mapLink = `https://www.gumtree.com/search?search_location=${encodeURIComponent(searchQuery)}`;
+          result.gumtree = `=HYPERLINK("${mapLink}","Investigate (${confidenceLevel})")`;
+        } else {
+          console.log(`ScrapingBee: No exact Gumtree listings found for ${searchQuery}`);
+        }
       } else {
-        console.log(`ScrapingBee: No Gumtree listings found for ${postcode}`);
+        console.log(`ScrapingBee: No Gumtree listings found for ${searchQuery}`);
       }
     } catch (error) {
-      console.error(`ScrapingBee: Error scraping Gumtree for ${postcode}:`, error);
+      console.error(`ScrapingBee: Error scraping Gumtree for ${searchQuery}:`, error);
     }
     
     results.push(result);
-    console.log(`ScrapingBee: Completed processing ${postcode}`);
+    console.log(`ScrapingBee: Completed processing ${searchQuery}`);
   }
   
   return results;

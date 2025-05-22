@@ -15,6 +15,7 @@ export function generateHtmlReport(scrapingResults: any[]): string {
         <thead>
           <tr style="background-color: #f2f2f2;">
             <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Postcode</th>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Address</th>
             <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Airbnb</th>
             <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">SpareRoom</th>
             <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Gumtree</th>
@@ -24,6 +25,7 @@ export function generateHtmlReport(scrapingResults: any[]): string {
           ${scrapingResults.map(result => `
             <tr>
               <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">${result.postcode}</td>
+              <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">${result.address || result.streetName || 'Not available'}</td>
               <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">
                 ${formatCell(result.airbnb)}
               </td>
@@ -107,13 +109,17 @@ export function generateExcelReport(scrapingResults: any[], contactInfo?: any): 
   <Style ss:ID="s65">
    <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FF9900" ss:Bold="1"/>
   </Style>
+  <Style ss:ID="s66">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#009900" ss:Bold="1"/>
+  </Style>
   <Style ss:ID="hyperlink">
    <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#0563C1" ss:Underline="Single"/>
   </Style>
  </Styles>
  <Worksheet ss:Name="Postcode Matching Results">
-  <Table ss:ExpandedColumnCount="4" ss:ExpandedRowCount="${scrapingResults.length + 5}" x:FullColumns="1" x:FullRows="1" ss:DefaultColumnWidth="65" ss:DefaultRowHeight="15">
+  <Table ss:ExpandedColumnCount="5" ss:ExpandedRowCount="${scrapingResults.length + 5}" x:FullColumns="1" x:FullRows="1" ss:DefaultColumnWidth="65" ss:DefaultRowHeight="15">
    <Column ss:Width="80"/>
+   <Column ss:Width="180"/>
    <Column ss:Width="120"/>
    <Column ss:Width="120"/>
    <Column ss:Width="120"/>
@@ -122,6 +128,7 @@ export function generateExcelReport(scrapingResults: any[], contactInfo?: any): 
    
    <Row>
     <Cell ss:StyleID="s62"><Data ss:Type="String">Postcode</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="String">Address</Data></Cell>
     <Cell ss:StyleID="s62"><Data ss:Type="String">Airbnb</Data></Cell>
     <Cell ss:StyleID="s62"><Data ss:Type="String">SpareRoom</Data></Cell>
     <Cell ss:StyleID="s62"><Data ss:Type="String">Gumtree</Data></Cell>
@@ -129,6 +136,7 @@ export function generateExcelReport(scrapingResults: any[], contactInfo?: any): 
    ${scrapingResults.map(result => `
    <Row>
     <Cell><Data ss:Type="String">${result.postcode}</Data></Cell>
+    <Cell><Data ss:Type="String">${result.address || result.streetName || 'Not available'}</Data></Cell>
     ${formatExcelCell(result.airbnb)}
     ${formatExcelCell(result.spareroom)}
     ${formatExcelCell(result.gumtree)}
@@ -171,6 +179,24 @@ export function formatExcelCell(platformResult: any): string {
     return `<Cell ss:StyleID="s64"><Data ss:Type="String">error</Data></Cell>`;
   }
   
+  if (typeof platformResult === 'string') {
+    // Handle direct string values (from ScrapingBee implementation)
+    if (platformResult.includes("Investigate (High)")) {
+      return `<Cell ss:StyleID="s66"><Data ss:Type="String">${platformResult.replace(/=HYPERLINK\("([^"]+)","([^"]+)"\)/, '$2')}</Data></Cell>`;
+    }
+    
+    if (platformResult.includes("Investigate")) {
+      return `<Cell ss:StyleID="s65"><Data ss:Type="String">${platformResult.replace(/=HYPERLINK\("([^"]+)","([^"]+)"\)/, '$2')}</Data></Cell>`;
+    }
+    
+    if (platformResult === "No match") {
+      return `<Cell ss:StyleID="s64"><Data ss:Type="String">no match</Data></Cell>`;
+    }
+    
+    return `<Cell><Data ss:Type="String">${platformResult}</Data></Cell>`;
+  }
+  
+  // Handle object values (from Bright Data implementation)
   if (platformResult.status === "error") {
     return `<Cell ss:StyleID="s64"><Data ss:Type="String">error</Data></Cell>`;
   }
@@ -183,10 +209,13 @@ export function formatExcelCell(platformResult: any): string {
   }
   
   if (platformResult.status === "investigate") {
+    const confidenceLevel = platformResult.confidenceScore && platformResult.confidenceScore > 0.8 ? "High" : "Medium";
+    const styleId = confidenceLevel === "High" ? "s66" : "s65";
+    
     if (platformResult.url) {
-      return `<Cell ss:StyleID="hyperlink" ss:HRef="${platformResult.url}"><Data ss:Type="String">investigate</Data></Cell>`;
+      return `<Cell ss:StyleID="hyperlink" ss:HRef="${platformResult.url}"><Data ss:Type="String">investigate (${confidenceLevel})</Data></Cell>`;
     }
-    return `<Cell ss:StyleID="s65"><Data ss:Type="String">investigate</Data></Cell>`;
+    return `<Cell ss:StyleID="${styleId}"><Data ss:Type="String">investigate (${confidenceLevel})</Data></Cell>`;
   }
   
   return `<Cell><Data ss:Type="String">${platformResult.status}</Data></Cell>`;
@@ -200,6 +229,26 @@ export function formatCell(platformResult: any): string {
     return `<span style="color: #999;">error</span>`;
   }
   
+  if (typeof platformResult === 'string') {
+    // Handle direct string values (from ScrapingBee implementation)
+    if (platformResult.includes("Investigate (High)")) {
+      const url = platformResult.match(/=HYPERLINK\("([^"]+)"/)?.[1] || '';
+      return `<a href="${url}" target="_blank" style="color: #009900; font-weight: bold; text-decoration: underline;">investigate (High)</a>`;
+    }
+    
+    if (platformResult.includes("Investigate")) {
+      const url = platformResult.match(/=HYPERLINK\("([^"]+)"/)?.[1] || '';
+      return `<a href="${url}" target="_blank" style="color: #d9534f; font-weight: bold; text-decoration: underline;">investigate</a>`;
+    }
+    
+    if (platformResult === "No match") {
+      return `<span style="color: #888;">no match</span>`;
+    }
+    
+    return `<span>${platformResult}</span>`;
+  }
+  
+  // Handle object values (from Bright Data implementation)
   if (platformResult.status === "error") {
     return `<span style="color: #999;">error</span>`;
   }
@@ -212,10 +261,13 @@ export function formatCell(platformResult: any): string {
   }
   
   if (platformResult.status === "investigate") {
+    const confidenceLevel = platformResult.confidenceScore && platformResult.confidenceScore > 0.8 ? "High" : "Medium";
+    const color = confidenceLevel === "High" ? "#009900" : "#d9534f";
+    
     if (platformResult.url) {
-      return `<a href="${platformResult.url}" target="_blank" style="color: #d9534f; font-weight: bold; text-decoration: underline;">investigate</a>`;
+      return `<a href="${platformResult.url}" target="_blank" style="color: ${color}; font-weight: bold; text-decoration: underline;">investigate (${confidenceLevel})</a>`;
     }
-    return `<span style="color: #d9534f; font-weight: bold;">investigate</span>`;
+    return `<span style="color: ${color}; font-weight: bold;">investigate (${confidenceLevel})</span>`;
   }
   
   return `<span>${platformResult.status}</span>`;

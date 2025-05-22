@@ -9,6 +9,7 @@ import { scrapePostcodes } from './scraping/bright-data-scraper.ts';
 import { scrapePostcodes as scrapingBeeScrapPostcodes } from './scraping/scraping-bee-scraper.ts';
 import { createLogger, LogLevel } from '../_shared/debug-logger.ts';
 import { createRequestHandler } from '../_shared/request-handler.ts';
+import { PostcodeResult } from './utils/postcode-extractor.ts';
 
 // Create a module-specific logger
 const logger = createLogger({ module: 'process-addresses' });
@@ -65,14 +66,22 @@ const handler = createRequestHandler(async (req, log) => {
         };
       }
       
+      // Convert simple string postcodes to PostcodeResult objects if needed
+      const postcodeObjects: PostcodeResult[] = postcodes.map((p: string | PostcodeResult) => {
+        if (typeof p === 'string') {
+          return { postcode: p };
+        }
+        return p;
+      });
+      
       const results = await log.time(
         'Scraping process', 
         () => {
           // Use the specified scraper or default to Bright Data
           if (scraperType === 'scrapingbee') {
-            return scrapingBeeScrapPostcodes(postcodes);
+            return scrapingBeeScrapPostcodes(postcodeObjects);
           } else {
-            return scrapePostcodes(postcodes);
+            return scrapePostcodes(postcodeObjects);
           }
         }
       );

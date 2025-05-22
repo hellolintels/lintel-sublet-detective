@@ -6,7 +6,9 @@
 const BRIGHT_DATA_API_KEY = Deno.env.get("BRIGHT_DATA_API_KEY");
 const BRIGHT_DATA_BROWSER_ZONE = Deno.env.get("BRIGHT_DATA_BROWSER_ZONE") || "scraping_browser1";
 
-export async function scrapePostcodes(postcodes: string[]) {
+import { PostcodeResult } from "../utils/postcode-extractor.ts";
+
+export async function scrapePostcodes(postcodes: PostcodeResult[]) {
   console.log(`Starting scraping for ${postcodes.length} postcodes`);
 
   // Validate Bright Data API credentials
@@ -23,9 +25,9 @@ export async function scrapePostcodes(postcodes: string[]) {
 
   for (let i = 0; i < postcodes.length; i += batchSize) {
     const batch = postcodes.slice(i, i + batchSize);
-    console.log(`Processing batch ${i / batchSize + 1}, postcodes: ${batch.join(', ')}`);
+    console.log(`Processing batch ${i / batchSize + 1}, postcodes: ${batch.map(p => p.postcode).join(', ')}`);
 
-    const batchPromises = batch.map((postcode) => scrapePostcode(postcode, authHeader));
+    const batchPromises = batch.map((postcodeData) => scrapePostcode(postcodeData, authHeader));
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults);
 
@@ -39,20 +41,23 @@ export async function scrapePostcodes(postcodes: string[]) {
   return results;
 }
 
-async function scrapePostcode(postcode: string, authHeader: string) {
-  console.log(`Scraping postcode: ${postcode}`);
+async function scrapePostcode(postcodeData: PostcodeResult, authHeader: string) {
+  const { postcode, streetName, address } = postcodeData;
+  console.log(`Scraping postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
   const formattedPostcode = postcode.replace(/\s+/g, '-');
 
   try {
     // Make parallel requests to each platform
     const [airbnbResult, spareroomResult, gumtreeResult] = await Promise.all([
-      scrapeAirbnb(formattedPostcode, authHeader),
-      scrapeSpareRoom(formattedPostcode, authHeader),
-      scrapeGumtree(formattedPostcode, authHeader)
+      scrapeAirbnb(postcodeData, authHeader),
+      scrapeSpareRoom(postcodeData, authHeader),
+      scrapeGumtree(postcodeData, authHeader)
     ]);
 
     return {
       postcode,
+      address: address || "",
+      streetName: streetName || "",
       airbnb: airbnbResult,
       spareroom: spareroomResult,
       gumtree: gumtreeResult
@@ -61,6 +66,8 @@ async function scrapePostcode(postcode: string, authHeader: string) {
     console.error(`Error scraping postcode ${postcode}:`, error);
     return {
       postcode,
+      address: address || "",
+      streetName: streetName || "",
       airbnb: { status: "error", message: error.message },
       spareroom: { status: "error", message: error.message },
       gumtree: { status: "error", message: error.message }
@@ -68,35 +75,57 @@ async function scrapePostcode(postcode: string, authHeader: string) {
   }
 }
 
-async function scrapeAirbnb(postcode: string, authHeader: string) {
-  console.log(`Checking Airbnb for postcode: ${postcode}`);
+async function scrapeAirbnb(postcodeData: PostcodeResult, authHeader: string) {
+  const { postcode, streetName } = postcodeData;
+  console.log(`Checking Airbnb for postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
+  
+  const searchQuery = streetName 
+    ? `${streetName}, ${postcode}` 
+    : postcode;
   
   try {
     // Bright Data API requires exact postcode search, which we'll implement using their Browser API
     const brightDataResponse = await executeBrowserScrape({
-      url: `https://www.airbnb.com/s/${postcode}/homes`,
+      url: `https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`,
       // Custom script to extract precise postcode matches only
       script: `
-        async ({ url, data: { postcode } }) => {
+        async ({ url, data: { postcode, streetName } }) => {
           await page.goto(url);
           // Wait for listings to load
-          await page.waitForSelector('[data-testid="card-container"]', { timeout: 30000 });
+          await page.waitForSelector('[data-testid="card-container"]', { timeout: 30000 }).catch(() => null);
           
-          // Extract listing addresses and check if they contain the exact postcode
-          const listings = await page.evaluate((exactPostcode) => {
+          // Extract listing addresses and check if they contain the exact postcode and street name
+          const listings = await page.evaluate((data) => {
+            const { postcode, streetName } = data;
             const listingCards = document.querySelectorAll('[data-testid="card-container"]');
             const matchedListings = [];
             
-            // For development, we'll simulate postcode matching
+            // For development, we'll simulate postcode and street matching
             // In production, this would parse the actual page content
             listingCards.forEach((card, index) => {
               // In a real implementation, we would extract address data
-              // For now we'll randomly decide if a listing matches the exact postcode
-              if (Math.random() > 0.7) {
+              const title = card.querySelector('meta[itemprop="name"]')?.getAttribute('content') || \`Listing \${index}\`;
+              const url = card.querySelector('a')?.href || '';
+              
+              // Check for exact matches with both postcode and street
+              let hasExactPostcode = true; // Simulate postcode match
+              let hasStreetNameMatch = false;
+              let confidenceScore = 0.7; // Base confidence
+              
+              // If we have a street name, check if it appears in the title
+              if (streetName && title.toLowerCase().includes(streetName.toLowerCase())) {
+                hasStreetNameMatch = true;
+                confidenceScore = 0.9; // Higher confidence if street name matches
+              }
+              
+              // Add to matches if it meets our criteria
+              if (hasExactPostcode && (hasStreetNameMatch || !streetName)) {
                 matchedListings.push({
-                  title: card.querySelector('meta[itemprop="name"]')?.getAttribute('content') || \`Listing \${index}\`,
-                  url: card.querySelector('a')?.href || '',
-                  hasExactPostcode: true
+                  title,
+                  url,
+                  hasExactPostcode,
+                  hasStreetNameMatch,
+                  confidenceScore
                 });
               }
             });
@@ -105,60 +134,86 @@ async function scrapeAirbnb(postcode: string, authHeader: string) {
               totalListings: listingCards.length,
               matchedListings: matchedListings
             };
-          }, postcode);
+          }, { postcode, streetName });
           
           return listings;
         }
       `,
-      data: { postcode }
+      data: { postcode, streetName }
     }, authHeader);
     
     const scrapedData = brightDataResponse.data;
     
     if (!scrapedData || !scrapedData.totalListings) {
-      return { status: "no match", url: `https://www.airbnb.com/s/${postcode}/homes`, count: 0 };
+      return { status: "no match", url: `https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`, count: 0 };
     }
     
     const matchCount = scrapedData.matchedListings?.length || 0;
     return matchCount > 0
       ? { 
           status: "investigate", 
-          url: `https://www.airbnb.com/s/${postcode}/homes`, 
+          url: `https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`, 
           count: matchCount,
-          matches: scrapedData.matchedListings
+          matches: scrapedData.matchedListings,
+          confidenceScore: Math.max(...(scrapedData.matchedListings?.map(m => m.confidenceScore) || [0.7]))
         }
-      : { status: "no match", url: `https://www.airbnb.com/s/${postcode}/homes`, count: 0 };
+      : { status: "no match", url: `https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`, count: 0 };
   } catch (error) {
     console.error(`Error scraping Airbnb for ${postcode}:`, error);
-    return { status: "error", message: error.message, url: `https://www.airbnb.com/s/${postcode}/homes` };
+    return { status: "error", message: error.message, url: `https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes` };
   }
 }
 
-async function scrapeSpareRoom(postcode: string, authHeader: string) {
-  console.log(`Checking SpareRoom for postcode: ${postcode}`);
+async function scrapeSpareRoom(postcodeData: PostcodeResult, authHeader: string) {
+  const { postcode, streetName } = postcodeData;
+  console.log(`Checking SpareRoom for postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
+  
+  const searchQuery = streetName 
+    ? `${streetName}, ${postcode}` 
+    : postcode;
   
   try {
     const brightDataResponse = await executeBrowserScrape({
-      url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${postcode}`,
+      url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${encodeURIComponent(searchQuery)}`,
       script: `
-        async ({ url, data: { postcode } }) => {
+        async ({ url, data: { postcode, streetName } }) => {
           await page.goto(url);
           // Wait for listings to load
           await page.waitForSelector('.listing-result', { timeout: 30000 }).catch(() => null);
           
-          // Extract listing addresses and check if they contain the exact postcode
-          const listings = await page.evaluate((exactPostcode) => {
+          // Extract listing addresses and check if they contain the exact postcode and street name
+          const listings = await page.evaluate((data) => {
+            const { postcode, streetName } = data;
             const listingCards = document.querySelectorAll('.listing-result');
             const matchedListings = [];
             
-            // For development, we'll simulate postcode matching
+            // For development, we'll simulate postcode and street matching
             listingCards.forEach((card, index) => {
-              // In a real implementation, we would extract address data
-              if (Math.random() > 0.6) {
+              const title = card.querySelector('h2')?.textContent?.trim() || \`Room \${index}\`;
+              const addressLine = card.querySelector('.listingLocation')?.textContent?.trim() || '';
+              const url = card.querySelector('a')?.href || '';
+              
+              // Check for exact matches with both postcode and street
+              let hasExactPostcode = true; // Simulate postcode match
+              let hasStreetNameMatch = false;
+              let confidenceScore = 0.7; // Base confidence
+              
+              // If we have a street name, check if it appears in the address
+              if (streetName && 
+                  (addressLine.toLowerCase().includes(streetName.toLowerCase()) || 
+                   title.toLowerCase().includes(streetName.toLowerCase()))) {
+                hasStreetNameMatch = true;
+                confidenceScore = 0.9; // Higher confidence if street name matches
+              }
+              
+              // Add to matches if it meets our criteria
+              if (hasExactPostcode && (hasStreetNameMatch || !streetName)) {
                 matchedListings.push({
-                  title: card.querySelector('h2')?.textContent?.trim() || \`Room \${index}\`,
-                  url: card.querySelector('a')?.href || '',
-                  hasExactPostcode: true
+                  title,
+                  url,
+                  hasExactPostcode,
+                  hasStreetNameMatch,
+                  confidenceScore
                 });
               }
             });
@@ -167,64 +222,90 @@ async function scrapeSpareRoom(postcode: string, authHeader: string) {
               totalListings: listingCards.length,
               matchedListings: matchedListings
             };
-          }, postcode);
+          }, { postcode, streetName });
           
           return listings;
         }
       `,
-      data: { postcode }
+      data: { postcode, streetName }
     }, authHeader);
     
     const scrapedData = brightDataResponse.data;
     
     if (!scrapedData || !scrapedData.totalListings) {
-      return { status: "no match", url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${postcode}`, count: 0 };
+      return { status: "no match", url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${encodeURIComponent(searchQuery)}`, count: 0 };
     }
     
     const matchCount = scrapedData.matchedListings?.length || 0;
     return matchCount > 0
       ? { 
           status: "investigate", 
-          url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${postcode}`, 
+          url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${encodeURIComponent(searchQuery)}`, 
           count: matchCount,
-          matches: scrapedData.matchedListings
+          matches: scrapedData.matchedListings,
+          confidenceScore: Math.max(...(scrapedData.matchedListings?.map(m => m.confidenceScore) || [0.7]))
         }
-      : { status: "no match", url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${postcode}`, count: 0 };
+      : { status: "no match", url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${encodeURIComponent(searchQuery)}`, count: 0 };
   } catch (error) {
     console.error(`Error scraping SpareRoom for ${postcode}:`, error);
     return { 
       status: "error", 
       message: error.message, 
-      url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${postcode}` 
+      url: `https://www.spareroom.co.uk/flatshare/search.pl?search=${encodeURIComponent(searchQuery)}` 
     };
   }
 }
 
-async function scrapeGumtree(postcode: string, authHeader: string) {
-  console.log(`Checking Gumtree for postcode: ${postcode}`);
+async function scrapeGumtree(postcodeData: PostcodeResult, authHeader: string) {
+  const { postcode, streetName } = postcodeData;
+  console.log(`Checking Gumtree for postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
+  
+  const searchQuery = streetName 
+    ? `${streetName}, ${postcode}` 
+    : postcode;
   
   try {
     const brightDataResponse = await executeBrowserScrape({
-      url: `https://www.gumtree.com/property-to-rent/uk/${postcode}`,
+      url: `https://www.gumtree.com/property-to-rent/uk/${encodeURIComponent(searchQuery)}`,
       script: `
-        async ({ url, data: { postcode } }) => {
+        async ({ url, data: { postcode, streetName } }) => {
           await page.goto(url);
           // Wait for listings to load
           await page.waitForSelector('.listing-link', { timeout: 30000 }).catch(() => null);
           
-          // Extract listing addresses and check if they contain the exact postcode
-          const listings = await page.evaluate((exactPostcode) => {
+          // Extract listing addresses and check if they contain the exact postcode and street name
+          const listings = await page.evaluate((data) => {
+            const { postcode, streetName } = data;
             const listingCards = document.querySelectorAll('.listing-link');
             const matchedListings = [];
             
-            // For development, we'll simulate postcode matching
+            // For development, we'll simulate postcode and street matching
             listingCards.forEach((card, index) => {
-              // In a real implementation, we would extract address data
-              if (Math.random() > 0.5) {
+              const title = card.querySelector('h2')?.textContent?.trim() || \`Property \${index}\`;
+              const addressLine = card.querySelector('.listing-location')?.textContent?.trim() || '';
+              const url = card.href || '';
+              
+              // Check for exact matches with both postcode and street
+              let hasExactPostcode = true; // Simulate postcode match
+              let hasStreetNameMatch = false;
+              let confidenceScore = 0.7; // Base confidence
+              
+              // If we have a street name, check if it appears in the address
+              if (streetName && 
+                  (addressLine.toLowerCase().includes(streetName.toLowerCase()) || 
+                   title.toLowerCase().includes(streetName.toLowerCase()))) {
+                hasStreetNameMatch = true;
+                confidenceScore = 0.9; // Higher confidence if street name matches
+              }
+              
+              // Add to matches if it meets our criteria
+              if (hasExactPostcode && (hasStreetNameMatch || !streetName)) {
                 matchedListings.push({
-                  title: card.querySelector('h2')?.textContent?.trim() || \`Property \${index}\`,
-                  url: card.href || '',
-                  hasExactPostcode: true
+                  title,
+                  url,
+                  hasExactPostcode,
+                  hasStreetNameMatch,
+                  confidenceScore
                 });
               }
             });
@@ -233,35 +314,36 @@ async function scrapeGumtree(postcode: string, authHeader: string) {
               totalListings: listingCards.length,
               matchedListings: matchedListings
             };
-          }, postcode);
+          }, { postcode, streetName });
           
           return listings;
         }
       `,
-      data: { postcode }
+      data: { postcode, streetName }
     }, authHeader);
     
     const scrapedData = brightDataResponse.data;
     
     if (!scrapedData || !scrapedData.totalListings) {
-      return { status: "no match", url: `https://www.gumtree.com/property-to-rent/uk/${postcode}`, count: 0 };
+      return { status: "no match", url: `https://www.gumtree.com/property-to-rent/uk/${encodeURIComponent(searchQuery)}`, count: 0 };
     }
     
     const matchCount = scrapedData.matchedListings?.length || 0;
     return matchCount > 0
       ? { 
           status: "investigate", 
-          url: `https://www.gumtree.com/property-to-rent/uk/${postcode}`, 
+          url: `https://www.gumtree.com/property-to-rent/uk/${encodeURIComponent(searchQuery)}`, 
           count: matchCount,
-          matches: scrapedData.matchedListings
+          matches: scrapedData.matchedListings,
+          confidenceScore: Math.max(...(scrapedData.matchedListings?.map(m => m.confidenceScore) || [0.7]))
         }
-      : { status: "no match", url: `https://www.gumtree.com/property-to-rent/uk/${postcode}`, count: 0 };
+      : { status: "no match", url: `https://www.gumtree.com/property-to-rent/uk/${encodeURIComponent(searchQuery)}`, count: 0 };
   } catch (error) {
     console.error(`Error scraping Gumtree for ${postcode}:`, error);
     return { 
       status: "error", 
       message: error.message, 
-      url: `https://www.gumtree.com/property-to-rent/uk/${postcode}` 
+      url: `https://www.gumtree.com/property-to-rent/uk/${encodeURIComponent(searchQuery)}` 
     };
   }
 }
