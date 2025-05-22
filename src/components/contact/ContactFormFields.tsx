@@ -4,6 +4,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 import { ContactFormValues } from "./contact-form-schema";
 import { FileUploadField } from "./FileUploadField";
+import { Loader2 } from "lucide-react";
 
 interface ContactFormFieldsProps {
   form: UseFormReturn<ContactFormValues>;
