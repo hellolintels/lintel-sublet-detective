@@ -4,7 +4,7 @@ import * as z from "zod";
 // Constants
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export const ACCEPTED_FILE_TYPES = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
-export const MAX_ROWS = 20;
+export const MAX_ROWS = 20; // Maximum number of rows allowed in the address file
 
 // Validation schema for the contact form
 export const contactFormSchema = z.object({

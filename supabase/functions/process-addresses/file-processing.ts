@@ -40,12 +40,17 @@ export function countAddressRows(fileData: string | null | undefined): number {
     dataString = String(fileData); // Convert to string as a last resort
   }
   
+  // Log additional information about the data for debugging
+  console.log("Data string sample (first 100 chars):", dataString.substring(0, 100));
+  console.log("Data string contains newlines:", dataString.includes("\n"));
+  console.log("Data string contains carriage returns:", dataString.includes("\r"));
+  
   // More robust line counting
   try {
     console.log("Splitting data into lines");
     // Use correct line ending detection for different OS formats
     const lines = dataString.split(/\r?\n/);
-    console.log(`File contains ${lines.length} lines`);
+    console.log(`File contains ${lines.length} raw lines`);
     
     // Log a few sample lines for debugging
     if (lines.length > 0) console.log("First line:", lines[0]);

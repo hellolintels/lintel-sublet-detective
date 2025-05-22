@@ -22,9 +22,10 @@ export async function countFileRows(file: File): Promise<number> {
           
           // Split by different types of line endings to handle various file formats
           const lines = content.split(/\r?\n/);
+          console.log(`Raw line count: ${lines.length}`);
           
           // More accurate counting - only count lines that have actual data
-          // Empty lines and lines with only whitespace or commas are not counted
+          // Empty lines and lines with only whitespace, commas, or quotes are not counted
           const nonEmptyLines = lines.filter(line => {
             const trimmed = line.trim();
             // If empty or just commas/whitespace/quotes

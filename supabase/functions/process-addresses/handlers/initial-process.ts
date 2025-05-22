@@ -31,10 +31,19 @@ export async function handleInitialProcess(
   // Enhanced logging to help debug the row count issue
   console.log(`MAX_ALLOWED_ROWS: ${MAX_ALLOWED_ROWS}, addressCount: ${addressCount}`);
   console.log(`addressCount > MAX_ALLOWED_ROWS: ${addressCount > MAX_ALLOWED_ROWS}`);
+  console.log(`Comparison result (${addressCount} > ${MAX_ALLOWED_ROWS}): ${addressCount > MAX_ALLOWED_ROWS}`);
 
-  // FIX: Use correct comparison (> instead of >=) to allow files with MAX_ALLOWED_ROWS
-  if (addressCount > MAX_ALLOWED_ROWS) {
-    console.log(`Address count (${addressCount}) exceeds maximum allowed (${MAX_ALLOWED_ROWS})`);
+  // CRITICAL FIX: Ensure the comparison is properly evaluating addressCount
+  // Ensure both values are treated as numbers
+  const numericAddressCount = Number(addressCount);
+  console.log(`Numeric addressCount: ${numericAddressCount}, type: ${typeof numericAddressCount}`);
+
+  // Make the comparison completely explicit
+  const isOverLimit = numericAddressCount > MAX_ALLOWED_ROWS;
+  console.log(`Final comparison (${numericAddressCount} > ${MAX_ALLOWED_ROWS}): ${isOverLimit}`);
+
+  if (isOverLimit) {
+    console.log(`Address count (${numericAddressCount}) exceeds maximum allowed (${MAX_ALLOWED_ROWS})`);
 
     const { error: updateError } = await supabase
       .from("pending_submissions")

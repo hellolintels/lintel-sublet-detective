@@ -75,18 +75,25 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
       const file = values.addressFile[0];
       console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
 
-      // Verify row count
+      // Verify row count with enhanced debugging
       try {
         const rowCount = await countFileRows(file);
         console.log("File contains approximately", rowCount, "rows");
+        console.log(`MAX_ROWS from schema: ${MAX_ROWS}`);
+        console.log(`Comparison (${rowCount} > ${MAX_ROWS}): ${rowCount > MAX_ROWS}`);
 
-        // FIX: Changed comparison to correctly allow files with rowCount <= MAX_ROWS
-        if (rowCount > MAX_ROWS) {
+        // Fix: Ensure strict number comparison
+        const numericRowCount = Number(rowCount);
+        console.log(`Numeric row count: ${numericRowCount}, type: ${typeof numericRowCount}`);
+        
+        // Explicitly check if the row count exceeds the maximum allowed
+        if (numericRowCount > MAX_ROWS) {
+          console.log(`Row count check FAILED: ${numericRowCount} > ${MAX_ROWS}`);
           toast.error(`Sorry, only files with up to ${MAX_ROWS} addresses are allowed for the sample report.`);
           setIsSubmitting(false);
           return false;
         } else {
-          console.log(`Row count check passed: ${rowCount} ≤ ${MAX_ROWS}`);
+          console.log(`Row count check PASSED: ${numericRowCount} ≤ ${MAX_ROWS}`);
         }
       } catch (countError) {
         console.error("Error counting rows:", countError);

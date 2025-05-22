@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { contactFormSchema, ContactFormValues } from "./contact-form-schema";
 import { useContactFormSubmit } from "./use-contact-form-submit";
 import { FileUploadField } from "./FileUploadField";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { toast } from "react-toastify";
 
 interface ContactFormProps {
   onOpenChange?: (open: boolean) => void;
@@ -39,12 +39,18 @@ export function ContactForm({
     },
   });
 
+  // Update the loading and error states to be more descriptive
+  const [fileProcessingState, setFileProcessingState] = useState<
+    "idle" | "counting" | "uploading" | "processing" | "completed" | "error"
+  >("idle");
+  
   const { isSubmitting, error, submitContactForm } = useContactFormSubmit(formType, () => {
     if (onOpenChange) {
       onOpenChange(false);
     }
     setOpen(false);
     form.reset();
+    setFileProcessingState("idle");
   });
 
   useEffect(() => {
@@ -75,7 +81,45 @@ export function ContactForm({
       // Don't submit if setup isn't complete
       return;
     }
-    await submitContactForm(values);
+
+    try {
+      setFileProcessingState("counting");
+      
+      // Verify file is valid
+      if (!values.addressFile || !values.addressFile[0]) {
+        toast.error("Please select a valid file");
+        setFileProcessingState("error");
+        return;
+      }
+      
+      const file = values.addressFile[0];
+      console.log("Processing file for submission:", file.name);
+      
+      // Verify row count before submitting
+      try {
+        const rowCount = await countFileRows(file);
+        console.log("File contains approximately", rowCount, "rows");
+        
+        if (rowCount > MAX_ROWS) {
+          toast.error(`Sorry, only files with up to ${MAX_ROWS} addresses are allowed for the sample report.`);
+          setFileProcessingState("error");
+          return;
+        }
+        
+        console.log("Row count check passed, proceeding with submission");
+        setFileProcessingState("uploading");
+      } catch (countError) {
+        console.error("Error counting rows:", countError);
+        // Continue despite error but log it
+        console.log("Continuing despite row count error");
+      }
+      
+      // Attempt submission
+      await submitContactForm(values);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      setFileProcessingState("error");
+    }
   }
 
   return (
