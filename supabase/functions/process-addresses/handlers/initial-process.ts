@@ -36,7 +36,7 @@ export async function handleInitialProcess(
     console.log(`Address count (${addressCount}) exceeds maximum allowed (${MAX_ALLOWED_ROWS})`);
 
     const { error: updateError } = await supabase
-      .from("contacts")
+      .from("pending_submissions")
       .update({ status: "too_many_addresses" })
       .eq("id", contact.id);
 
@@ -46,7 +46,7 @@ export async function handleInitialProcess(
     }
 
     await sendEmail(
-      "jamie@lintels.in",  // ✅ Send to Jamie in beta
+      contact.email,  // Send directly to the customer
       "Regarding Your Address List Submission - Lintels.in",
       `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff6b6b; border-radius: 5px;">
@@ -97,7 +97,7 @@ export async function handleInitialProcess(
 
   console.log(`Updating contact status to pending_approval`);
   const { error: updateError } = await supabase
-    .from("contacts")
+    .from("pending_submissions")
     .update({ status: "pending_approval" })
     .eq("id", contact.id);
 
@@ -139,9 +139,9 @@ export async function handleInitialProcess(
     throw notifyError;
   }
 
-  // ✅ Send confirmation email only to Jamie during beta
+  // Send confirmation email to the customer
   const clientEmailResult = await sendEmail(
-    "jamie@lintels.in",
+    contact.email,
     "We've Received Your Address List - Lintels.in",
     `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">

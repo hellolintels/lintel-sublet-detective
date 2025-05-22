@@ -22,14 +22,27 @@ export async function countFileRows(file: File): Promise<number> {
           
           // Split by different types of line endings to handle various file formats
           const lines = content.split(/\r?\n/);
-          const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+          
+          // More accurate counting - only count lines that have actual data
+          // Empty lines and lines with only whitespace or commas are not counted
+          const nonEmptyLines = lines.filter(line => {
+            const trimmed = line.trim();
+            // If empty or just commas/whitespace/quotes
+            return trimmed.length > 0 && !/^[,\s"]*$/.test(trimmed);
+          });
           
           console.log(`Total lines: ${lines.length}, non-empty lines: ${nonEmptyLines.length}`);
           
-          // If we have at least one non-empty line, assume it's the header and subtract 1
-          // But don't go below 0
-          const dataRows = nonEmptyLines.length > 1 ? nonEmptyLines.length - 1 : nonEmptyLines.length;
-          console.log(`Estimated data rows: ${dataRows}`);
+          // For CSV/Excel files, we assume the first line is a header if we have more than one line
+          let dataRows = nonEmptyLines.length;
+          
+          // If we have data and it's likely a CSV with headers, subtract the header row
+          if (dataRows > 1 && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+            dataRows -= 1;
+            console.log(`Subtracting header row. Estimated data rows: ${dataRows}`);
+          } else {
+            console.log(`No header row subtracted. Estimated data rows: ${dataRows}`);
+          }
           
           resolve(dataRows);
         } catch (error) {

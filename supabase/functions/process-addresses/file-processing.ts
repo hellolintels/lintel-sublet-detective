@@ -51,14 +51,24 @@ export function countAddressRows(fileData: string | null | undefined): number {
     if (lines.length > 0) console.log("First line:", lines[0]);
     if (lines.length > 1) console.log("Second line:", lines[1]);
     
-    // Count non-empty lines
-    const nonEmptyLines = lines.filter(line => line.trim().length > 0).length;
+    // More accurate counting - only count lines that have actual data
+    // Empty lines and lines with only whitespace, commas, or quotes are not counted
+    const nonEmptyLines = lines.filter(line => {
+      const trimmed = line.trim();
+      return trimmed.length > 0 && !/^[,\s"]*$/.test(trimmed);
+    }).length;
+    
     console.log(`Found ${nonEmptyLines} non-empty lines`);
     
-    // If we have at least one non-empty line, assume it's the header and subtract 1
-    // But don't go below 0
-    const dataRows = nonEmptyLines > 1 ? nonEmptyLines - 1 : nonEmptyLines;
-    console.log(`Counted ${dataRows} data rows (excluding header if present)`);
+    // If we have non-empty lines and it's likely a CSV with headers, subtract the header row
+    let dataRows = nonEmptyLines;
+    if (nonEmptyLines > 1) {
+      dataRows -= 1;
+      console.log(`Assuming first line is header. Data rows: ${dataRows}`);
+    } else {
+      console.log(`No header assumed. Data rows: ${nonEmptyLines}`);
+    }
+    
     return dataRows;
   } catch (error) {
     console.error("Error counting lines:", error);

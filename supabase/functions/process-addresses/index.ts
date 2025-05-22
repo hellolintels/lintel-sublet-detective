@@ -6,6 +6,7 @@ import { handleInitialProcess } from './handlers/initial-process.ts';
 import { handleSendResults } from './handlers/send-results.ts';
 import { corsHeaders } from './constants.ts';
 import { scrapePostcodes } from './scraping/bright-data-scraper.ts';
+import { scrapePostcodes as scrapingBeeScrapPostcodes } from './scraping/scraping-bee-scraper.ts';
 import { createLogger, LogLevel } from '../_shared/debug-logger.ts';
 import { createRequestHandler } from '../_shared/request-handler.ts';
 
@@ -40,16 +41,23 @@ const handler = createRequestHandler(async (req, log) => {
     log.debug('Received URL parameters', requestBody);
   }
   
-  const { action, contactId, reportId, postcodes, testType } = requestBody;
-  log.info(`Action requested: ${action}, Contact ID: ${contactId}, Report ID: ${reportId}`);
+  const { action, contactId, reportId, postcodes, testType, scraperType } = requestBody;
+  log.info(`Action requested: ${action}, Contact ID: ${contactId}, Report ID: ${reportId}, Scraper: ${scraperType || 'bright-data'}`);
   
   if (action === 'test_bright_data' && postcodes) {
-    log.info(`Testing Bright Data with ${postcodes.length} postcodes, test type: ${testType || 'basic'}`);
+    log.info(`Testing scraper with ${postcodes.length} postcodes, test type: ${testType || 'basic'}, scraper: ${scraperType || 'bright-data'}`);
     
     try {
       const results = await log.time(
-        'Bright Data scraping process', 
-        () => scrapePostcodes(postcodes)
+        'Scraping process', 
+        () => {
+          // Use the specified scraper or default to Bright Data
+          if (scraperType === 'scrapingbee') {
+            return scrapingBeeScrapPostcodes(postcodes);
+          } else {
+            return scrapePostcodes(postcodes);
+          }
+        }
       );
       
       // Add connection status for comprehensive testing
@@ -57,13 +65,14 @@ const handler = createRequestHandler(async (req, log) => {
         results,
         connectionStatus: 'success',
         timestamp: new Date().toISOString(),
-        testType: testType || 'basic'
+        testType: testType || 'basic',
+        scraperType: scraperType || 'bright-data'
       };
       
-      log.info('Bright Data test completed successfully');
+      log.info('Scraper test completed successfully');
       return connectionData;
     } catch (error) {
-      log.error('Error during Bright Data test:', error);
+      log.error('Error during scraper test:', error);
       return { 
         error: error.message || 'Unknown error', 
         connectionStatus: 'failed',
