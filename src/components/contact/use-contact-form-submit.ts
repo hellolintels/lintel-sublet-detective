@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,6 +80,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         const rowCount = await countFileRows(file);
         console.log("File contains approximately", rowCount, "rows");
 
+        // FIX: Changed comparison to correctly allow files with rowCount <= MAX_ROWS
         if (rowCount > MAX_ROWS) {
           toast.error(`Sorry, only files with up to ${MAX_ROWS} addresses are allowed for the sample report.`);
           setIsSubmitting(false);

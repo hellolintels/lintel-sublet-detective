@@ -18,6 +18,12 @@ if (!PROJECT_REF) {
   logger.warn('PROJECT_REF environment variable is not defined.');
 }
 
+// Check for required API keys
+const SCRAPINGBEE_API_KEY = Deno.env.get('SCRAPINGBEE_API_KEY');
+if (!SCRAPINGBEE_API_KEY) {
+  logger.warn('SCRAPINGBEE_API_KEY environment variable is not defined. ScrapingBee functionality will be limited.');
+}
+
 // Our instrumented request handler
 const handler = createRequestHandler(async (req, log) => {
   log.info('🔄 process-addresses function called');
@@ -48,6 +54,17 @@ const handler = createRequestHandler(async (req, log) => {
     log.info(`Testing scraper with ${postcodes.length} postcodes, test type: ${testType || 'basic'}, scraper: ${scraperType || 'bright-data'}`);
     
     try {
+      // Check if ScrapingBee is requested but API key is not configured
+      if (scraperType === 'scrapingbee' && !SCRAPINGBEE_API_KEY) {
+        log.error('ScrapingBee API key not configured');
+        return { 
+          error: 'ScrapingBee API key not configured',
+          connectionStatus: 'failed',
+          connectionError: 'Missing API key',
+          timestamp: new Date().toISOString()
+        };
+      }
+      
       const results = await log.time(
         'Scraping process', 
         () => {

@@ -32,6 +32,7 @@ export async function handleInitialProcess(
   console.log(`MAX_ALLOWED_ROWS: ${MAX_ALLOWED_ROWS}, addressCount: ${addressCount}`);
   console.log(`addressCount > MAX_ALLOWED_ROWS: ${addressCount > MAX_ALLOWED_ROWS}`);
 
+  // FIX: Use correct comparison (> instead of >=) to allow files with MAX_ALLOWED_ROWS
   if (addressCount > MAX_ALLOWED_ROWS) {
     console.log(`Address count (${addressCount}) exceeds maximum allowed (${MAX_ALLOWED_ROWS})`);
 

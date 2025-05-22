@@ -1,8 +1,8 @@
 
 import { PostcodeResult } from "../utils/postcode-extractor.ts";
 
-// ScrapingBee API key
-const SCRAPINGBEE_API_KEY = "4HPJVN24L1H1SQV5CKYKU5N6ROTWESA4W0LJOGPJBZDEYHIUT4SVCISLWGTS8ZLM27F13LBYZTWEUM3L";
+// ScrapingBee API key from environment variables for better security
+const SCRAPINGBEE_API_KEY = Deno.env.get("SCRAPINGBEE_API_KEY");
 
 export interface ScrapeResult {
   postcode: string;
@@ -54,6 +54,12 @@ function constructAirbnbMapUrl(postcode: string, lat: string, lng: string): stri
 export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<ScrapeResult[]> {
   console.log(`ScrapingBee: Scraping ${postcodes.length} postcodes`);
   
+  // Check for API key before proceeding
+  if (!SCRAPINGBEE_API_KEY) {
+    console.error("ScrapingBee API key not found in environment variables");
+    throw new Error("ScrapingBee API key not configured");
+  }
+  
   // For testing, limit to first 10 postcodes
   const limitedPostcodes = postcodes.slice(0, 10);
   console.log(`ScrapingBee: Limited to ${limitedPostcodes.length} postcodes for testing`);
@@ -78,7 +84,7 @@ export async function scrapePostcodes(postcodes: PostcodeResult[]): Promise<Scra
     try {
       console.log(`ScrapingBee: Scraping Airbnb for ${postcode}`);
       
-      // ScrapingBee API call
+      // ScrapingBee API call using environment variable
       const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.airbnb.com/s/${postcode}/homes`)}&render_js=true`;
       
       const response = await fetch(url);
