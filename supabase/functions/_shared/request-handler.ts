@@ -13,6 +13,7 @@ interface RequestHandlerOptions {
   enableCors?: boolean;
   logLevel?: LogLevel;
   skipLogging?: boolean;
+  timeoutMs?: number;
 }
 
 /**
@@ -27,7 +28,7 @@ export function createRequestHandler<T>(
   handler: (req: Request, log: ReturnType<typeof createLogger>) => Promise<T>, 
   options: RequestHandlerOptions = {}
 ) {
-  const { enableCors = true, skipLogging = false } = options;
+  const { enableCors = true, skipLogging = false, timeoutMs = 60000 } = options;
   
   return async (req: Request): Promise<Response> => {
     const requestLog = createLogger({ 
@@ -51,12 +52,23 @@ export function createRequestHandler<T>(
     
     const startTime = performance.now();
     
+    // Create a timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Request timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+    
     try {
-      // Execute the handler with timing
-      const result = await requestLog.time(
-        'Request processing',
-        () => handler(req, requestLog)
-      );
+      // Execute the handler with timeout
+      const result = await Promise.race([
+        requestLog.time('Request processing', () => handler(req, requestLog)),
+        timeoutPromise
+      ]);
+      
+      // Calculate and log the response time
+      const duration = performance.now() - startTime;
+      requestLog.info(`Request completed in ${duration.toFixed(2)}ms`);
       
       // Format successful response
       const responseBody = typeof result === 'string' 
@@ -84,9 +96,10 @@ export function createRequestHandler<T>(
         JSON.stringify({ 
           error: true,
           message: errorData.message || 'Internal server error',
+          details: process.env.NODE_ENV !== 'production' ? errorData : undefined,
         }),
         { 
-          status: 500, 
+          status: errorData.status || 500, 
           headers: {
             'Content-Type': 'application/json',
             ...(enableCors ? corsHeaders : {})

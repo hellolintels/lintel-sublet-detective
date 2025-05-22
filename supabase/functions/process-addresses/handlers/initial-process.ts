@@ -1,3 +1,4 @@
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
@@ -26,6 +27,10 @@ export async function handleInitialProcess(
 
   const addressCount = await countAddressRows(contact.file_data);
   console.log(`Address file contains ${addressCount} rows`);
+
+  // Enhanced logging to help debug the row count issue
+  console.log(`MAX_ALLOWED_ROWS: ${MAX_ALLOWED_ROWS}, addressCount: ${addressCount}`);
+  console.log(`addressCount > MAX_ALLOWED_ROWS: ${addressCount > MAX_ALLOWED_ROWS}`);
 
   if (addressCount > MAX_ALLOWED_ROWS) {
     console.log(`Address count (${addressCount}) exceeds maximum allowed (${MAX_ALLOWED_ROWS})`);

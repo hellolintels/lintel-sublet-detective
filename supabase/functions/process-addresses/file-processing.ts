@@ -43,7 +43,8 @@ export function countAddressRows(fileData: string | null | undefined): number {
   // More robust line counting
   try {
     console.log("Splitting data into lines");
-    const lines = dataString.split('\n');
+    // Use correct line ending detection for different OS formats
+    const lines = dataString.split(/\r?\n/);
     console.log(`File contains ${lines.length} lines`);
     
     // Log a few sample lines for debugging
@@ -55,8 +56,9 @@ export function countAddressRows(fileData: string | null | undefined): number {
     console.log(`Found ${nonEmptyLines} non-empty lines`);
     
     // If we have at least one non-empty line, assume it's the header and subtract 1
-    const dataRows = nonEmptyLines > 0 ? nonEmptyLines - 1 : 0;
-    console.log(`Counted ${dataRows} data rows (excluding header)`);
+    // But don't go below 0
+    const dataRows = nonEmptyLines > 1 ? nonEmptyLines - 1 : nonEmptyLines;
+    console.log(`Counted ${dataRows} data rows (excluding header if present)`);
     return dataRows;
   } catch (error) {
     console.error("Error counting lines:", error);

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -84,10 +83,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
           toast.error(`Sorry, only files with up to ${MAX_ROWS} addresses are allowed for the sample report.`);
           setIsSubmitting(false);
           return false;
+        } else {
+          console.log(`Row count check passed: ${rowCount} ≤ ${MAX_ROWS}`);
         }
       } catch (countError) {
         console.error("Error counting rows:", countError);
-        // Continue even if row counting fails
+        // Continue even if row counting fails, but log it for debugging
+        console.log("Continuing despite row count error");
       }
 
       // Ensure storage buckets exist
