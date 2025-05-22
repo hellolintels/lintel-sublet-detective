@@ -12,6 +12,12 @@ export async function ensureStorageSetup(): Promise<boolean> {
     
     if (bucketsError) {
       console.error("Could not check storage buckets:", bucketsError);
+      
+      // Check if this is a permissions error
+      if (bucketsError.message.includes("permission") || bucketsError.message.includes("not authorized")) {
+        throw new Error("Storage access permission denied. Please contact support.");
+      }
+      
       throw new Error("Unable to access storage system");
     }
     
@@ -26,15 +32,27 @@ export async function ensureStorageSetup(): Promise<boolean> {
       
       if (setupError) {
         console.error("Setup function error:", setupError);
-        throw new Error("Storage system setup failed");
+        
+        // More specific error messages
+        if (setupError.message.includes("permission") || setupError.message.includes("not authorized")) {
+          throw new Error("Setup function permission denied. Anonymous uploads may not be enabled.");
+        }
+        
+        throw new Error("Storage system setup failed: " + setupError.message);
       }
       
       // Verify buckets were created successfully
-      const { data: verifyBuckets } = await supabase.storage.listBuckets();
+      const { data: verifyBuckets, error: verifyError } = await supabase.storage.listBuckets();
+      
+      if (verifyError) {
+        console.error("Verify buckets error:", verifyError);
+        throw new Error("Failed to verify storage setup");
+      }
+      
       const bucketsExist = verifyBuckets?.some(b => b.name === 'pending-uploads') || false;
       
       if (!bucketsExist) {
-        throw new Error("Storage buckets setup failed");
+        throw new Error("Storage buckets setup failed - buckets were not created");
       }
       
       console.log("Storage buckets created successfully");
@@ -44,6 +62,10 @@ export async function ensureStorageSetup(): Promise<boolean> {
     return pendingBucketExists;
   } catch (setupError) {
     console.error("Error setting up storage:", setupError);
+    // Provide more specific error message to users
+    if (setupError.message.includes("permission") || setupError.message.includes("not authorized")) {
+      throw new Error("Storage permission denied. Please try again later or contact support.");
+    }
     throw new Error(`Storage system setup failed: ${setupError.message}`);
   }
 }
@@ -73,7 +95,11 @@ export async function uploadFileToPendingBucket(file: File, emailPrefix: string)
     
     // Handle specific error cases
     if (uploadError.message.includes("Bucket not found")) {
-      throw new Error("Storage system not configured properly");
+      throw new Error("Storage system not configured properly. Please try again later.");
+    }
+    
+    if (uploadError.message.includes("permission") || uploadError.message.includes("not authorized")) {
+      throw new Error("Upload permission denied. Anonymous uploads may not be enabled.");
     }
     
     throw new Error(`Failed to upload file: ${uploadError.message}`);

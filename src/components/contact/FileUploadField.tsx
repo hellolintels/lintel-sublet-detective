@@ -89,7 +89,7 @@ export function FileUploadField({ form, disabled = false }: FileUploadFieldProps
             </div>
           </FormControl>
           <FormDescription className="text-center mt-1">
-            CSV or Excel file with street addresses and postcodes (max {MAX_ROWS} rows)
+            CSV or Excel file with street addresses and postcodes (max 20 rows)
           </FormDescription>
           {fileError && (
             <div className="text-sm text-red-500 mt-1 flex items-center">
