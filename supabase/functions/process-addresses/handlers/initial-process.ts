@@ -4,7 +4,7 @@ import { sendEmail } from "../email.ts";
 import { corsHeaders } from "../constants.ts";
 import { countAddressRows, extractFileDataForAttachment } from "../file-processing.ts";
 
-const MAX_ALLOWED_ROWS = 20;
+const MAX_ALLOWED_ROWS = 120; // Increased from 20 to 120 rows
 
 /**
  * Handle initial processing of address data
