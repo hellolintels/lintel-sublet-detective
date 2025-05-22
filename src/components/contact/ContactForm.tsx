@@ -5,11 +5,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
-import { contactFormSchema, ContactFormValues } from "./contact-form-schema";
-import { useContactFormSubmit } from "./use-contact-form-submit";
+import { contactFormSchema, ContactFormValues, MAX_ROWS } from "./contact-form-schema";
+import { useContactFormSubmit } from "./hooks/use-contact-form-submit";
 import { FileUploadField } from "./FileUploadField";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
+import { countFileRows } from "./file-utils";
 
 interface ContactFormProps {
   onOpenChange?: (open: boolean) => void;

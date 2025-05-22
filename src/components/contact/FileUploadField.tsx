@@ -3,9 +3,8 @@ import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessa
 import { Input } from "@/components/ui/input";
 import { Upload, FileCheck, AlertCircle } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import { ContactFormValues } from "./contact-form-schema";
+import { ContactFormValues, MAX_ROWS } from "./contact-form-schema";
 import { useState } from "react";
-import { MAX_ROWS } from "./contact-form-schema";
 import { countFileRows } from "./file-utils";
 
 interface FileUploadFieldProps {
@@ -21,7 +20,7 @@ export function FileUploadField({ form, disabled = false }: FileUploadFieldProps
     const files = e.target.files;
     
     // Update form value
-    form.onChange(e);
+    form.setValue("addressFile", files as FileList);
     
     // Reset status
     setFileStatus("checking");
