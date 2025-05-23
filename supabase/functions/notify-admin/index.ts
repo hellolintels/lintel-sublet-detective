@@ -54,21 +54,15 @@ serve(async (req) => {
     const isAccessRequest = payload.storagePath === "public/access-request.txt" || 
                            payload.full_name === "Access Request";
     
-    // Check if this is a bypass mode submission
-    const isBypassMode = payload.bypass_api_processing === true;
-    
     // For access requests, we want to keep the company as the user provided
     // Otherwise, for normal access requests, we'll use the provided company field
     const company = isAccessRequest ? payload.email : (payload.company || "");
     
-    console.log(`Company field: "${company}" (Is access request: ${isAccessRequest}, Is bypass mode: ${isBypassMode})`);
+    console.log(`Company field: "${company}" (Is access request: ${isAccessRequest})`);
 
     // 1. Record the submission in pending_submissions table
     try {
       console.log('Inserting submission into pending_submissions table...');
-      
-      // Set status based on bypass mode
-      const submissionStatus = isBypassMode ? 'submission_received' : 'pending';
       
       const submissionData = {
         full_name: payload.full_name,
@@ -77,7 +71,7 @@ serve(async (req) => {
         position: payload.position || null,
         phone: payload.phone || null,
         storage_path: payload.storagePath,
-        status: submissionStatus,
+        status: 'pending',
         updated_at: new Date().toISOString(),
       };
       
@@ -151,19 +145,16 @@ serve(async (req) => {
         phone: payload.phone || '',
         form_type: payload.form_type || 'sample',
         file_name: fileName,
-        file_type: fileType,
-        bypass_api_processing: isBypassMode
+        file_type: fileType
       };
       
       console.log('Contact object for email:', JSON.stringify(contact, null, 2));
       
-      // Build email content with bypass mode consideration
+      // Build email content
       const htmlContent = buildEmailContent(contact);
       
-      // Plain text version with bypass mode note
-      const plainText = isBypassMode 
-        ? `MANUAL REVIEW REQUIRED: New submission from ${payload.full_name} (${payload.email}) - ${company || ''}. API processing bypassed - manual review needed.`
-        : `New submission from ${payload.full_name} (${payload.email}) - ${company || ''}. Please review the attached file.`;
+      // Plain text version
+      const plainText = `New submission from ${payload.full_name} (${payload.email}) - ${company || ''}. Please review the attached file.`;
       
       // Send email notification
       console.log(`Sending email notification to ${adminEmail}...`);
@@ -172,9 +163,7 @@ serve(async (req) => {
       const base64Content = processFileData(fileContent);
       console.log(`Processed base64 content length: ${base64Content.length}`);
       
-      const emailSubject = isBypassMode 
-        ? `[MANUAL REVIEW] ${isAccessRequest ? 'Access Request' : 'Address Submission'} from ${payload.full_name}`
-        : `New ${isAccessRequest ? 'Access Request' : 'Address Submission'} from ${payload.full_name}`;
+      const emailSubject = `New ${isAccessRequest ? 'Access Request' : 'Address Submission'} from ${payload.full_name}`;
       
       const emailResult = await sendEmail(
         adminEmail,
@@ -194,11 +183,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: isBypassMode ? 'Admin notification sent - manual review required' : 'Admin notification sent',
+          message: 'Admin notification sent',
           submissionId: submissionId,
           emailSent: emailResult.success,
-          emailMessage: emailResult.message,
-          bypassMode: isBypassMode
+          emailMessage: emailResult.message
         }),
         {
           status: 200,

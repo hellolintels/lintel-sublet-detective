@@ -82,7 +82,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         return false;
       }
 
-      // Prepare data for the notify-admin function with API bypass flag
+      // Prepare data for the notify-admin function
       const notificationPayload: AdminNotificationPayload = {
         full_name: values.fullName,
         email: values.email,
@@ -90,14 +90,13 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         position: values.position || '',
         phone: values.phone || '',
         storagePath: storagePath,
-        form_type: formType,
-        bypass_api_processing: true // New flag to indicate manual review needed
+        form_type: formType
       };
 
-      console.log(`Calling notify-admin function with payload (API bypass enabled):`, notificationPayload);
+      console.log(`Calling notify-admin function with payload:`, notificationPayload);
       
       // Show loading toast
-      toast.loading("Submitting your request for manual review...", {
+      toast.loading("Submitting your request...", {
         id: "processing-submission",
         duration: 10000
       });
@@ -112,7 +111,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         }
         
         setError(null);
-        showResultNotifications(functionData, true); // Pass bypass flag
+        showResultNotifications(functionData);
         return true;
       } catch (functionError: any) {
         console.error("notify-admin function error:", functionError);
