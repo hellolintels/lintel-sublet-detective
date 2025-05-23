@@ -1,24 +1,57 @@
 
-# This file controls the configuration of the Lovable backed by Supabase project.
-project_id = "process-addresses"
+project_id = "uejymkggevuvuerldzhv"
 
-# Email sender function debug logging configuration
-[global.env_variables]
-LOG_LEVEL = "INFO"
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
 
-# Function configurations
-[functions.setup]
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[functions]
+enabled = true
+serve_port = 54325
+
+[functions.submit-form]
 verify_jwt = false
 
-[functions.email-sender]
+[functions.approve-submission]
 verify_jwt = false
 
-[functions.process-addresses]
+[functions.process-data]
 verify_jwt = false
 
-[functions.notify-admin]
-verify_jwt = false
-
-[functions.process-approval]
-verify_jwt = false
+[vector]
+enabled = false
+port = 54326
 

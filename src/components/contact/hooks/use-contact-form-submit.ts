@@ -82,7 +82,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         return false;
       }
 
-      // Prepare data for the notify-admin function
+      // Prepare data for the submit-form function
       const notificationPayload: AdminNotificationPayload = {
         full_name: values.fullName,
         email: values.email,
@@ -90,10 +90,12 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         position: values.position || '',
         phone: values.phone || '',
         storagePath: storagePath,
-        form_type: formType
+        form_type: formType,
+        file_name: file.name,
+        file_type: file.type
       };
 
-      console.log(`Calling notify-admin function with payload:`, notificationPayload);
+      console.log(`Calling submit-form function with payload:`, notificationPayload);
       
       // Show loading toast
       toast.loading("Submitting your request...", {
@@ -101,7 +103,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         duration: 10000
       });
       
-      // Call the notify-admin function
+      // Call the submit-form function
       try {
         const functionData = await notifyAdmin(notificationPayload);
         
@@ -114,7 +116,7 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         showResultNotifications(functionData);
         return true;
       } catch (functionError: any) {
-        console.error("notify-admin function error:", functionError);
+        console.error("submit-form function error:", functionError);
         toast.dismiss("processing-submission");
         
         // Attempt to delete the uploaded file if function call fails

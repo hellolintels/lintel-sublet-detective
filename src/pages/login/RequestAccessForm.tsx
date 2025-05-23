@@ -44,34 +44,45 @@ const RequestAccessForm = () => {
       
       // Send notification to admin about access request
       try {
-        const { error, data } = await supabase.functions.invoke("notify-admin", {
-          body: {
+        // Direct call to the submit-form function
+        const projectRef = "uejymkggevuvuerldzhv";
+        const functionUrl = `https://${projectRef}.functions.supabase.co/submit-form`;
+        
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
             full_name: "Access Request",
             email: requestEmail,
             position: "",
             company: requestEmail, // Set the company field to the email to ensure it's displayed correctly
             phone: "",
             storagePath: "public/access-request.txt", // Dummy path
-          }
+            form_type: "access_request"
+          })
         });
         
-        if (error) {
-          console.error("Error sending notification:", error);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error from submit-form function: ${response.status}`, errorText);
           
           // Check for specific error types
-          if (error.message?.includes("Failed to fetch") || 
-              error.message?.includes("NetworkError") ||
-              error.message?.includes("network")) {
+          if (response.status === 0 || 
+              errorText.includes("Failed to fetch") || 
+              errorText.includes("NetworkError")) {
             throw new Error("Network error connecting to our servers. Please check your internet connection and try again.");
           }
           
-          throw new Error(error.message || "Unknown error occurred");
+          throw new Error(errorText || "Unknown error occurred");
         }
         
-        console.log("Function response:", data);
+        const responseData = await response.json();
+        console.log("Function response:", responseData);
         
         // If the function succeeded but email sending failed
-        if (data && data.emailSent === false) {
+        if (responseData && responseData.emailSent === false) {
           console.warn("Admin notification recorded but email delivery failed");
           toast.success("Your request has been received, but there might be a delay in processing. We'll get back to you soon.", { 
             duration: 5000 

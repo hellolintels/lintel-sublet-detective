@@ -10,9 +10,9 @@ export async function notifyAdmin(payload: AdminNotificationPayload): Promise<an
   try {
     // Use direct function call with the project reference
     const projectRef = "uejymkggevuvuerldzhv";
-    const functionUrl = `https://${projectRef}.functions.supabase.co/notify-admin`;
+    const functionUrl = `https://${projectRef}.functions.supabase.co/submit-form`;
     
-    console.log(`Sending direct request to notify-admin at: ${functionUrl}`);
+    console.log(`Sending form submission to: ${functionUrl}`);
     
     const response = await fetch(functionUrl, {
       method: 'POST',
@@ -25,16 +25,16 @@ export async function notifyAdmin(payload: AdminNotificationPayload): Promise<an
     if (!response.ok) {
       const statusCode = response.status;
       const errorText = await response.text();
-      console.error(`Error from notify-admin function: Status ${statusCode}`, errorText);
+      console.error(`Error from submit-form function: Status ${statusCode}`, errorText);
       throw new Error(`Server processing error (${statusCode}): ${errorText || response.statusText}`);
     }
     
     const functionData = await response.json();
-    console.log("notify-admin response:", functionData);
+    console.log("submit-form response:", functionData);
     
     return functionData;
   } catch (error: any) {
-    console.error("notify-admin function error:", error);
+    console.error("submit-form function error:", error);
     throw error;
   }
 }
@@ -102,4 +102,6 @@ export interface AdminNotificationPayload {
   phone: string;
   storagePath: string;
   form_type: string;
+  file_name?: string;
+  file_type?: string;
 }

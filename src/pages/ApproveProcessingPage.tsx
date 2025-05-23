@@ -18,12 +18,13 @@ export default function ApproveProcessingPage() {
       return;
     }
     
-    // Direct call to the Supabase Edge Function with the full URL
-    const supabaseFunctionUrl = `https://uejymkggevuvuerldzhv.functions.supabase.co/process-approval?action=${action}&id=${submissionId}`;
+    // Call the approve-submission edge function
+    const projectRef = "uejymkggevuvuerldzhv";
+    const approvalUrl = `https://${projectRef}.functions.supabase.co/approve-submission?action=${action}&id=${submissionId}`;
     
-    console.log("📤 Sending request to:", supabaseFunctionUrl);
+    console.log("📤 Sending approval request to:", approvalUrl);
 
-    fetch(supabaseFunctionUrl, {
+    fetch(approvalUrl, {
       method: 'GET',
       headers: {
         'Accept': 'text/html,application/json',
@@ -39,7 +40,7 @@ export default function ApproveProcessingPage() {
           console.log("✅ Approval request succeeded with status:", res.status);
         } else {
           res.text().then(text => {
-            console.error(`❌ Error from process-approval: ${res.status} ${res.statusText}`, text);
+            console.error(`❌ Error from approve-submission: ${res.status} ${res.statusText}`, text);
             setStatus(`❌ Error ${res.status}: ${res.statusText}`);
             setErrorDetails(text || "No error details provided by the server");
           });

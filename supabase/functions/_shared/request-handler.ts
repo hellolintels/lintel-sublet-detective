@@ -1,108 +1,64 @@
+import { createLogger } from './debug-logger.ts';
 
-import { createLogger, handleError, LogLevel } from './debug-logger.ts';
-
-const logger = createLogger({ module: 'request-handler' });
-
-// Standard CORS headers for edge functions
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface RequestHandlerOptions {
-  enableCors?: boolean;
-  logLevel?: LogLevel;
-  skipLogging?: boolean;
-  timeoutMs?: number;
+export interface RequestContext {
+  requestId: string;
 }
 
 /**
- * Request handler wrapper that provides:
- * - CORS handling 
- * - Request logging
- * - Performance timing
- * - Consistent error handling
- * - Response formatting
+ * Create a request handler with logging and error handling
  */
-export function createRequestHandler<T>(
-  handler: (req: Request, log: ReturnType<typeof createLogger>) => Promise<T>, 
-  options: RequestHandlerOptions = {}
+export function createRequestHandler(
+  handler: (req: Request, log: ReturnType<typeof createLogger>) => Promise<any>
 ) {
-  const { enableCors = true, skipLogging = false, timeoutMs = 60000 } = options;
-  
-  return async (req: Request): Promise<Response> => {
-    const requestLog = createLogger({ 
-      module: 'http',
-      correlationId: req.headers.get('x-correlation-id') || crypto.randomUUID().substring(0, 8)
+  return async (req: Request) => {
+    const requestId = crypto.randomUUID();
+    const startTime = Date.now();
+    
+    // Create a logger for this request
+    const log = createLogger({
+      module: 'edge-function',
+      traceId: requestId
     });
     
-    // Handle CORS preflight requests
-    if (enableCors && req.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-    
-    // Log request details
-    if (!skipLogging) {
-      const url = new URL(req.url);
-      requestLog.info(`${req.method} ${url.pathname}${url.search}`, {
-        headers: Object.fromEntries(req.headers),
-        method: req.method
-      });
-    }
-    
-    const startTime = performance.now();
-    
-    // Create a timeout promise
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Request timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-    });
+    log.debug(`${req.method} ${req.url}`);
     
     try {
-      // Execute the handler with timeout
-      const result = await Promise.race([
-        requestLog.time('Request processing', () => handler(req, requestLog)),
-        timeoutPromise
-      ]);
+      // Call the actual handler
+      const response = await handler(req, log);
+      const duration = Date.now() - startTime;
       
-      // Calculate and log the response time
-      const duration = performance.now() - startTime;
-      requestLog.info(`Request completed in ${duration.toFixed(2)}ms`);
+      // If response is already a Response, return it
+      if (response instanceof Response) {
+        log.debug(`Request completed in ${duration}ms`);
+        return response;
+      }
       
-      // Format successful response
-      const responseBody = typeof result === 'string' 
-        ? result 
-        : JSON.stringify(result);
-      
-      const contentType = typeof result === 'string' && result.trim().startsWith('<') 
-        ? 'text/html' 
-        : 'application/json';
-      
-      const headers = {
-        'Content-Type': contentType,
-        ...(enableCors ? corsHeaders : {})
-      };
-      
-      return new Response(responseBody, { status: 200, headers });
+      // Otherwise convert to JSON response
+      log.debug(`Request succeeded in ${duration}ms`);
+      return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': requestId,
+          'X-Response-Time': duration.toString()
+        }
+      });
     } catch (error) {
-      // Log and format error response
-      const errorData = handleError(requestLog, error, 'Request handler error');
-      const duration = performance.now() - startTime;
+      const duration = Date.now() - startTime;
+      log.error(`Request failed after ${duration}ms: ${error.message}`);
       
-      requestLog.error(`Request failed after ${duration.toFixed(2)}ms`, { error });
-      
+      // Return error response
       return new Response(
-        JSON.stringify({ 
-          error: true,
-          message: errorData.message || 'Internal server error',
-          details: process.env.NODE_ENV !== 'production' ? errorData : undefined,
+        JSON.stringify({
+          error: error.message || 'Unknown error',
+          requestId
         }),
-        { 
-          status: errorData.status || 500, 
+        {
+          status: error.statusCode || 500,
           headers: {
             'Content-Type': 'application/json',
-            ...(enableCors ? corsHeaders : {})
+            'X-Request-ID': requestId,
+            'X-Response-Time': duration.toString()
           }
         }
       );

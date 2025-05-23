@@ -21,103 +21,86 @@ export async function ensureStorageSetup(): Promise<boolean> {
       throw new Error("Unable to access storage system");
     }
     
+    // Check if required buckets exist
     const pendingBucketExists = buckets?.some(b => b.name === 'pending-uploads') || false;
-    console.log("pending-uploads bucket exists:", pendingBucketExists);
     
     if (!pendingBucketExists) {
-      console.log("pending-uploads bucket doesn't exist, calling setup function");
+      console.log("Required buckets don't exist, calling setup function");
       
-      // Call the setup function to create the buckets
-      const { error: setupError } = await supabase.functions.invoke("setup");
+      // Call setup function to create them
+      const { data: setupData, error: setupError } = await supabase.functions.invoke("setup");
       
       if (setupError) {
-        console.error("Setup function error:", setupError);
-        
-        // More specific error messages
-        if (setupError.message.includes("permission") || setupError.message.includes("not authorized")) {
-          throw new Error("Setup function permission denied. Anonymous uploads may not be enabled.");
-        }
-        
-        throw new Error("Storage system setup failed: " + setupError.message);
+        console.error("Error setting up storage:", setupError);
+        throw new Error("Storage system setup failed");
       }
       
-      // Verify buckets were created successfully
-      const { data: verifyBuckets, error: verifyError } = await supabase.storage.listBuckets();
-      
-      if (verifyError) {
-        console.error("Verify buckets error:", verifyError);
-        throw new Error("Failed to verify storage setup");
-      }
-      
-      const bucketsExist = verifyBuckets?.some(b => b.name === 'pending-uploads') || false;
-      
-      if (!bucketsExist) {
-        throw new Error("Storage buckets setup failed - buckets were not created");
-      }
-      
-      console.log("Storage buckets created successfully");
-      return true;
+      console.log("Storage setup completed:", setupData);
     }
     
-    return pendingBucketExists;
-  } catch (setupError) {
-    console.error("Error setting up storage:", setupError);
-    // Provide more specific error message to users
-    if (setupError.message.includes("permission") || setupError.message.includes("not authorized")) {
-      throw new Error("Storage permission denied. Please try again later or contact support.");
-    }
-    throw new Error(`Storage system setup failed: ${setupError.message}`);
+    console.log("Storage is ready for use");
+    return true;
+  } catch (error) {
+    console.error("Storage setup error:", error);
+    throw new Error("Could not access storage system. Please try again later.");
   }
 }
 
 /**
  * Uploads a file to the pending-uploads bucket
  * @param file The file to upload
- * @param emailPrefix Email prefix to use in the file path
- * @returns The storage path of the uploaded file
+ * @param userEmail The user's email (used for path generation)
+ * @returns The storage path where the file was uploaded
  */
-export async function uploadFileToPendingBucket(file: File, emailPrefix: string): Promise<string> {
-  // Generate a unique file path
-  const { v4: uuidv4 } = await import("uuid");
-  const fileExt = file.name.split(".").pop() || "";
-  const uniqueFileName = `${uuidv4()}.${fileExt}`;
-  const storagePath = `${emailPrefix}-${uniqueFileName}`;
-
-  // Upload file to Supabase Storage
-  console.log(`Uploading file to Supabase Storage at path: ${storagePath}`);
-  
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from("pending-uploads")
-    .upload(storagePath, file);
-
-  if (uploadError) {
-    console.error("Supabase Storage upload error:", uploadError);
+export async function uploadFileToPendingBucket(file: File, userEmail: string): Promise<string> {
+  try {
+    console.log("Uploading file to pending-uploads bucket:", file.name);
     
-    // Handle specific error cases
-    if (uploadError.message.includes("Bucket not found")) {
-      throw new Error("Storage system not configured properly. Please try again later.");
+    // Create a unique path using timestamp and a slug from the email
+    const userPrefix = userEmail.split('@')[0].replace(/[^a-z0-9]/gi, '');
+    const timestamp = new Date().getTime();
+    const storagePath = `${userPrefix}/${timestamp}-${file.name}`;
+    
+    const { error } = await supabase
+      .storage
+      .from('pending-uploads')
+      .upload(storagePath, file);
+      
+    if (error) {
+      console.error("Error uploading file:", error);
+      throw new Error(`File upload failed: ${error.message}`);
     }
     
-    if (uploadError.message.includes("permission") || uploadError.message.includes("not authorized")) {
-      throw new Error("Upload permission denied. Anonymous uploads may not be enabled.");
-    }
-    
-    throw new Error(`Failed to upload file: ${uploadError.message}`);
+    console.log("File uploaded successfully:", storagePath);
+    return storagePath;
+  } catch (error) {
+    console.error("Upload error:", error);
+    throw error;
   }
-
-  console.log("File uploaded successfully:", uploadData);
-  return storagePath;
 }
 
 /**
  * Deletes a file from the pending-uploads bucket
- * @param storagePath The storage path of the file to delete
+ * @param storagePath The path to the file to delete
  */
 export async function deleteFileFromPendingBucket(storagePath: string): Promise<void> {
   try {
-    await supabase.storage.from("pending-uploads").remove([storagePath]);
-    console.log("Cleaned up uploaded file after function error.");
-  } catch (cleanupError) {
-    console.error("Failed to cleanup uploaded file after function error:", cleanupError);
+    console.log("Deleting file from pending-uploads bucket:", storagePath);
+    
+    const { error } = await supabase
+      .storage
+      .from('pending-uploads')
+      .remove([storagePath]);
+      
+    if (error) {
+      console.error("Error deleting file:", error);
+      throw new Error(`File deletion failed: ${error.message}`);
+    }
+    
+    console.log("File deleted successfully");
+  } catch (error) {
+    console.error("Delete error:", error);
+    // Don't throw the error, just log it, as this is usually cleanup
+    console.warn("File deletion failed but proceeding anyway");
   }
 }
