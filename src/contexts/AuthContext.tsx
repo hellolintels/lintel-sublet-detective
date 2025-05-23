@@ -25,12 +25,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // Determine admin status based on email (temporary until role-based system is implemented)
-  const checkAdminStatus = (userEmail: string | undefined) => {
-    const adminStatus = userEmail === "jamie@lintels.in";
-    setIsAdmin(adminStatus);
-    setUserRole(adminStatus ? 'admin' : 'user');
-    return adminStatus;
+  // Check user role from the new user_roles table
+  const checkUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+        
+      if (error) {
+        console.log("No role found for user, defaulting to 'user'");
+        setUserRole('user');
+        setIsAdmin(false);
+        return;
+      }
+      
+      if (data?.role) {
+        setUserRole(data.role);
+        setIsAdmin(data.role === 'admin');
+      } else {
+        setUserRole('user');
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error("Error checking user role:", error);
+      setUserRole('user');
+      setIsAdmin(false);
+    }
   };
   
   useEffect(() => {
@@ -45,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(!!newSession);
         
         if (newSession?.user) {
-          checkAdminStatus(newSession.user.email);
+          await checkUserRole(newSession.user.id);
         } else {
           setUserRole(null);
           setIsAdmin(false);
@@ -75,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthenticated(!!currentSession);
       
       if (currentSession?.user) {
-        checkAdminStatus(currentSession.user.email);
+        await checkUserRole(currentSession.user.id);
       }
       
       setLoading(false);
@@ -101,7 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsAuthenticated(!!data?.session);
           
           if (data?.user) {
-            checkAdminStatus(data.user.email);
+            await checkUserRole(data.user.id);
           }
           
           toast({
