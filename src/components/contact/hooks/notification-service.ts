@@ -42,23 +42,32 @@ export async function notifyAdmin(payload: AdminNotificationPayload): Promise<an
 /**
  * Shows appropriate success or error notifications to the user
  * @param result The result from the notification function
+ * @param isApiBypass Whether this submission is bypassing API processing
  */
-export function showResultNotifications(result: { emailSent: boolean } | null): void {
+export function showResultNotifications(result: { emailSent: boolean } | null, isApiBypass: boolean = false): void {
   toast.dismiss("processing-submission");
   
-  // Check if email was sent successfully
-  if (result?.emailSent === false) {
-    // The submission was received but email sending failed
+  if (isApiBypass) {
+    // Special message for API bypass mode
     toast.success(
-      "Your submission was received! However, there may be a delay in processing. We'll review it as soon as possible.",
-      { duration: 6000 }
+      "Your submission has been received and sent for manual review. Due to system maintenance, processing will be handled manually. We'll be in touch soon!",
+      { duration: 8000 }
     );
   } else {
-    // Normal success case
-    toast.success(
-      "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
-      { duration: 6000 }
-    );
+    // Check if email was sent successfully
+    if (result?.emailSent === false) {
+      // The submission was received but email sending failed
+      toast.success(
+        "Your submission was received! However, there may be a delay in processing. We'll review it as soon as possible.",
+        { duration: 6000 }
+      );
+    } else {
+      // Normal success case
+      toast.success(
+        "Thank you for your submission! Your address list has been sent for review and we'll be in touch soon.",
+        { duration: 6000 }
+      );
+    }
   }
 }
 
@@ -102,4 +111,5 @@ export interface AdminNotificationPayload {
   phone: string;
   storagePath: string;
   form_type: string;
+  bypass_api_processing?: boolean; // New optional flag
 }
