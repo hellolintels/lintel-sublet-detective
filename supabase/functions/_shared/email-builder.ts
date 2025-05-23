@@ -4,7 +4,7 @@
  * This file consolidates email building functions that were previously scattered
  */
 
-import { EmailAttachment } from "../process-addresses/utils/email-types.ts";
+import { EmailAttachment } from "./email-types.ts";
 
 /**
  * Clean and prepare attachment content for email sending

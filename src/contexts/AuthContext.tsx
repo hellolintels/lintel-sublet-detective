@@ -25,29 +25,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // Fetch user role
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error) {
-        console.warn("No role found for user, defaulting to 'user'");
-        setUserRole('user');
-        setIsAdmin(false);
-        return;
-      }
-      
-      setUserRole(data.role);
-      setIsAdmin(data.role === 'admin');
-    } catch (error) {
-      console.error("Error fetching user role:", error);
-      setUserRole('user');
-      setIsAdmin(false);
-    }
+  // Determine admin status based on email (temporary until role-based system is implemented)
+  const checkAdminStatus = (userEmail: string | undefined) => {
+    const adminStatus = userEmail === "jamie@lintels.in";
+    setIsAdmin(adminStatus);
+    setUserRole(adminStatus ? 'admin' : 'user');
+    return adminStatus;
   };
   
   useEffect(() => {
@@ -62,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(!!newSession);
         
         if (newSession?.user) {
-          await fetchUserRole(newSession.user.id);
+          checkAdminStatus(newSession.user.email);
         } else {
           setUserRole(null);
           setIsAdmin(false);
@@ -92,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthenticated(!!currentSession);
       
       if (currentSession?.user) {
-        await fetchUserRole(currentSession.user.id);
+        checkAdminStatus(currentSession.user.email);
       }
       
       setLoading(false);
@@ -107,23 +90,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("Login attempt:", email);
       
-      // First, attempt to sign in normally
       const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       
-      // If we get "email not confirmed" error, try to handle it
       if (error && error.message === "Email not confirmed") {
-        console.log("Email not confirmed error, attempting to resend confirmation and auto-confirm");
+        console.log("Email not confirmed error, attempting to handle admin user");
         
-        // For admin users, we'll automatically confirm the email
         if (email === "jamie@lintels.in") {
-          // For the admin user, we'll just try to sign them in directly
-          // For development/demo purposes only
           setUser(data?.user ?? null);
           setSession(data?.session ?? null);
           setIsAuthenticated(!!data?.session);
           
           if (data?.user) {
-            await fetchUserRole(data.user.id);
+            checkAdminStatus(data.user.email);
           }
           
           toast({
@@ -134,7 +112,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
-        // For regular users, throw the error normally
         throw error;
       } else if (error) {
         console.error("Login error:", error);
