@@ -9,10 +9,7 @@ interface AdminRouteProps {
 
 const AdminRoute = ({ children }: AdminRouteProps) => {
   const location = useLocation();
-  const { isAuthenticated, loading, user } = useAuth();
-  
-  // Check if user email is admin
-  const isAdmin = user?.email === "jamie@lintels.in";
+  const { isAuthenticated, loading, isAdmin } = useAuth();
   
   // While checking authentication status, show loading
   if (loading) {

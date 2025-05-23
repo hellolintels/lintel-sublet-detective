@@ -3,8 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createLogger } from '../_shared/debug-logger.ts';
-import { sendEmail } from '../_shared/email.ts';
-import { buildAdminNotificationEmail, buildClientConfirmationEmail } from '../_shared/email-builder.ts';
+import { sendEmail, buildAdminNotificationEmail, buildClientConfirmationEmail } from '../_shared/email.ts';
 
 const logger = createLogger({ module: 'submit-form' });
 

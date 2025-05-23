@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminSetup } from "@/hooks/useAdminSetup";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -12,15 +13,18 @@ import { FileUploader } from "@/components/admin/FileUploader";
 
 const AdminDashboard = () => {
   const { logout } = useAuth();
+  const { setupAttempted } = useAdminSetup();
   const [pendingRequests, setPendingRequests] = useState<ContactRequest[]>([]);
   const [processedReports, setProcessedReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Load all contact requests when the dashboard loads
   useEffect(() => {
-    fetchPendingRequests();
-    fetchProcessedReports();
-  }, []);
+    if (setupAttempted) {
+      fetchPendingRequests();
+      fetchProcessedReports();
+    }
+  }, [setupAttempted]);
 
   const fetchPendingRequests = async () => {
     setLoading(true);

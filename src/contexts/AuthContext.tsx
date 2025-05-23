@@ -8,6 +8,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   session: Session | null;
+  userRole: string | null;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -19,18 +21,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Fetch user role
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        console.warn("No role found for user, defaulting to 'user'");
+        setUserRole('user');
+        setIsAdmin(false);
+        return;
+      }
+      
+      setUserRole(data.role);
+      setIsAdmin(data.role === 'admin');
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+      setUserRole('user');
+      setIsAdmin(false);
+    }
+  };
   
   useEffect(() => {
     console.log("Auth Provider initialized");
     
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log("Auth state changed:", event, newSession?.user?.email);
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setIsAuthenticated(!!newSession);
+        
+        if (newSession?.user) {
+          await fetchUserRole(newSession.user.id);
+        } else {
+          setUserRole(null);
+          setIsAdmin(false);
+        }
         
         if (event === 'SIGNED_IN') {
           toast({
@@ -49,11 +85,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       console.log("Existing session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setIsAuthenticated(!!currentSession);
+      
+      if (currentSession?.user) {
+        await fetchUserRole(currentSession.user.id);
+      }
+      
       setLoading(false);
     });
 
@@ -80,6 +121,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(data?.user ?? null);
           setSession(data?.session ?? null);
           setIsAuthenticated(!!data?.session);
+          
+          if (data?.user) {
+            await fetchUserRole(data.user.id);
+          }
           
           toast({
             title: "Admin access granted",
@@ -130,7 +175,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, session, login, logout, loading }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      session, 
+      userRole,
+      isAdmin,
+      login, 
+      logout, 
+      loading 
+    }}>
       {children}
     </AuthContext.Provider>
   );
