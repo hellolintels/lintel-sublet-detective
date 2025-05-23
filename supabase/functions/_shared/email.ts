@@ -136,12 +136,15 @@ export function buildAdminNotificationEmail(contact: any) {
  * Build client confirmation email
  */
 export function buildClientConfirmationEmail(contact: any) {
+  // Extract first name from full_name
+  const firstName = contact.full_name ? contact.full_name.split(' ')[0] : 'there';
+  
   return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #2196F3; border-radius: 5px;">
-      <h1 style="color: #2196F3; text-align: center;">Thank You for Your Submission</h1>
-      <p>Hello ${contact.full_name},</p>
-      <p>We've received your address list and will begin processing it shortly. You'll receive your sample report within 24 hours.</p>
-      <p>If you have any questions, contact us at <a href="mailto:info@lintels.in">info@lintels.in</a>.</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #000000; border-radius: 5px;">
+      <h1 style="color: #000000; text-align: center;">Thank You for Your Submission</h1>
+      <p>Hello ${firstName},</p>
+      <p>We've received your address list and will begin processing it shortly. You'll receive your sample report within 48 hours for beta.</p>
+      <p>If you have any questions, contact us at <a href="mailto:hello@lintels.in">hello@lintels.in</a>.</p>
       <p style="text-align: center; font-size: 12px; color: #666; margin-top: 20px;">
         This is an automated message from lintels.in
       </p>
