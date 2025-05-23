@@ -1,136 +1,102 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
-import { ensureStorageSetup } from '../_shared/storage.ts';
-import { SubmissionPayload, ProcessingResult } from '../_shared/types.ts';
-import { recordSubmission, updateSubmissionStatus } from '../_shared/db.ts';
-import { sendEmail, buildAdminNotificationEmail, buildClientConfirmationEmail } from '../_shared/email.ts';
-import { processFileForEmailAttachment } from '../_shared/file-processing.ts';
+import { createSubmission, createContactFromSubmission } from '../_shared/db.ts';
+import { downloadFileContent } from '../_shared/storage.ts';
+import { sendEmail } from '../_shared/email.ts';
+import { createLogger } from '../_shared/debug-logger.ts';
+import { buildAdminNotificationEmail, buildClientConfirmationEmail } from '../_shared/email-builder.ts';
 
-/**
- * Handle form submission
- */
+const logger = createLogger({ module: 'submit-form' });
+
+// Process form submission and notify administrators
 serve(async (req) => {
   try {
     // Handle CORS preflight
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("📥 Form submission request received");
+    logger.info("📝 Form submission request received");
     
     // Parse request data
-    const requestData = await req.text();
-    let payload: SubmissionPayload;
+    const requestData = await req.json();
     
+    logger.debug("Form data received", {
+      name: requestData.full_name,
+      email: requestData.email,
+      company: requestData.company,
+      formType: requestData.form_type
+    });
+    
+    // Validate submission
+    if (!requestData.full_name || !requestData.email || !requestData.storagePath) {
+      logger.warn("Submission validation failed", { requestData });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Missing required fields"
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Store submission in database
+    const submissionId = await createSubmission(requestData);
+    logger.info(`Created submission with ID ${submissionId}`);
+    
+    // Try to download the file to verify it exists
     try {
-      payload = JSON.parse(requestData);
-      console.log("Submission payload received for:", payload.full_name);
-    } catch (jsonError) {
-      console.error('Failed to parse JSON payload:', jsonError);
-      console.log('Raw payload received:', requestData);
-      return new Response(
-        JSON.stringify({ error: 'Invalid JSON payload' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      await downloadFileContent(requestData.storagePath);
+      logger.info("Verified file exists");
+    } catch (fileError) {
+      logger.warn("File verification error", { error: fileError });
+      // Continue even if file access fails - admin review will catch issues
     }
     
-    // Validate required fields
-    if (!payload.full_name || !payload.email || !payload.storagePath) {
-      console.error('Missing required fields in request payload');
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: full_name, email, and storagePath are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Get admin and sender emails from env
+    const adminEmail = Deno.env.get("APPROVER_EMAIL") || "jamie@lintels.in";
     
-    // Ensure storage is set up
-    const storageReady = await ensureStorageSetup();
-    if (!storageReady) {
-      console.error('Storage system is not available');
-      return new Response(
-        JSON.stringify({ error: 'Storage system is not available' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Prepare admin notification email
+    const adminHtml = buildAdminNotificationEmail(requestData);
     
-    // Record submission in database
-    const submissionId = await recordSubmission(
-      {
-        full_name: payload.full_name,
-        email: payload.email,
-        company: payload.company || '',
-        position: payload.position,
-        phone: payload.phone,
-        form_type: payload.form_type || 'sample',
-      },
-      {
-        storagePath: payload.storagePath,
-        file_name: payload.file_name,
-        file_type: payload.file_type,
-      }
-    );
-    
-    // Create a contact object for the email
-    const contact = {
-      id: submissionId,
-      full_name: payload.full_name,
-      position: payload.position || '',
-      company: payload.company || '',
-      email: payload.email,
-      phone: payload.phone || '',
-      form_type: payload.form_type || 'sample',
-      file_name: payload.file_name || payload.storagePath.split('/').pop() || 'file.csv',
-      file_type: payload.file_type || 'text/csv'
-    };
-    
-    // Send notification email to admin
-    const adminEmail = Deno.env.get('APPROVER_EMAIL') || 'jamie@lintels.in';
-    const htmlContent = buildAdminNotificationEmail(contact);
-    const plainText = `New submission from ${payload.full_name} (${payload.email})`;
-    
-    // We don't have the file data, so we send without attachment
-    const emailResult = await sendEmail(
+    // Send admin notification
+    const adminEmailResult = await sendEmail(
       adminEmail,
-      `New Address Submission from ${payload.full_name}`,
-      htmlContent,
-      plainText
+      `New Request: ${requestData.full_name} from ${requestData.company}`,
+      adminHtml
     );
     
-    console.log('Admin notification email result:', emailResult);
+    // Prepare client confirmation email (simplified)
+    const clientHtml = buildClientConfirmationEmail(requestData);
     
-    // Send confirmation to client
+    // Send client confirmation
     const clientEmailResult = await sendEmail(
-      payload.email,
-      "We've Received Your Address List - Lintels.in",
-      buildClientConfirmationEmail(contact)
+      requestData.email,
+      "Thank you for your submission to Lintels.in",
+      clientHtml
     );
     
-    console.log('Client confirmation email result:', clientEmailResult);
+    logger.info("Email notification sent to admin", { success: adminEmailResult.success });
+    logger.info("Confirmation email sent to client", { success: clientEmailResult.success });
     
-    // Update submission status
-    await updateSubmissionStatus(submissionId, 'pending');
-    
-    // Return success response
-    const response: ProcessingResult = {
-      success: true,
-      submissionId,
-      emailSent: emailResult.success,
-      message: 'Submission received and admin notified',
-      status: 'pending'
-    };
-    
+    // Return success with result details
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify({
+        success: true,
+        submissionId,
+        emailSent: adminEmailResult.success && clientEmailResult.success
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (err) {
-    console.error('❌ ERROR in submit-form function:', err);
     
+  } catch (error) {
+    logger.error("❌ ERROR in submit-form function", { error: error.message });
+    
+    // Return error response
     return new Response(
       JSON.stringify({
         success: false,
-        error: err.message || 'Internal server error',
-        timestamp: new Date().toISOString()
+        error: error.message || "An unknown error occurred"
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

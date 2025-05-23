@@ -21,18 +21,18 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase login --token "$SUPABASE_ACCESS_TOKEN"
 
-      - name: Deploy process-addresses
-        run: supabase functions deploy process-addresses \
+      - name: Deploy submit-form
+        run: supabase functions deploy submit-form \
                --project-ref uejymkggevuvuerldzhv \
                --no-verify-jwt
 
-      - name: Deploy notify-admin
-        run: supabase functions deploy notify-admin \
+      - name: Deploy approve-submission
+        run: supabase functions deploy approve-submission \
                --project-ref uejymkggevuvuerldzhv \
                --no-verify-jwt
 
-      - name: Deploy process-approval
-        run: supabase functions deploy process-approval \
+      - name: Deploy process-data
+        run: supabase functions deploy process-data \
                --project-ref uejymkggevuvuerldzhv \
                --no-verify-jwt
                
@@ -44,7 +44,7 @@ jobs:
       - name: Output Deployed URLs
         run: |
           echo "Deployed URLs:"
-          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/process-addresses"
-          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/notify-admin"
-          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/process-approval"
+          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/submit-form"
+          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/approve-submission"
+          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/process-data"
           echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/setup"
