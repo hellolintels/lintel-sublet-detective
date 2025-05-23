@@ -44,15 +44,23 @@ serve_port = 54325
 
 [functions.submit-form]
 verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 15
 
 [functions.approve-submission]
 verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 15
 
 [functions.process-data]
 verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 30
 
 [functions.setup]
 verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 10
 
 [vector]
 enabled = false

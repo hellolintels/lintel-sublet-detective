@@ -23,6 +23,8 @@ export type Database = {
           form_type: string
           full_name: string
           id: string
+          latitude: number | null
+          longitude: number | null
           phone: string
           position: string
           status: string
@@ -40,6 +42,8 @@ export type Database = {
           form_type: string
           full_name: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           phone: string
           position: string
           status?: string
@@ -57,6 +61,8 @@ export type Database = {
           form_type?: string
           full_name?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           phone?: string
           position?: string
           status?: string
@@ -142,6 +148,36 @@ export type Database = {
           position?: string | null
           status?: string
           storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      postcode_geocoding: {
+        Row: {
+          country: string | null
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          postcode: string
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          postcode: string
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          postcode?: string
           updated_at?: string
         }
         Relationships: []

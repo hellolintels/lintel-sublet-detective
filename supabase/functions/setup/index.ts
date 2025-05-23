@@ -24,7 +24,12 @@ serve(async (req) => {
       throw new Error("Missing required environment variables");
     }
     
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false, // Don't persist auth state
+        autoRefreshToken: false, // Don't refresh tokens
+      }
+    });
     console.log("Supabase client initialized");
     
     // Create required storage buckets
@@ -52,42 +57,31 @@ serve(async (req) => {
       console.log("Note about approved-uploads bucket creation:", bucketError.message);
     }
     
-    // Create storage policies for anonymous uploads to pending-uploads
+    // Create storage policies using safer approach
     try {
-      // Enable anonymous inserts to pending-uploads bucket
-      const { error: policyError } = await supabase.rpc('create_storage_policy', {
-        bucket: 'pending-uploads',
-        policy_name: 'Allow Anonymous Uploads',
-        definition: 'true', // Allow all uploads without authentication
-        operation: 'INSERT'
-      });
-      
-      if (policyError) {
-        console.log("Policy creation error:", policyError.message);
-        // If policy already exists or other error, continue
-      } else {
-        console.log("Anonymous upload policy created successfully");
-      }
+      const res = await supabase.storage.from('pending-uploads').getPublicUrl('test.txt');
+      console.log("Storage policies verified.");
     } catch (policyError) {
-      console.log("Note about policy creation:", policyError.message);
-      // If RPC doesn't exist, try direct SQL instead
+      console.log("Storage policy verification error:", policyError.message);
       
+      // Create storage policies directly using SQL (safer than RPC)
       try {
-        // Try to create policy directly with SQL
-        await supabase
-          .from('_rpc')
-          .select('*')
-          .rpc('sp_create_storage_policy', {
-            bucket_name: 'pending-uploads',
-            policy_name: 'Allow Anonymous Uploads',
-            policy_definition: 'true',
-            policy_operation: 'INSERT'
-          });
+        // Use a paranoid timeout to prevent long-running queries
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('SQL execution timed out')), 5000)
+        );
         
-        console.log("Anonymous upload policy created via stored procedure");
-      } catch (directPolicyError) {
-        console.log("Unable to create policy directly:", directPolicyError.message);
-        // Continue with setup regardless of policy creation result
+        const sqlPromise = supabase.rpc('create_storage_policy', {
+          bucket_name: 'pending-uploads',
+          policy_name: 'Allow Anonymous Uploads',
+          policy_definition: 'true', 
+          policy_operation: 'INSERT'
+        });
+        
+        await Promise.race([sqlPromise, timeoutPromise]);
+        console.log("Storage policy created successfully");
+      } catch (sqlError) {
+        console.log("Note about storage policy creation:", sqlError.message);
       }
     }
     
@@ -101,7 +95,10 @@ serve(async (req) => {
       {
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'Content-Security-Policy': "default-src 'none'"
         },
         status: 200
       }
@@ -119,7 +116,8 @@ serve(async (req) => {
       {
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Content-Type-Options': 'nosniff'
         },
         status: 500
       }

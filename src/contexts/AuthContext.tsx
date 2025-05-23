@@ -24,10 +24,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // Check user role from the new user_roles table
   const checkUserRole = async (userId: string) => {
     try {
+      // Validate UUID format to prevent injection attacks
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(userId)) {
+        console.error("Invalid user ID format");
+        setUserRole('user');
+        setIsAdmin(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -57,6 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   useEffect(() => {
     console.log("Auth Provider initialized");
+    setAuthError(null);
     
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -67,7 +78,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(!!newSession);
         
         if (newSession?.user) {
-          await checkUserRole(newSession.user.id);
+          // Use setTimeout for database call to avoid auth deadlocks
+          setTimeout(async () => {
+            await checkUserRole(newSession.user!.id);
+          }, 0);
         } else {
           setUserRole(null);
           setIsAdmin(false);
@@ -101,6 +115,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       setLoading(false);
+    }).catch(error => {
+      console.error("Error getting session:", error);
+      setLoading(false);
+      setAuthError("Failed to retrieve authentication session");
     });
 
     return () => {
@@ -111,6 +129,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       console.log("Login attempt:", email);
+      setAuthError(null);
+      
+      // Validate input format to prevent injection attacks
+      if (!email || !password || email.length < 5 || password.length < 6) {
+        throw new Error("Invalid email or password format");
+      }
       
       const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       
@@ -144,6 +168,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Login exception:", error);
       if (error instanceof Error) {
+        setAuthError(error.message);
         toast({
           title: "Login failed",
           description: error.message,
@@ -157,12 +182,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       console.log("Logout attempt");
+      setAuthError(null);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       console.log("Logout successful");
     } catch (error) {
       console.error("Logout error:", error);
       if (error instanceof Error) {
+        setAuthError(error.message);
         toast({
           title: "Logout failed",
           description: error.message,
