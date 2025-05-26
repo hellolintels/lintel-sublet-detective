@@ -27,6 +27,9 @@ export type Database = {
           longitude: number | null
           phone: string
           position: string
+          processing_status:
+            | Database["public"]["Enums"]["processing_status"]
+            | null
           status: string
         }
         Insert: {
@@ -46,6 +49,9 @@ export type Database = {
           longitude?: number | null
           phone: string
           position: string
+          processing_status?:
+            | Database["public"]["Enums"]["processing_status"]
+            | null
           status?: string
         }
         Update: {
@@ -65,47 +71,74 @@ export type Database = {
           longitude?: number | null
           phone?: string
           position?: string
+          processing_status?:
+            | Database["public"]["Enums"]["processing_status"]
+            | null
           status?: string
         }
         Relationships: []
       }
       match_results: {
         Row: {
+          address: string | null
+          confidence_score: number | null
           contact_id: string | null
           created_at: string | null
           id: string
+          listing_details: Json | null
+          listing_title: string | null
           match_score: number | null
           matched_listing_url: string
           notes: string | null
           outcome: string
           platform: string
+          postcode: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          street_name: string | null
         }
         Insert: {
+          address?: string | null
+          confidence_score?: number | null
           contact_id?: string | null
           created_at?: string | null
           id?: string
+          listing_details?: Json | null
+          listing_title?: string | null
           match_score?: number | null
           matched_listing_url: string
           notes?: string | null
           outcome: string
           platform: string
+          postcode?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          street_name?: string | null
         }
         Update: {
+          address?: string | null
+          confidence_score?: number | null
           contact_id?: string | null
           created_at?: string | null
           id?: string
+          listing_details?: Json | null
+          listing_title?: string | null
           match_score?: number | null
           matched_listing_url?: string
           notes?: string | null
           outcome?: string
           platform?: string
+          postcode?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          street_name?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "match_results_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "pending_submissions"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -188,8 +221,10 @@ export type Database = {
           created_at: string
           html_content: string
           id: string
+          included_matches: string[] | null
           matches_count: number
           properties_count: number
+          report_type: string | null
           status: string
         }
         Insert: {
@@ -197,8 +232,10 @@ export type Database = {
           created_at?: string
           html_content: string
           id?: string
+          included_matches?: string[] | null
           matches_count?: number
           properties_count?: number
+          report_type?: string | null
           status?: string
         }
         Update: {
@@ -206,8 +243,10 @@ export type Database = {
           created_at?: string
           html_content?: string
           id?: string
+          included_matches?: string[] | null
           matches_count?: number
           properties_count?: number
+          report_type?: string | null
           status?: string
         }
         Relationships: [
@@ -302,6 +341,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
+      processing_status:
+        | "pending"
+        | "scraping"
+        | "matches_found"
+        | "reviewed"
+        | "report_sent"
+        | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -418,6 +464,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "moderator"],
+      processing_status: [
+        "pending",
+        "scraping",
+        "matches_found",
+        "reviewed",
+        "report_sent",
+        "completed",
+      ],
     },
   },
 } as const

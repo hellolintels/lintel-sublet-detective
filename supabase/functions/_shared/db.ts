@@ -1,4 +1,3 @@
-
 import { corsHeaders } from './cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ContactInfo, FileSubmission, ProcessingResult } from './types.ts';
@@ -218,7 +217,7 @@ export async function createReport(contactId: string, properties: number, matche
 }
 
 /**
- * Update contact status
+ * Update contact status with processing_status enum
  */
 export async function updateContactStatus(id: string, status: string) {
   try {
@@ -226,9 +225,15 @@ export async function updateContactStatus(id: string, status: string) {
     
     const supabase = getSupabaseClient();
     
+    const updateData: any = {
+      status,
+      processing_status: status, // Also update the new processing_status column
+      updated_at: new Date().toISOString()
+    };
+    
     const { error } = await supabase
       .from('contacts')
-      .update({ status })
+      .update(updateData)
       .eq('id', id);
       
     if (error) {
