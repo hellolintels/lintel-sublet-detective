@@ -15,7 +15,6 @@ interface Match {
   address: string | null;
   platform: string;
   matched_listing_url: string;
-  confidence_score: number;
   listing_title: string | null;
   outcome: string;
   created_at: string;
@@ -80,7 +79,7 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
       
       toast({
         title: "Match updated",
-        description: `Match ${outcome === 'approved' ? 'approved' : 'rejected'} successfully`,
+        description: `Match ${outcome === 'investigate' ? 'marked for investigation' : 'marked as no match'}`,
       });
     } catch (error) {
       console.error("Error updating match:", error);
@@ -96,18 +95,16 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
 
   const getOutcomeBadge = (outcome: string) => {
     switch (outcome) {
-      case 'approved':
-        return <Badge className="bg-green-600">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
+      case 'investigate':
+        return <Badge className="bg-green-600">Investigate</Badge>;
       case 'no_match':
-        return <Badge variant="secondary">No Match</Badge>;
+        return <Badge variant="destructive">No Match</Badge>;
       default:
         return <Badge variant="outline">Pending</Badge>;
     }
   };
 
-  const approvedCount = matches.filter(m => m.outcome === 'approved').length;
+  const investigateCount = matches.filter(m => m.outcome === 'investigate').length;
   const totalMatches = matches.filter(m => m.matched_listing_url).length;
 
   return (
@@ -115,7 +112,7 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
       <CardHeader>
         <CardTitle className="text-white">Match Review - {contactName}</CardTitle>
         <CardDescription className="text-gray-400">
-          Review individual matches before generating the final report ({approvedCount} approved out of {totalMatches} matches)
+          Review individual matches before generating the final report ({investigateCount} marked for investigation out of {totalMatches} matches)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -131,7 +128,6 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
                   <TableHead>Postcode</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead>Platform</TableHead>
-                  <TableHead>Confidence</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Listing</TableHead>
                   <TableHead>Actions</TableHead>
@@ -143,12 +139,6 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
                     <TableCell className="font-mono">{match.postcode}</TableCell>
                     <TableCell>{match.address || '-'}</TableCell>
                     <TableCell className="capitalize">{match.platform}</TableCell>
-                    <TableCell>
-                      {match.confidence_score ? 
-                        `${Math.round(match.confidence_score * 100)}%` : 
-                        '-'
-                      }
-                    </TableCell>
                     <TableCell>{getOutcomeBadge(match.outcome)}</TableCell>
                     <TableCell>
                       {match.matched_listing_url ? (
@@ -172,7 +162,7 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
                             size="sm"
                             variant="outline"
                             className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-                            onClick={() => updateMatchOutcome(match.id, 'approved')}
+                            onClick={() => updateMatchOutcome(match.id, 'investigate')}
                             disabled={updatingId === match.id}
                           >
                             <CheckCircle size={14} />
@@ -181,7 +171,7 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
                             size="sm"
                             variant="outline"
                             className="bg-red-600 hover:bg-red-700 text-white border-red-600"
-                            onClick={() => updateMatchOutcome(match.id, 'rejected')}
+                            onClick={() => updateMatchOutcome(match.id, 'no_match')}
                             disabled={updatingId === match.id}
                           >
                             <XCircle size={14} />

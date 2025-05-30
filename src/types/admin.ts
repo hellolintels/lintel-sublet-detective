@@ -31,10 +31,9 @@ export interface MatchResult {
   address?: string;
   platform: string;
   matched_listing_url: string;
-  confidence_score?: number;
   listing_title?: string;
   listing_details?: any;
-  outcome: 'pending' | 'approved' | 'rejected' | 'no_match';
+  outcome: 'pending' | 'investigate' | 'no_match';
   created_at: string;
   reviewed_at?: string;
   reviewed_by?: string;

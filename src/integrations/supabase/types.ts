@@ -81,13 +81,11 @@ export type Database = {
       match_results: {
         Row: {
           address: string | null
-          confidence_score: number | null
           contact_id: string | null
           created_at: string | null
           id: string
           listing_details: Json | null
           listing_title: string | null
-          match_score: number | null
           matched_listing_url: string
           notes: string | null
           outcome: string
@@ -99,13 +97,11 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          confidence_score?: number | null
           contact_id?: string | null
           created_at?: string | null
           id?: string
           listing_details?: Json | null
           listing_title?: string | null
-          match_score?: number | null
           matched_listing_url: string
           notes?: string | null
           outcome: string
@@ -117,13 +113,11 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          confidence_score?: number | null
           contact_id?: string | null
           created_at?: string | null
           id?: string
           listing_details?: Json | null
           listing_title?: string | null
-          match_score?: number | null
           matched_listing_url?: string
           notes?: string | null
           outcome?: string

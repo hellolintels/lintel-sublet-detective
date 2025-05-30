@@ -23,11 +23,9 @@ export async function storeMatches(contactId: string, scrapingResults: PostcodeR
             address: result.address || null,
             platform: match.platform,
             matched_listing_url: match.url,
-            confidence_score: match.confidence,
             listing_title: match.details?.title || null,
             listing_details: match.details || null,
-            match_score: match.confidence,
-            outcome: 'pending', // Will be reviewed by admin
+            outcome: 'investigate', // Potential matches need investigation
             notes: null
           };
           
@@ -53,8 +51,6 @@ export async function storeMatches(contactId: string, scrapingResults: PostcodeR
           address: result.address || null,
           platform: 'bright-data',
           matched_listing_url: '',
-          confidence_score: 0,
-          match_score: 0,
           outcome: 'no_match',
           notes: result.error || 'No matches found'
         };
@@ -119,12 +115,11 @@ export async function generateReportFromMatches(contactId: string, contact: any)
     
     const postcodeResult = postcodeMap.get(postcode)!;
     
-    // Only add matches that were approved or have valid URLs
-    if (match.outcome === 'approved' || (match.matched_listing_url && match.matched_listing_url.length > 0)) {
+    // Only add matches marked as "investigate" that have valid URLs
+    if (match.outcome === 'investigate' && match.matched_listing_url && match.matched_listing_url.length > 0) {
       postcodeResult.matches!.push({
         platform: match.platform,
         url: match.matched_listing_url,
-        confidence: match.confidence_score || match.match_score || 0.7,
         details: match.listing_details
       });
     }

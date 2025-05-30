@@ -55,7 +55,6 @@ export interface PostcodeResult {
 export interface MatchResult {
   platform: string;
   url: string;
-  confidence: number;
   details?: any;
 }
 

@@ -21,7 +21,6 @@ export async function scrapePlaceholders(postcodes: PostcodeResult[]): Promise<P
           {
             platform: 'airbnb',
             url: `https://www.airbnb.com/rooms/12345?postcode=${p.postcode}`,
-            confidence: 0.85
           }
         ]
       };
@@ -35,7 +34,6 @@ export async function scrapePlaceholders(postcodes: PostcodeResult[]): Promise<P
           {
             platform: 'spareroom',
             url: `https://www.spareroom.co.uk/flatshare/flatshare_detail.pl?flatshare_id=12345&postcode=${p.postcode}`,
-            confidence: 0.75
           }
         ]
       };
