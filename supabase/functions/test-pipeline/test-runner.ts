@@ -5,12 +5,17 @@ import { testScrapeSpareRoom } from './spareroom-scraper.ts';
 import { testScrapeGumtree } from './gumtree-scraper.ts';
 
 export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<TestResult[]> {
-  console.log(`Starting ultra-precise test scraping for ${postcodes.length} postcodes`);
+  console.log(`Starting improved precision test scraping for ${postcodes.length} postcodes`);
 
   const results = [];
   
   for (const postcodeData of postcodes) {
     console.log(`Testing postcode: ${postcodeData.postcode} ${postcodeData.latitude && postcodeData.longitude ? `(${postcodeData.latitude}, ${postcodeData.longitude})` : '(no coordinates)'}`);
+    
+    // Special logging for G11 5AW test case
+    if (postcodeData.postcode === "G11 5AW") {
+      console.log(`🎯 Testing G11 5AW with improved search parameters to capture live listing`);
+    }
     
     try {
       const result: TestResult = {
@@ -23,6 +28,11 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
         spareroom: await testScrapeSpareRoom(postcodeData),
         gumtree: await testScrapeGumtree(postcodeData)
       };
+      
+      // Log results for validation
+      if (postcodeData.postcode === "G11 5AW") {
+        console.log(`✅ G11 5AW test completed - Airbnb status: ${result.airbnb.status}, count: ${result.airbnb.count}`);
+      }
       
       results.push(result);
     } catch (error) {
@@ -40,6 +50,6 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
     }
   }
 
-  console.log(`Ultra-precise test scraping completed for all ${postcodes.length} postcodes`);
+  console.log(`Improved precision test scraping completed for all ${postcodes.length} postcodes`);
   return results;
 }
