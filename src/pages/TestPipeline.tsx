@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, MapPin, Target } from "lucide-react";
+import { Loader2, MapPin, Target, Crosshair } from "lucide-react";
 
 interface TestResult {
   postcode: string;
@@ -17,6 +17,7 @@ interface TestResult {
     url?: string; 
     search_method?: string;
     precision?: string;
+    radius?: string;
   };
   spareroom: { 
     status: string; 
@@ -54,7 +55,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting enhanced coordinate-based test pipeline...");
+      console.log("Starting ultra-precise coordinate-based test pipeline...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -74,7 +75,7 @@ const TestPipeline = () => {
       if (data.connection_status === "success") {
         toast({
           title: "Test Completed",
-          description: `Enhanced precision test completed with ${data.coordinate_lookup || 'coordinate lookup'}`,
+          description: `Ultra-precise test completed with ${data.search_precision || 'coordinate lookup'}`,
         });
       } else {
         toast({
@@ -107,6 +108,7 @@ const TestPipeline = () => {
 
   const getPrecisionColor = (precision?: string) => {
     switch (precision) {
+      case "ultra-high": return "bg-emerald-500";
       case "high": return "bg-green-500";
       case "medium": return "bg-yellow-500";
       case "low": return "bg-red-500";
@@ -119,29 +121,30 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            Enhanced Precision Property Search Test
+            Ultra-Precise Property Search Test
           </h1>
           <p className="text-gray-400">
-            Testing coordinate-based searches with ~20m radius precision for accurate property matching
+            Testing ultra-precise coordinate-based searches with ~20m radius for pinpoint property matching
           </p>
         </div>
 
         <Card className="bg-gray-900 border-gray-800 mb-8">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <Target className="h-5 w-5 text-orange-500" />
-              Precision Pipeline Test
+              <Crosshair className="h-5 w-5 text-orange-500" />
+              Ultra-Precise Pipeline Test
             </CardTitle>
             <CardDescription>
-              This tests enhanced coordinate-based scraping with precise lat/lng positioning to eliminate false positives
+              This tests ultra-precise coordinate-based scraping with ~20m radius positioning and zoom=17 map view to eliminate false positives
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="text-sm text-gray-400">
-                <p>• <strong>Airbnb:</strong> Coordinate-based search with ~200m radius</p>
+                <p>• <strong>Airbnb:</strong> Ultra-precise coordinate search with ~20m radius + zoom=17</p>
                 <p>• <strong>SpareRoom & Gumtree:</strong> Full address search for precision</p>
                 <p>• <strong>Target Area:</strong> Edinburgh & Glasgow specific properties</p>
+                <p>• <strong>Test Case:</strong> G11 5AW (23 Banavie Road) for reference</p>
               </div>
               <Button 
                 onClick={runTest} 
@@ -149,7 +152,7 @@ const TestPipeline = () => {
                 className="bg-orange-600 hover:bg-orange-700"
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Running Enhanced Test..." : "Run Precision Test"}
+                {isLoading ? "Running Ultra-Precise Test..." : "Run Ultra-Precise Test"}
               </Button>
             </div>
           </CardContent>
@@ -167,6 +170,11 @@ const TestPipeline = () => {
                   {testResults.coordinate_lookup && (
                     <Badge variant="outline" className="text-green-400 border-green-400">
                       {testResults.coordinate_lookup}
+                    </Badge>
+                  )}
+                  {testResults.search_precision && (
+                    <Badge variant="outline" className="text-emerald-400 border-emerald-400">
+                      {testResults.search_precision}
                     </Badge>
                   )}
                 </CardTitle>
@@ -193,7 +201,7 @@ const TestPipeline = () => {
             {testResults.results && testResults.results.length > 0 && (
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
-                  <CardTitle className="text-white">Enhanced Scraping Results</CardTitle>
+                  <CardTitle className="text-white">Ultra-Precise Scraping Results</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -205,7 +213,7 @@ const TestPipeline = () => {
                             {result.coordinates && (
                               <div className="flex items-center gap-1 text-green-400 text-sm">
                                 <MapPin className="h-4 w-4" />
-                                <span>{result.coordinates.lat.toFixed(4)}, {result.coordinates.lng.toFixed(4)}</span>
+                                <span>{result.coordinates.lat.toFixed(6)}, {result.coordinates.lng.toFixed(6)}</span>
                               </div>
                             )}
                           </div>
@@ -215,7 +223,7 @@ const TestPipeline = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* Airbnb Results */}
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-blue-400">Airbnb:</span>
                               <Badge variant={getStatusColor(result.airbnb.status)}>
                                 {result.airbnb.status}
@@ -223,6 +231,11 @@ const TestPipeline = () => {
                               {result.airbnb.precision && (
                                 <span className={`px-2 py-1 text-xs rounded ${getPrecisionColor(result.airbnb.precision)} text-white`}>
                                   {result.airbnb.precision}
+                                </span>
+                              )}
+                              {result.airbnb.radius && (
+                                <span className="px-2 py-1 text-xs rounded bg-purple-600 text-white">
+                                  {result.airbnb.radius}
                                 </span>
                               )}
                             </div>
@@ -239,7 +252,7 @@ const TestPipeline = () => {
                                 rel="noopener noreferrer"
                                 className="text-blue-400 hover:text-blue-300 text-sm underline"
                               >
-                                View Search
+                                View Ultra-Precise Search
                               </a>
                             )}
                           </div>
