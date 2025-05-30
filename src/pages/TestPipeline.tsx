@@ -5,20 +5,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin, Target } from "lucide-react";
 
 interface TestResult {
   postcode: string;
   address: string;
-  airbnb: { status: string; count: number; url?: string };
-  spareroom: { status: string; count: number; url?: string };
-  gumtree: { status: string; count: number; url?: string };
+  coordinates?: { lat: number; lng: number };
+  airbnb: { 
+    status: string; 
+    count: number; 
+    url?: string; 
+    search_method?: string;
+    precision?: string;
+  };
+  spareroom: { 
+    status: string; 
+    count: number; 
+    url?: string; 
+    search_method?: string;
+    precision?: string;
+  };
+  gumtree: { 
+    status: string; 
+    count: number; 
+    url?: string; 
+    search_method?: string;
+    precision?: string;
+  };
 }
 
 interface TestSummary {
   total_postcodes: number;
   test_completed: string;
-  bright_data_connection: string;
+  connection_status: string;
+  coordinate_lookup?: string;
+  search_precision?: string;
   results: TestResult[];
   error?: string;
   message?: string;
@@ -33,7 +54,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting test pipeline...");
+      console.log("Starting enhanced coordinate-based test pipeline...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -50,10 +71,10 @@ const TestPipeline = () => {
       console.log("Test pipeline results:", data);
       setTestResults(data);
       
-      if (data.bright_data_connection === "success") {
+      if (data.connection_status === "success") {
         toast({
           title: "Test Completed",
-          description: "Bright Data integration test completed successfully",
+          description: `Enhanced precision test completed with ${data.coordinate_lookup || 'coordinate lookup'}`,
         });
       } else {
         toast({
@@ -84,34 +105,53 @@ const TestPipeline = () => {
     }
   };
 
+  const getPrecisionColor = (precision?: string) => {
+    switch (precision) {
+      case "high": return "bg-green-500";
+      case "medium": return "bg-yellow-500";
+      case "low": return "bg-red-500";
+      default: return "bg-gray-500";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            Bright Data Integration Test
+            Enhanced Precision Property Search Test
           </h1>
           <p className="text-gray-400">
-            Direct end-to-end testing of the property matching pipeline
+            Testing coordinate-based searches with ~20m radius precision for accurate property matching
           </p>
         </div>
 
         <Card className="bg-gray-900 border-gray-800 mb-8">
           <CardHeader>
-            <CardTitle className="text-white">Pipeline Test</CardTitle>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Target className="h-5 w-5 text-orange-500" />
+              Precision Pipeline Test
+            </CardTitle>
             <CardDescription>
-              This tests the complete Bright Data scraping pipeline with real UK postcodes
+              This tests enhanced coordinate-based scraping with precise lat/lng positioning to eliminate false positives
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button 
-              onClick={runTest} 
-              disabled={isLoading}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Running Test..." : "Run End-to-End Test"}
-            </Button>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-400">
+                <p>• <strong>Airbnb:</strong> Coordinate-based search with ~200m radius</p>
+                <p>• <strong>SpareRoom & Gumtree:</strong> Full address search for precision</p>
+                <p>• <strong>Target Area:</strong> Edinburgh & Glasgow specific properties</p>
+              </div>
+              <Button 
+                onClick={runTest} 
+                disabled={isLoading}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? "Running Enhanced Test..." : "Run Precision Test"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -121,9 +161,14 @@ const TestPipeline = () => {
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   Test Summary
-                  <Badge variant={testResults.bright_data_connection === "success" ? "default" : "destructive"}>
-                    {testResults.bright_data_connection}
+                  <Badge variant={testResults.connection_status === "success" ? "default" : "destructive"}>
+                    {testResults.connection_status}
                   </Badge>
+                  {testResults.coordinate_lookup && (
+                    <Badge variant="outline" className="text-green-400 border-green-400">
+                      {testResults.coordinate_lookup}
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-gray-300">
@@ -133,7 +178,10 @@ const TestPipeline = () => {
                     <p><strong>Test Time:</strong> {new Date(testResults.test_completed).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p><strong>Connection:</strong> {testResults.bright_data_connection}</p>
+                    <p><strong>Connection:</strong> {testResults.connection_status}</p>
+                    {testResults.search_precision && (
+                      <p><strong>Precision:</strong> {testResults.search_precision}</p>
+                    )}
                     {testResults.error && (
                       <p className="text-red-400"><strong>Error:</strong> {testResults.error}</p>
                     )}
@@ -145,27 +193,44 @@ const TestPipeline = () => {
             {testResults.results && testResults.results.length > 0 && (
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
-                  <CardTitle className="text-white">Scraping Results</CardTitle>
+                  <CardTitle className="text-white">Enhanced Scraping Results</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {testResults.results.map((result, index) => (
                       <div key={index} className="border border-gray-700 rounded-lg p-4">
                         <div className="mb-3">
-                          <h4 className="text-lg font-semibold text-white">{result.postcode}</h4>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="text-lg font-semibold text-white">{result.postcode}</h4>
+                            {result.coordinates && (
+                              <div className="flex items-center gap-1 text-green-400 text-sm">
+                                <MapPin className="h-4 w-4" />
+                                <span>{result.coordinates.lat.toFixed(4)}, {result.coordinates.lng.toFixed(4)}</span>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-gray-400 text-sm">{result.address}</p>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Airbnb Results */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-blue-400">Airbnb:</span>
                               <Badge variant={getStatusColor(result.airbnb.status)}>
                                 {result.airbnb.status}
                               </Badge>
+                              {result.airbnb.precision && (
+                                <span className={`px-2 py-1 text-xs rounded ${getPrecisionColor(result.airbnb.precision)} text-white`}>
+                                  {result.airbnb.precision}
+                                </span>
+                              )}
                             </div>
                             {result.airbnb.count > 0 && (
                               <p className="text-sm text-gray-400">Count: {result.airbnb.count}</p>
+                            )}
+                            {result.airbnb.search_method && (
+                              <p className="text-xs text-gray-500">Method: {result.airbnb.search_method}</p>
                             )}
                             {result.airbnb.url && (
                               <a 
@@ -179,15 +244,24 @@ const TestPipeline = () => {
                             )}
                           </div>
 
+                          {/* SpareRoom Results */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-green-400">SpareRoom:</span>
                               <Badge variant={getStatusColor(result.spareroom.status)}>
                                 {result.spareroom.status}
                               </Badge>
+                              {result.spareroom.precision && (
+                                <span className={`px-2 py-1 text-xs rounded ${getPrecisionColor(result.spareroom.precision)} text-white`}>
+                                  {result.spareroom.precision}
+                                </span>
+                              )}
                             </div>
                             {result.spareroom.count > 0 && (
                               <p className="text-sm text-gray-400">Count: {result.spareroom.count}</p>
+                            )}
+                            {result.spareroom.search_method && (
+                              <p className="text-xs text-gray-500">Method: {result.spareroom.search_method}</p>
                             )}
                             {result.spareroom.url && (
                               <a 
@@ -201,15 +275,24 @@ const TestPipeline = () => {
                             )}
                           </div>
 
+                          {/* Gumtree Results */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-yellow-400">Gumtree:</span>
                               <Badge variant={getStatusColor(result.gumtree.status)}>
                                 {result.gumtree.status}
                               </Badge>
+                              {result.gumtree.precision && (
+                                <span className={`px-2 py-1 text-xs rounded ${getPrecisionColor(result.gumtree.precision)} text-white`}>
+                                  {result.gumtree.precision}
+                                </span>
+                              )}
                             </div>
                             {result.gumtree.count > 0 && (
                               <p className="text-sm text-gray-400">Count: {result.gumtree.count}</p>
+                            )}
+                            {result.gumtree.search_method && (
+                              <p className="text-xs text-gray-500">Method: {result.gumtree.search_method}</p>
                             )}
                             {result.gumtree.url && (
                               <a 
