@@ -16,9 +16,9 @@ export const TestSummaryCard = ({ testResults }: TestSummaryCardProps) => {
           <Badge variant={testResults.connection_status === "success" ? "default" : "destructive"}>
             {testResults.connection_status}
           </Badge>
-          {testResults.coordinate_lookup && (
+          {testResults.boundary_service && (
             <Badge variant="outline" className="text-green-400 border-green-400">
-              {testResults.coordinate_lookup}
+              {testResults.boundary_service}
             </Badge>
           )}
           {testResults.search_precision && (
@@ -36,8 +36,14 @@ export const TestSummaryCard = ({ testResults }: TestSummaryCardProps) => {
           </div>
           <div>
             <p><strong>Connection:</strong> {testResults.connection_status}</p>
+            {testResults.boundary_service && (
+              <p><strong>Boundary Service:</strong> {testResults.boundary_service}</p>
+            )}
             {testResults.search_precision && (
               <p><strong>Precision:</strong> {testResults.search_precision}</p>
+            )}
+            {testResults.improvements && (
+              <p><strong>Improvements:</strong> {testResults.improvements}</p>
             )}
             {testResults.error && (
               <p className="text-red-400"><strong>Error:</strong> {testResults.error}</p>
