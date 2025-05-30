@@ -16,7 +16,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting OS Places API ultra-tight precision test pipeline...");
+      console.log("Starting OS Places API street-level precision test pipeline...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -30,13 +30,13 @@ const TestPipeline = () => {
         return;
       }
       
-      console.log("OS Places API ultra-tight precision test pipeline results:", data);
+      console.log("OS Places API street-level precision test pipeline results:", data);
       setTestResults(data);
       
       if (data.connection_status === "success") {
         toast({
-          title: "Ultra-Tight Precision Test Completed",
-          description: `Test completed using ${data.coordinate_service || 'OS Places API building-level coordinates'}`,
+          title: "Street-Level Precision Test Completed",
+          description: `Test completed using ${data.coordinate_service || 'OS Places API street-level coordinates'}`,
         });
       } else {
         toast({
@@ -47,10 +47,10 @@ const TestPipeline = () => {
       }
       
     } catch (err) {
-      console.error("Error running OS Places API ultra-tight precision test:", err);
+      console.error("Error running OS Places API street-level precision test:", err);
       toast({
         title: "Error",
-        description: "Failed to run OS Places API ultra-tight precision test pipeline",
+        description: "Failed to run OS Places API street-level precision test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -63,10 +63,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            OS Places API Ultra-Tight Precision Property Search Test
+            OS Places API Street-Level Precision Property Search Test
           </h1>
           <p className="text-gray-400">
-            Ultra-precise scraping using OS Places API for building-level coordinates with 10-15m radius to achieve street-level map precision
+            Street-level scraping using OS Places API for building-level coordinates with 20-25m radius to achieve optimal map precision
           </p>
         </div>
 

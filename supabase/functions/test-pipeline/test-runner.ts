@@ -5,20 +5,20 @@ import { testScrapeSpareRoom } from './spareroom-scraper.ts';
 import { testScrapeGumtree } from './gumtree-scraper.ts';
 
 export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<TestResult[]> {
-  console.log(`Starting OS Places API building-level test scraping for ${postcodes.length} postcodes`);
+  console.log(`Starting OS Places API street-level test scraping for ${postcodes.length} postcodes`);
 
   const results = [];
   
   for (const postcodeData of postcodes) {
     const coordinateInfo = postcodeData.latitude && postcodeData.longitude 
-      ? `(Building coords: ${postcodeData.latitude}, ${postcodeData.longitude})`
+      ? `(Street coords: ${postcodeData.latitude}, ${postcodeData.longitude})`
       : '(no coordinates)';
     
     console.log(`Testing postcode: ${postcodeData.postcode} ${coordinateInfo}`);
     
-    // Special logging for G11 5AW test case with building-level precision
+    // Special logging for G11 5AW test case with street-level precision
     if (postcodeData.postcode === "G11 5AW") {
-      console.log(`🎯 Testing G11 5AW with OS Places API building-level coordinates and 10-15m radius to capture live listing`);
+      console.log(`🎯 Testing G11 5AW with OS Places API coordinates and 20-25m radius for street-level view`);
     }
     
     try {
@@ -36,7 +36,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
       
       // Log results for validation
       if (postcodeData.postcode === "G11 5AW") {
-        console.log(`✅ G11 5AW building-level test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
+        console.log(`✅ G11 5AW street-level test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
       }
       
       results.push(result);
@@ -56,6 +56,6 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
     }
   }
 
-  console.log(`OS Places API building-level test scraping completed for all ${postcodes.length} postcodes`);
+  console.log(`OS Places API street-level test scraping completed for all ${postcodes.length} postcodes`);
   return results;
 }

@@ -14,17 +14,17 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
           <MapPin className="h-5 w-5 text-orange-500" />
-          OS Places API Ultra-Tight Precision Pipeline Test
+          OS Places API Street-Level Precision Pipeline Test
         </CardTitle>
         <CardDescription>
-          Ultra-precise scraping using OS Places API coordinates with 10-15m radius for street-level map accuracy
+          Street-level scraping using OS Places API coordinates with 20-25m radius for optimal map accuracy
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="text-sm text-gray-400">
             <p>• <strong>OS Places API:</strong> Building-level coordinates from official Ordnance Survey</p>
-            <p>• <strong>Airbnb:</strong> Ultra-tight 10-15m radius search with zoom level 17 for street-level precision</p>
+            <p>• <strong>Airbnb:</strong> Street-level 20-25m radius search with zoom level 18 for precise view</p>
             <p>• <strong>G11 5AW Special:</strong> Precise map view showing only 2-3 nearby properties</p>
             <p>• <strong>SpareRoom & Gumtree:</strong> Full address search for precision</p>
             <p>• <strong>Accuracy:</strong> Street-level map precision eliminating false positives</p>
@@ -35,7 +35,7 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
             className="bg-orange-600 hover:bg-orange-700"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Running Ultra-Tight Test..." : "Run Ultra-Tight Precision Test"}
+            {isLoading ? "Running Street-Level Test..." : "Run Street-Level Precision Test"}
           </Button>
         </div>
       </CardContent>

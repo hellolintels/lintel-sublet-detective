@@ -11,7 +11,7 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 OS Places API ultra-tight precision test pipeline request received");
+    console.log("🧪 OS Places API street-level precision test pipeline request received");
     
     // Test postcodes provided by user for Edinburgh and Glasgow properties
     const testPostcodes: PostcodeResult[] = [
@@ -22,16 +22,16 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing OS Places API ultra-tight precision scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
-    console.log(`🎯 Using OS Places API for building-level coordinates with ultra-tight 10-15m radius for street-level map precision`);
+    console.log(`🔍 Testing OS Places API street-level precision scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
+    console.log(`🎯 Using OS Places API for building-level coordinates with street-level 20-25m radius for optimal map precision`);
     
     // Add OS Places API coordinates to postcodes (with postcodes.io fallback)
     const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
     
-    // Test the scraping with ultra-tight precision
+    // Test the scraping with street-level precision
     const scrapingResults = await testScrapePostcodes(postcodesWithCoordinates);
     
-    console.log("✅ OS Places API ultra-tight precision test scraping completed");
+    console.log("✅ OS Places API street-level precision test scraping completed");
     
     // Count successful coordinate lookups vs fallbacks
     const placesApiCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
@@ -46,9 +46,9 @@ serve(async (req) => {
       test_completed: new Date().toISOString(),
       connection_status: "success",
       coordinate_service: coordinateService,
-      search_precision: placesApiCount > 0 ? "Ultra-tight precision with 10-15m radius" : "Postcode-level fallback",
+      search_precision: placesApiCount > 0 ? "Street-level precision with 20-25m radius" : "Postcode-level fallback",
       improvements: placesApiCount > 0 
-        ? `Successfully retrieved ${placesApiCount} building-level coordinates with 10-15m radius for street-level map precision`
+        ? `Successfully retrieved ${placesApiCount} building-level coordinates with 20-25m radius for street-level map precision`
         : "Using postcode-level fallback - OS Places API not available",
       results: scrapingResults.map(result => ({
         postcode: result.postcode,
@@ -95,11 +95,11 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ OS Places API ultra-tight precision test pipeline error:', err);
+    console.error('❌ OS Places API street-level precision test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "OS Places API ultra-tight precision test pipeline failed",
+        error: "OS Places API street-level precision test pipeline failed",
         message: err.message || 'Unknown error occurred',
         connection_status: "failed",
         timestamp: new Date().toISOString()
