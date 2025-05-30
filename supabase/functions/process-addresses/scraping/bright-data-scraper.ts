@@ -3,7 +3,6 @@
  * Bright Data WebSocket Browser API scraping module for Lintels address matching
  */
 
-import { BrowserSDK } from 'https://esm.sh/@brightdata/browser-sdk';
 import { PostcodeResult } from "../utils/postcode-extractor.ts";
 
 // Configuration for Bright Data WebSocket API - only need the endpoint URL with embedded credentials
@@ -72,6 +71,137 @@ async function scrapePostcode(postcodeData: PostcodeResult) {
   }
 }
 
+async function executeWebSocketScraping(url: string, postcodeData: PostcodeResult, platform: string) {
+  const { postcode, streetName } = postcodeData;
+  
+  try {
+    // Create a direct WebSocket connection to Bright Data
+    const ws = new WebSocket(BRIGHT_DATA_WEBSOCKET_ENDPOINT!);
+    
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('WebSocket timeout'));
+      }, 60000); // 60 second timeout
+
+      ws.onopen = () => {
+        console.log(`WebSocket connected for ${platform} scraping`);
+        
+        // Send scraping command to Bright Data
+        const command = {
+          action: 'navigate_and_extract',
+          url: url,
+          extractors: {
+            listings: {
+              selector: getListingSelector(platform),
+              extract: 'text'
+            },
+            totalCount: {
+              selector: getTotalCountSelector(platform),
+              extract: 'text'
+            }
+          },
+          postcode: postcode,
+          streetName: streetName
+        };
+        
+        ws.send(JSON.stringify(command));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          clearTimeout(timeout);
+          ws.close();
+          
+          // Process the extracted data
+          const result = processScrapingResult(data, postcodeData, platform, url);
+          resolve(result);
+        } catch (error) {
+          clearTimeout(timeout);
+          ws.close();
+          reject(error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        clearTimeout(timeout);
+        ws.close();
+        reject(error);
+      };
+
+      ws.onclose = () => {
+        clearTimeout(timeout);
+      };
+    });
+  } catch (error) {
+    console.error(`WebSocket error for ${platform}:`, error);
+    return { status: "error", message: error.message, url };
+  }
+}
+
+function getListingSelector(platform: string): string {
+  switch (platform) {
+    case 'airbnb':
+      return '[data-testid="card-container"]';
+    case 'spareroom':
+      return '.listing-result';
+    case 'gumtree':
+      return '.natural, .listing-link';
+    default:
+      return '.listing';
+  }
+}
+
+function getTotalCountSelector(platform: string): string {
+  switch (platform) {
+    case 'airbnb':
+      return '[data-testid="homes-search-results-count"]';
+    case 'spareroom':
+      return '.results-count';
+    case 'gumtree':
+      return '.results-summary';
+    default:
+      return '.count';
+  }
+}
+
+function processScrapingResult(data: any, postcodeData: PostcodeResult, platform: string, url: string) {
+  const { postcode, streetName } = postcodeData;
+  
+  if (!data || !data.listings) {
+    return { status: "no_match", url, count: 0 };
+  }
+
+  const listings = Array.isArray(data.listings) ? data.listings : [];
+  const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
+  
+  const matchedListings = listings.filter((listing: any) => {
+    const text = listing.text || '';
+    const hasExactPostcode = postcodeRegex.test(text);
+    const hasStreetNameMatch = streetName ? text.toLowerCase().includes(streetName.toLowerCase()) : false;
+    
+    return hasExactPostcode;
+  }).map((listing: any) => ({
+    title: listing.text?.substring(0, 100) || `${platform} listing`,
+    hasExactPostcode: true,
+    hasStreetNameMatch: streetName ? listing.text?.toLowerCase().includes(streetName.toLowerCase()) : false,
+    confidenceScore: 0.8
+  }));
+
+  const matchCount = matchedListings.length;
+  
+  return matchCount > 0
+    ? { 
+        status: "investigate", 
+        url, 
+        count: matchCount,
+        matches: matchedListings,
+        confidenceScore: Math.max(...matchedListings.map(m => m.confidenceScore))
+      }
+    : { status: "no_match", url, count: 0 };
+}
+
 async function scrapeAirbnb(postcodeData: PostcodeResult) {
   const { postcode, streetName } = postcodeData;
   console.log(`WebSocket checking Airbnb for postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
@@ -82,99 +212,7 @@ async function scrapeAirbnb(postcodeData: PostcodeResult) {
   
   const searchUrl = `https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`;
   
-  try {
-    const browserSDK = new BrowserSDK({
-      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT
-    });
-
-    const result = await browserSDK.run(async (page) => {
-      // Navigate to Airbnb search
-      await page.goto(searchUrl, { waitUntil: 'networkidle' });
-      
-      // Add human-like delay
-      await page.waitForTimeout(2000 + Math.random() * 2000);
-      
-      // Wait for listings to load
-      await page.waitForSelector('[data-testid="card-container"]', { timeout: 30000 }).catch(() => null);
-      
-      // Extract listings and check for exact postcode matches
-      const listings = await page.evaluate((data) => {
-        const { postcode, streetName } = data;
-        const listingCards = document.querySelectorAll('[data-testid="card-container"]');
-        const matchedListings = [];
-        
-        // Create regex for exact postcode matching
-        const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
-        
-        listingCards.forEach((card, index) => {
-          const titleElement = card.querySelector('[data-testid="listing-card-title"]');
-          const subtitleElement = card.querySelector('[data-testid="listing-card-subtitle"]');
-          const linkElement = card.querySelector('a[href*="/rooms/"]');
-          
-          const title = titleElement?.textContent?.trim() || `Listing ${index + 1}`;
-          const subtitle = subtitleElement?.textContent?.trim() || '';
-          const href = linkElement?.href || '';
-          
-          let hasExactPostcode = false;
-          let hasStreetNameMatch = false;
-          let confidenceScore = 0.5;
-          
-          // Check for exact postcode match in title or subtitle
-          if (postcodeRegex.test(title) || postcodeRegex.test(subtitle)) {
-            hasExactPostcode = true;
-            confidenceScore = 0.8;
-          }
-          
-          // Check for street name match if provided
-          if (streetName && 
-              (title.toLowerCase().includes(streetName.toLowerCase()) || 
-               subtitle.toLowerCase().includes(streetName.toLowerCase()))) {
-            hasStreetNameMatch = true;
-            confidenceScore = Math.min(confidenceScore + 0.2, 1.0);
-          }
-          
-          // Only include if we have exact postcode match
-          if (hasExactPostcode) {
-            matchedListings.push({
-              title,
-              subtitle,
-              url: href,
-              hasExactPostcode,
-              hasStreetNameMatch,
-              confidenceScore
-            });
-          }
-        });
-        
-        return {
-          totalListings: listingCards.length,
-          matchedListings: matchedListings
-        };
-      }, { postcode, streetName });
-      
-      return listings;
-    });
-    
-    await browserSDK.close();
-    
-    if (!result || !result.totalListings) {
-      return { status: "no_match", url: searchUrl, count: 0 };
-    }
-    
-    const matchCount = result.matchedListings?.length || 0;
-    return matchCount > 0
-      ? { 
-          status: "investigate", 
-          url: searchUrl, 
-          count: matchCount,
-          matches: result.matchedListings,
-          confidenceScore: Math.max(...(result.matchedListings?.map(m => m.confidenceScore) || [0.8]))
-        }
-      : { status: "no_match", url: searchUrl, count: 0 };
-  } catch (error) {
-    console.error(`Error scraping Airbnb for ${postcode}:`, error);
-    return { status: "error", message: error.message, url: searchUrl };
-  }
+  return executeWebSocketScraping(searchUrl, postcodeData, 'airbnb');
 }
 
 async function scrapeSpareRoom(postcodeData: PostcodeResult) {
@@ -187,99 +225,7 @@ async function scrapeSpareRoom(postcodeData: PostcodeResult) {
   
   const searchUrl = `https://www.spareroom.co.uk/flatshare/?search_id=&mode=list&search=${encodeURIComponent(searchQuery)}`;
   
-  try {
-    const browserSDK = new BrowserSDK({
-      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT
-    });
-
-    const result = await browserSDK.run(async (page) => {
-      // Navigate to SpareRoom search
-      await page.goto(searchUrl, { waitUntil: 'networkidle' });
-      
-      // Add human-like delay
-      await page.waitForTimeout(1500 + Math.random() * 2000);
-      
-      // Wait for listings to load
-      await page.waitForSelector('.listing-result', { timeout: 30000 }).catch(() => null);
-      
-      // Extract listings and check for exact postcode matches
-      const listings = await page.evaluate((data) => {
-        const { postcode, streetName } = data;
-        const listingCards = document.querySelectorAll('.listing-result');
-        const matchedListings = [];
-        
-        // Create regex for exact postcode matching
-        const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
-        
-        listingCards.forEach((card, index) => {
-          const titleElement = card.querySelector('h2 a, .listingTitle a');
-          const addressElement = card.querySelector('.listingLocation, .address');
-          const linkElement = card.querySelector('a[href*="flatshare_detail"]');
-          
-          const title = titleElement?.textContent?.trim() || `Room ${index + 1}`;
-          const addressText = addressElement?.textContent?.trim() || '';
-          const href = linkElement?.href || titleElement?.href || '';
-          
-          let hasExactPostcode = false;
-          let hasStreetNameMatch = false;
-          let confidenceScore = 0.5;
-          
-          // Check for exact postcode match in title or address
-          if (postcodeRegex.test(title) || postcodeRegex.test(addressText)) {
-            hasExactPostcode = true;
-            confidenceScore = 0.8;
-          }
-          
-          // Check for street name match if provided
-          if (streetName && 
-              (title.toLowerCase().includes(streetName.toLowerCase()) || 
-               addressText.toLowerCase().includes(streetName.toLowerCase()))) {
-            hasStreetNameMatch = true;
-            confidenceScore = Math.min(confidenceScore + 0.2, 1.0);
-          }
-          
-          // Only include if we have exact postcode match
-          if (hasExactPostcode) {
-            matchedListings.push({
-              title,
-              address: addressText,
-              url: href,
-              hasExactPostcode,
-              hasStreetNameMatch,
-              confidenceScore
-            });
-          }
-        });
-        
-        return {
-          totalListings: listingCards.length,
-          matchedListings: matchedListings
-        };
-      }, { postcode, streetName });
-      
-      return listings;
-    });
-    
-    await browserSDK.close();
-    
-    if (!result || !result.totalListings) {
-      return { status: "no_match", url: searchUrl, count: 0 };
-    }
-    
-    const matchCount = result.matchedListings?.length || 0;
-    return matchCount > 0
-      ? { 
-          status: "investigate", 
-          url: searchUrl, 
-          count: matchCount,
-          matches: result.matchedListings,
-          confidenceScore: Math.max(...(result.matchedListings?.map(m => m.confidenceScore) || [0.8]))
-        }
-      : { status: "no_match", url: searchUrl, count: 0 };
-  } catch (error) {
-    console.error(`Error scraping SpareRoom for ${postcode}:`, error);
-    return { status: "error", message: error.message, url: searchUrl };
-  }
+  return executeWebSocketScraping(searchUrl, postcodeData, 'spareroom');
 }
 
 async function scrapeGumtree(postcodeData: PostcodeResult) {
@@ -292,97 +238,5 @@ async function scrapeGumtree(postcodeData: PostcodeResult) {
   
   const searchUrl = `https://www.gumtree.com/search?featured_filter=false&urgent_filter=false&sort=date&search_scope=false&photos_filter=false&search_category=property-to-rent&q=${encodeURIComponent(searchQuery)}`;
   
-  try {
-    const browserSDK = new BrowserSDK({
-      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT
-    });
-
-    const result = await browserSDK.run(async (page) => {
-      // Navigate to Gumtree search
-      await page.goto(searchUrl, { waitUntil: 'networkidle' });
-      
-      // Add human-like delay
-      await page.waitForTimeout(2500 + Math.random() * 2000);
-      
-      // Wait for listings to load
-      await page.waitForSelector('.natural, .listing-link', { timeout: 30000 }).catch(() => null);
-      
-      // Extract listings and check for exact postcode matches
-      const listings = await page.evaluate((data) => {
-        const { postcode, streetName } = data;
-        const listingCards = document.querySelectorAll('.natural, .listing-link');
-        const matchedListings = [];
-        
-        // Create regex for exact postcode matching
-        const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
-        
-        listingCards.forEach((card, index) => {
-          const titleElement = card.querySelector('h2 a, .listing-title a, a[data-q="ad-title"]');
-          const locationElement = card.querySelector('.listing-location, .ad-location, .location');
-          const linkElement = titleElement || card.querySelector('a[href*="/ad/"]');
-          
-          const title = titleElement?.textContent?.trim() || `Property ${index + 1}`;
-          const location = locationElement?.textContent?.trim() || '';
-          const href = linkElement?.href || '';
-          
-          let hasExactPostcode = false;
-          let hasStreetNameMatch = false;
-          let confidenceScore = 0.5;
-          
-          // Check for exact postcode match in title or location
-          if (postcodeRegex.test(title) || postcodeRegex.test(location)) {
-            hasExactPostcode = true;
-            confidenceScore = 0.8;
-          }
-          
-          // Check for street name match if provided
-          if (streetName && 
-              (title.toLowerCase().includes(streetName.toLowerCase()) || 
-               location.toLowerCase().includes(streetName.toLowerCase()))) {
-            hasStreetNameMatch = true;
-            confidenceScore = Math.min(confidenceScore + 0.2, 1.0);
-          }
-          
-          // Only include if we have exact postcode match
-          if (hasExactPostcode) {
-            matchedListings.push({
-              title,
-              location,
-              url: href,
-              hasExactPostcode,
-              hasStreetNameMatch,
-              confidenceScore
-            });
-          }
-        });
-        
-        return {
-          totalListings: listingCards.length,
-          matchedListings: matchedListings
-        };
-      }, { postcode, streetName });
-      
-      return listings;
-    });
-    
-    await browserSDK.close();
-    
-    if (!result || !result.totalListings) {
-      return { status: "no_match", url: searchUrl, count: 0 };
-    }
-    
-    const matchCount = result.matchedListings?.length || 0;
-    return matchCount > 0
-      ? { 
-          status: "investigate", 
-          url: searchUrl, 
-          count: matchCount,
-          matches: result.matchedListings,
-          confidenceScore: Math.max(...(result.matchedListings?.map(m => m.confidenceScore) || [0.8]))
-        }
-      : { status: "no_match", url: searchUrl, count: 0 };
-  } catch (error) {
-    console.error(`Error scraping Gumtree for ${postcode}:`, error);
-    return { status: "error", message: error.message, url: searchUrl };
-  }
+  return executeWebSocketScraping(searchUrl, postcodeData, 'gumtree');
 }
