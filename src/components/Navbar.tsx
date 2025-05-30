@@ -18,17 +18,13 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
             <Logo />
-            <span className="text-xl font-bold text-orange-500">Lintels</span>
           </Link>
           
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className="hover:text-orange-500 transition-colors">
               Home
             </Link>
-            <Link to="/test-pipeline" className="hover:text-orange-500 transition-colors">
-              Test Pipeline
-            </Link>
-            {user ? (
+            {user && (
               <>
                 <Link to="/dashboard" className="hover:text-orange-500 transition-colors">
                   Dashboard
@@ -37,10 +33,6 @@ const Navbar = () => {
                   Admin
                 </Link>
               </>
-            ) : (
-              <Link to="/login" className="hover:text-orange-500 transition-colors">
-                Login
-              </Link>
             )}
           </div>
           
@@ -62,14 +54,7 @@ const Navbar = () => {
               >
                 Home
               </Link>
-              <Link 
-                to="/test-pipeline" 
-                className="hover:text-orange-500 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Test Pipeline
-              </Link>
-              {user ? (
+              {user && (
                 <>
                   <Link 
                     to="/dashboard" 
@@ -86,14 +71,6 @@ const Navbar = () => {
                     Admin
                   </Link>
                 </>
-              ) : (
-                <Link 
-                  to="/login" 
-                  className="hover:text-orange-500 transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Login
-                </Link>
               )}
             </div>
           </div>
