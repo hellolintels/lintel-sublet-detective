@@ -14,20 +14,20 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
           <MapPin className="h-5 w-5 text-orange-500" />
-          OS Places API Street-Level Precision Pipeline Test
+          Real Scraping Test with Native Location Search
         </CardTitle>
         <CardDescription>
-          Street-level scraping using OS Places API coordinates with 20-25m radius for optimal map accuracy
+          Testing with real Bright Data scraping using Airbnb's native location search for accurate postcode-level results
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="text-sm text-gray-400">
-            <p>• <strong>OS Places API:</strong> Building-level coordinates from official Ordnance Survey</p>
-            <p>• <strong>Airbnb:</strong> Street-level 20-25m radius search with zoom level 18 for precise view</p>
-            <p>• <strong>G11 5AW Special:</strong> Precise map view showing only 2-3 nearby properties</p>
-            <p>• <strong>SpareRoom & Gumtree:</strong> Full address search for precision</p>
-            <p>• <strong>Accuracy:</strong> Street-level map precision eliminating false positives</p>
+            <p>• <strong>Real Scraping:</strong> Using actual Bright Data WebSocket scraping (no simulation)</p>
+            <p>• <strong>Native Search:</strong> Airbnb's location search with postcode validation</p>
+            <p>• <strong>Fallback Strategy:</strong> Coordinate search with 5m radius if location search fails</p>
+            <p>• <strong>Validation:</strong> Filters results to ensure they match the target postcode</p>
+            <p>• <strong>Accuracy:</strong> Eliminates false positives and "Over 1,000 places" issues</p>
           </div>
           <Button 
             onClick={onRunTest} 
@@ -35,7 +35,7 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
             className="bg-orange-600 hover:bg-orange-700"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Running Street-Level Test..." : "Run Street-Level Precision Test"}
+            {isLoading ? "Running Real Scraping Test..." : "Run Real Scraping Test"}
           </Button>
         </div>
       </CardContent>

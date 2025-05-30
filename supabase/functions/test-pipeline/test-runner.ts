@@ -5,20 +5,20 @@ import { testScrapeSpareRoom } from './spareroom-scraper.ts';
 import { testScrapeGumtree } from './gumtree-scraper.ts';
 
 export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<TestResult[]> {
-  console.log(`Starting OS Places API street-level test scraping for ${postcodes.length} postcodes`);
+  console.log(`Starting real scraping test with native location search for ${postcodes.length} postcodes`);
 
   const results = [];
   
   for (const postcodeData of postcodes) {
     const coordinateInfo = postcodeData.latitude && postcodeData.longitude 
-      ? `(Street coords: ${postcodeData.latitude}, ${postcodeData.longitude})`
+      ? `(Coords: ${postcodeData.latitude}, ${postcodeData.longitude})`
       : '(no coordinates)';
     
     console.log(`Testing postcode: ${postcodeData.postcode} ${coordinateInfo}`);
     
-    // Special logging for G11 5AW test case with street-level precision
+    // Special logging for G11 5AW test case with native search
     if (postcodeData.postcode === "G11 5AW") {
-      console.log(`🎯 Testing G11 5AW with OS Places API coordinates and 20-25m radius for street-level view`);
+      console.log(`🎯 Testing G11 5AW with native location search and real Bright Data scraping`);
     }
     
     try {
@@ -36,7 +36,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
       
       // Log results for validation
       if (postcodeData.postcode === "G11 5AW") {
-        console.log(`✅ G11 5AW street-level test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
+        console.log(`✅ G11 5AW real scraping test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
       }
       
       results.push(result);
@@ -56,6 +56,6 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
     }
   }
 
-  console.log(`OS Places API street-level test scraping completed for all ${postcodes.length} postcodes`);
+  console.log(`Real scraping test with native location search completed for all ${postcodes.length} postcodes`);
   return results;
 }

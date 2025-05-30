@@ -11,7 +11,7 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 OS Places API street-level precision test pipeline request received");
+    console.log("🧪 Real scraping test pipeline with native location search request received");
     
     // Test postcodes provided by user for Edinburgh and Glasgow properties
     const testPostcodes: PostcodeResult[] = [
@@ -22,16 +22,16 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing OS Places API street-level precision scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
-    console.log(`🎯 Using OS Places API for building-level coordinates with street-level 20-25m radius for optimal map precision`);
+    console.log(`🔍 Testing real scraping with native location search for ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
+    console.log(`🎯 Using Airbnb's native location search with postcode validation and real Bright Data scraping`);
     
     // Add OS Places API coordinates to postcodes (with postcodes.io fallback)
     const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
     
-    // Test the scraping with street-level precision
+    // Test the scraping with real Bright Data infrastructure
     const scrapingResults = await testScrapePostcodes(postcodesWithCoordinates);
     
-    console.log("✅ OS Places API street-level precision test scraping completed");
+    console.log("✅ Real scraping test with native location search completed");
     
     // Count successful coordinate lookups vs fallbacks
     const placesApiCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
@@ -46,10 +46,9 @@ serve(async (req) => {
       test_completed: new Date().toISOString(),
       connection_status: "success",
       coordinate_service: coordinateService,
-      search_precision: placesApiCount > 0 ? "Street-level precision with 20-25m radius" : "Postcode-level fallback",
-      improvements: placesApiCount > 0 
-        ? `Successfully retrieved ${placesApiCount} building-level coordinates with 20-25m radius for street-level map precision`
-        : "Using postcode-level fallback - OS Places API not available",
+      search_precision: "Native location search with postcode validation using real Bright Data scraping",
+      improvements: `Using Airbnb's native location search instead of coordinate bounding boxes, with real web scraping and postcode validation`,
+      scraping_method: "Real Bright Data WebSocket scraping (not simulation)",
       results: scrapingResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
@@ -62,6 +61,7 @@ serve(async (req) => {
         airbnb: {
           status: result.airbnb?.status || "unknown",
           count: result.airbnb?.count || 0,
+          totalFound: result.airbnb?.totalFound || 0,
           url: result.airbnb?.url,
           search_method: result.airbnb?.search_method || "unknown",
           boundary_method: result.airbnb?.boundary_method || "unknown",
@@ -72,13 +72,15 @@ serve(async (req) => {
           status: result.spareroom?.status || "unknown", 
           count: result.spareroom?.count || 0,
           url: result.spareroom?.url,
-          search_method: result.spareroom?.search_method || "full-address"
+          search_method: result.spareroom?.search_method || "full-address",
+          precision: result.spareroom?.precision || "high"
         },
         gumtree: {
           status: result.gumtree?.status || "unknown",
           count: result.gumtree?.count || 0,
           url: result.gumtree?.url,
-          search_method: result.gumtree?.search_method || "full-address"
+          search_method: result.gumtree?.search_method || "full-address",
+          precision: result.gumtree?.precision || "high"
         }
       }))
     };
@@ -95,11 +97,11 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ OS Places API street-level precision test pipeline error:', err);
+    console.error('❌ Real scraping test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "OS Places API street-level precision test pipeline failed",
+        error: "Real scraping test pipeline failed",
         message: err.message || 'Unknown error occurred',
         connection_status: "failed",
         timestamp: new Date().toISOString()

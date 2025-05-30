@@ -16,7 +16,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting OS Places API street-level precision test pipeline...");
+      console.log("Starting real scraping test pipeline with native location search...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -30,13 +30,13 @@ const TestPipeline = () => {
         return;
       }
       
-      console.log("OS Places API street-level precision test pipeline results:", data);
+      console.log("Real scraping test pipeline results:", data);
       setTestResults(data);
       
       if (data.connection_status === "success") {
         toast({
-          title: "Street-Level Precision Test Completed",
-          description: `Test completed using ${data.coordinate_service || 'OS Places API street-level coordinates'}`,
+          title: "Real Scraping Test Completed",
+          description: `Test completed using real Bright Data scraping with native location search`,
         });
       } else {
         toast({
@@ -47,10 +47,10 @@ const TestPipeline = () => {
       }
       
     } catch (err) {
-      console.error("Error running OS Places API street-level precision test:", err);
+      console.error("Error running real scraping test:", err);
       toast({
         title: "Error",
-        description: "Failed to run OS Places API street-level precision test pipeline",
+        description: "Failed to run real scraping test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -63,10 +63,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            OS Places API Street-Level Precision Property Search Test
+            Real Scraping Test with Native Location Search
           </h1>
           <p className="text-gray-400">
-            Street-level scraping using OS Places API for building-level coordinates with 20-25m radius to achieve optimal map precision
+            Testing property search accuracy using real Bright Data scraping with Airbnb's native location search instead of coordinate bounding boxes
           </p>
         </div>
 
