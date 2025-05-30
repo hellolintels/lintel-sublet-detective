@@ -3,7 +3,7 @@
  * Bright Data WebSocket Browser API scraping module for Lintels address matching
  */
 
-import { BrowserSDK } from '@brightdata/browser-sdk';
+import { BrowserSDK } from 'https://esm.sh/@brightdata/browser-sdk';
 import { PostcodeResult } from "../utils/postcode-extractor.ts";
 
 // Configuration for Bright Data WebSocket API - only need the endpoint URL with embedded credentials
