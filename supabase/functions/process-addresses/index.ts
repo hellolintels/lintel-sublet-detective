@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { getContactById } from './utils/get-contact.ts';
@@ -18,21 +17,29 @@ serve(async (req) => {
     
     console.log("🔄 Process addresses request received");
     
-    const { contactId, action, reportId } = await req.json();
-    
-    if (!contactId) {
-      console.error("Missing required parameter: contactId");
-      return new Response(
-        JSON.stringify({ error: "Missing required parameter: contactId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { contactId, action, reportId, postcodes, testType } = await req.json();
     
     // Handle different actions
     if (action === 'send_results') {
+      if (!contactId) {
+        console.error("Missing required parameter: contactId for send_results");
+        return new Response(
+          JSON.stringify({ error: "Missing required parameter: contactId" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return await handleSendResults(contactId, reportId);
     } else if (action === 'approve_processing') {
+      if (!contactId) {
+        console.error("Missing required parameter: contactId for approve_processing");
+        return new Response(
+          JSON.stringify({ error: "Missing required parameter: contactId" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return await handleApproveProcessing(contactId);
+    } else if (action === 'test_bright_data') {
+      return await handleTestBrightData(postcodes, testType);
     }
     
     return new Response(
@@ -52,6 +59,102 @@ serve(async (req) => {
     );
   }
 });
+
+async function handleTestBrightData(postcodes: string[], testType: string = 'basic') {
+  console.log(`🧪 Testing Bright Data connection with ${postcodes?.length || 0} postcodes`);
+  
+  if (!postcodes || !Array.isArray(postcodes) || postcodes.length === 0) {
+    return new Response(
+      JSON.stringify({ 
+        error: "Missing or invalid postcodes array",
+        connectionStatus: "error",
+        connectionError: "No postcodes provided for testing"
+      }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  try {
+    // Convert postcodes to the format expected by the scraper
+    const postcodeData = postcodes.map(postcode => ({
+      postcode: postcode.trim(),
+      address: `Test address for ${postcode}`,
+      streetName: undefined
+    }));
+
+    console.log(`🔍 Starting Bright Data test scraping for postcodes: ${postcodes.join(', ')}`);
+    
+    // Test the Bright Data WebSocket connection
+    const scrapingResults = await scrapePostcodes(postcodeData);
+    
+    console.log(`✅ Bright Data test completed successfully`);
+    
+    // Format results for the test component
+    const formattedResults = scrapingResults.map(result => ({
+      postcode: result.postcode,
+      airbnb: formatPlatformResult(result.airbnb),
+      spareroom: formatPlatformResult(result.spareroom),
+      gumtree: formatPlatformResult(result.gumtree)
+    }));
+
+    return new Response(
+      JSON.stringify({
+        results: formattedResults,
+        connectionStatus: "success",
+        testType: testType,
+        message: `Successfully tested ${postcodes.length} postcodes using Bright Data WebSocket API`
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error('❌ Bright Data test failed:', error);
+    
+    return new Response(
+      JSON.stringify({
+        connectionStatus: "error",
+        connectionError: error.message || 'Unknown error occurred during testing',
+        testType: testType,
+        message: "Bright Data connection test failed"
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+}
+
+function formatPlatformResult(platformResult: any) {
+  if (!platformResult) {
+    return { status: "error", message: "No result data" };
+  }
+  
+  // Handle different result statuses
+  if (platformResult.status === "investigate") {
+    return {
+      status: "investigate",
+      count: platformResult.count || 0,
+      url: platformResult.url
+    };
+  } else if (platformResult.status === "no_match") {
+    return {
+      status: "no match",
+      count: 0,
+      url: platformResult.url
+    };
+  } else if (platformResult.status === "error") {
+    return {
+      status: "error",
+      message: platformResult.message || "Scraping error"
+    };
+  }
+  
+  // Default fallback
+  return {
+    status: platformResult.status || "error",
+    count: platformResult.count || 0,
+    url: platformResult.url,
+    message: platformResult.message
+  };
+}
 
 async function handleApproveProcessing(contactId: string) {
   console.log(`Processing addresses for contact: ${contactId}`);
