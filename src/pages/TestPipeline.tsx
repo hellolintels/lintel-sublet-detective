@@ -16,7 +16,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting postcode-area focused test pipeline...");
+      console.log("Starting OS Data Hub boundary-based test pipeline...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -30,13 +30,13 @@ const TestPipeline = () => {
         return;
       }
       
-      console.log("Postcode-focused test pipeline results:", data);
+      console.log("OS Data Hub boundary-based test pipeline results:", data);
       setTestResults(data);
       
       if (data.connection_status === "success") {
         toast({
-          title: "Postcode Test Completed",
-          description: `Postcode-area focused test completed with ${data.search_precision || 'postcode boundary targeting'}`,
+          title: "OS Boundary Test Completed",
+          description: `Test completed using ${data.boundary_service || 'OS Data Hub official boundaries'}`,
         });
       } else {
         toast({
@@ -47,10 +47,10 @@ const TestPipeline = () => {
       }
       
     } catch (err) {
-      console.error("Error running postcode-focused test:", err);
+      console.error("Error running OS Data Hub boundary test:", err);
       toast({
         title: "Error",
-        description: "Failed to run postcode-focused test pipeline",
+        description: "Failed to run OS Data Hub boundary test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -63,10 +63,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            Postcode-Focused Property Search Test
+            OS Data Hub Boundary-Based Property Search Test
           </h1>
           <p className="text-gray-400">
-            Targeted coordinate-based searches within postcode boundaries (~300-400m radius) with G11 5AW optimization
+            Precision scraping using official Ordnance Survey postcode boundaries for maximum geographic accuracy
           </p>
         </div>
 

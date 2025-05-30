@@ -5,16 +5,20 @@ import { testScrapeSpareRoom } from './spareroom-scraper.ts';
 import { testScrapeGumtree } from './gumtree-scraper.ts';
 
 export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<TestResult[]> {
-  console.log(`Starting postcode-area focused test scraping for ${postcodes.length} postcodes`);
+  console.log(`Starting OS Data Hub boundary-based test scraping for ${postcodes.length} postcodes`);
 
   const results = [];
   
   for (const postcodeData of postcodes) {
-    console.log(`Testing postcode: ${postcodeData.postcode} ${postcodeData.latitude && postcodeData.longitude ? `(${postcodeData.latitude}, ${postcodeData.longitude})` : '(no coordinates)'}`);
+    const boundaryInfo = postcodeData.boundary 
+      ? `(OS boundary: SW ${postcodeData.boundary.southwest.lat}, ${postcodeData.boundary.southwest.lng} NE ${postcodeData.boundary.northeast.lat}, ${postcodeData.boundary.northeast.lng})`
+      : '(no OS boundary)';
     
-    // Special logging for G11 5AW test case
+    console.log(`Testing postcode: ${postcodeData.postcode} ${boundaryInfo}`);
+    
+    // Special logging for G11 5AW test case with OS boundary
     if (postcodeData.postcode === "G11 5AW") {
-      console.log(`🎯 Testing G11 5AW with postcode-area focus to capture live listing`);
+      console.log(`🎯 Testing G11 5AW with OS Data Hub boundary to capture live listing with official postcode boundary`);
     }
     
     try {
@@ -24,6 +28,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
         streetName: postcodeData.streetName || "",
         latitude: postcodeData.latitude,
         longitude: postcodeData.longitude,
+        boundary: postcodeData.boundary,
         airbnb: await testScrapeAirbnb(postcodeData),
         spareroom: await testScrapeSpareRoom(postcodeData),
         gumtree: await testScrapeGumtree(postcodeData)
@@ -31,7 +36,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
       
       // Log results for validation
       if (postcodeData.postcode === "G11 5AW") {
-        console.log(`✅ G11 5AW postcode-area test completed - Airbnb status: ${result.airbnb.status}, count: ${result.airbnb.count}`);
+        console.log(`✅ G11 5AW OS boundary test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
       }
       
       results.push(result);
@@ -43,6 +48,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
         streetName: postcodeData.streetName || "",
         latitude: postcodeData.latitude,
         longitude: postcodeData.longitude,
+        boundary: postcodeData.boundary,
         airbnb: { status: "error", count: 0, message: error.message },
         spareroom: { status: "error", count: 0, message: error.message },
         gumtree: { status: "error", count: 0, message: error.message }
@@ -50,6 +56,6 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
     }
   }
 
-  console.log(`Postcode-area focused test scraping completed for all ${postcodes.length} postcodes`);
+  console.log(`OS Data Hub boundary-based test scraping completed for all ${postcodes.length} postcodes`);
   return results;
 }

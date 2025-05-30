@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin } from "lucide-react";
+import { MapPin, Square } from "lucide-react";
 import { TestResult } from "@/types/test-pipeline";
 
 interface TestResultCardProps {
@@ -47,9 +47,9 @@ const PlatformResult = ({
           {result.precision}
         </span>
       )}
-      {result.radius && (
-        <span className="px-2 py-1 text-xs rounded bg-purple-600 text-white">
-          {result.radius}
+      {result.boundary_method && (
+        <span className="px-2 py-1 text-xs rounded bg-blue-600 text-white">
+          {result.boundary_method}
         </span>
       )}
     </div>
@@ -66,7 +66,7 @@ const PlatformResult = ({
         rel="noopener noreferrer"
         className={`${color} hover:opacity-75 text-sm underline`}
       >
-        View {platform === "Airbnb" ? "Ultra-Precise " : ""}Search
+        View {platform === "Airbnb" ? "OS Boundary " : ""}Search
       </a>
     )}
   </div>
@@ -76,7 +76,7 @@ export const TestResultCard = ({ results }: TestResultCardProps) => {
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
-        <CardTitle className="text-white">Ultra-Precise Scraping Results</CardTitle>
+        <CardTitle className="text-white">OS Data Hub Boundary-Based Results</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -91,8 +91,20 @@ export const TestResultCard = ({ results }: TestResultCardProps) => {
                       <span>{result.coordinates.lat.toFixed(6)}, {result.coordinates.lng.toFixed(6)}</span>
                     </div>
                   )}
+                  {result.boundary && (
+                    <div className="flex items-center gap-1 text-blue-400 text-sm">
+                      <Square className="h-4 w-4" />
+                      <span>OS Boundary</span>
+                    </div>
+                  )}
                 </div>
                 <p className="text-gray-400 text-sm">{result.address}</p>
+                {result.boundary && (
+                  <p className="text-xs text-blue-300 mt-1">
+                    Boundary: SW({result.boundary.southwest.lat.toFixed(6)}, {result.boundary.southwest.lng.toFixed(6)}) 
+                    NE({result.boundary.northeast.lat.toFixed(6)}, {result.boundary.northeast.lng.toFixed(6)})
+                  </p>
+                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

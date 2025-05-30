@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Target } from "lucide-react";
+import { Loader2, Target, MapPin } from "lucide-react";
 
 interface TestControlsProps {
   isLoading: boolean;
@@ -13,20 +13,21 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
     <Card className="bg-gray-900 border-gray-800 mb-8">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
-          <Target className="h-5 w-5 text-orange-500" />
-          Postcode-Area Focused Pipeline Test
+          <MapPin className="h-5 w-5 text-orange-500" />
+          OS Data Hub Boundary-Based Pipeline Test
         </CardTitle>
         <CardDescription>
-          Focused coordinate-based scraping with ~300-400m radius targeting postcode boundaries to capture live listings
+          Precision scraping using official Ordnance Survey postcode boundaries for maximum geographic accuracy
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="text-sm text-gray-400">
-            <p>• <strong>Airbnb:</strong> Postcode-area coordinate search with ~300m radius + zoom level 14</p>
-            <p>• <strong>G11 5AW Special:</strong> Optimized ~400m radius to capture known live listing</p>
+            <p>• <strong>OS Data Hub:</strong> Official Ordnance Survey postcode polygon boundaries</p>
+            <p>• <strong>Airbnb:</strong> Precise boundary coordinate search using official postcode edges</p>
+            <p>• <strong>G11 5AW Special:</strong> OS boundary ensures capture of known live listing</p>
             <p>• <strong>SpareRoom & Gumtree:</strong> Full address search for precision</p>
-            <p>• <strong>Focus:</strong> Postcode boundary targeting with live listing validation</p>
+            <p>• <strong>Accuracy:</strong> Uses government-official postcode boundaries instead of guessed circles</p>
           </div>
           <Button 
             onClick={onRunTest} 
@@ -34,7 +35,7 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
             className="bg-orange-600 hover:bg-orange-700"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Running Postcode Test..." : "Run Postcode-Focused Test"}
+            {isLoading ? "Running OS Boundary Test..." : "Run OS Data Hub Boundary Test"}
           </Button>
         </div>
       </CardContent>

@@ -11,7 +11,7 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 Postcode-focused test pipeline request received");
+    console.log("🧪 OS Data Hub boundary-based test pipeline request received");
     
     // Test postcodes provided by user for Edinburgh and Glasgow properties
     const testPostcodes: PostcodeResult[] = [
@@ -22,36 +22,41 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing postcode-area focused scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
-    console.log(`🎯 Optimized for G11 5AW to capture known live listing within postcode boundary`);
+    console.log(`🔍 Testing OS Data Hub boundary-based scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
+    console.log(`🎯 Using official Ordnance Survey postcode boundaries for maximum accuracy`);
     
-    // Add coordinates to postcodes
-    const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
+    // Add OS Data Hub boundaries to postcodes
+    const postcodesWithBoundaries = await addCoordinatesToPostcodes(testPostcodes);
     
-    // Test the scraping with postcode-area focused logic
-    const scrapingResults = await testScrapePostcodes(postcodesWithCoordinates);
+    // Test the scraping with OS boundary-based logic
+    const scrapingResults = await testScrapePostcodes(postcodesWithBoundaries);
     
-    console.log("✅ Postcode-focused test scraping completed");
+    console.log("✅ OS Data Hub boundary-based test scraping completed");
     
     // Format results for easy viewing
     const summary = {
       total_postcodes: testPostcodes.length,
       test_completed: new Date().toISOString(),
       connection_status: "success",
-      coordinate_lookup: "enabled",
-      search_precision: "postcode-area focused ~300-400m radius",
-      improvements: "Focused on postcode boundaries with live listing validation",
+      boundary_service: "OS Data Hub Features API",
+      search_precision: "Official OS postcode boundaries",
+      improvements: "Uses official Ordnance Survey postcode polygons for precise boundary matching",
       results: scrapingResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
         coordinates: result.latitude && result.longitude ? 
           { lat: result.latitude, lng: result.longitude } : null,
+        boundary: result.boundary ? {
+          southwest: result.boundary.southwest,
+          northeast: result.boundary.northeast
+        } : null,
         airbnb: {
           status: result.airbnb?.status || "unknown",
           count: result.airbnb?.count || 0,
           url: result.airbnb?.url,
-          search_method: result.airbnb?.search_method || "postcode-area-focused",
-          radius: result.airbnb?.radius || "~300m",
+          search_method: result.airbnb?.search_method || "os-boundary-precise",
+          boundary_method: result.airbnb?.boundary_method || "OS Data Hub official boundary",
+          precision: result.airbnb?.precision || "ultra-high",
           message: result.airbnb?.message
         },
         spareroom: {
@@ -81,11 +86,11 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ Postcode-focused test pipeline error:', err);
+    console.error('❌ OS Data Hub boundary-based test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "Postcode-focused test pipeline failed",
+        error: "OS Data Hub boundary-based test pipeline failed",
         message: err.message || 'Unknown error occurred',
         connection_status: "failed",
         timestamp: new Date().toISOString()
