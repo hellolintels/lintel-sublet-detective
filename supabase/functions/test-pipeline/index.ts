@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { PostcodeResult } from './types.ts';
 import { addCoordinatesToPostcodes } from './coordinate-lookup.ts';
-import { testScrapePostcodes } from './test-runner.ts';
+import { runEnhancedTests } from './enhanced-test-runner.ts';
 
 serve(async (req) => {
   try {
@@ -11,9 +11,9 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 Real scraping test pipeline with native location search request received");
+    console.log("🧪 Enhanced Airbnb WebSocket Connection & Scraping Test Pipeline");
     
-    // Test postcodes provided by user for Edinburgh and Glasgow properties
+    // Test postcodes for comprehensive testing
     const testPostcodes: PostcodeResult[] = [
       { postcode: "EH12 8UU", address: "Flat 4, 1 Stuart Court, Stuart Square, EDINBURGH EH12 8UU", streetName: "Stuart Square" },
       { postcode: "EH15 2PS", address: "Flat 6, 279 Portobello High Street, EDINBURGH EH15 2PS", streetName: "Portobello High Street" },
@@ -22,67 +22,88 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing real scraping with native location search for ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
-    console.log(`🎯 Using Airbnb's native location search with postcode validation and real Bright Data scraping`);
+    console.log(`🎯 Running enhanced tests for ${testPostcodes.length} postcodes with multi-strategy Airbnb scraping`);
+    console.log(`🔍 Test Focus: WebSocket connection resolution + Airbnb search strategy optimization`);
     
-    // Add OS Places API coordinates to postcodes (with postcodes.io fallback)
+    // Add coordinates to postcodes for precise search strategies
+    console.log(`\n📍 Phase 0: Coordinate Lookup`);
     const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
     
-    // Test the scraping with real Bright Data infrastructure
-    const scrapingResults = await testScrapePostcodes(postcodesWithCoordinates);
+    const coordsCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
+    console.log(`✅ Coordinate lookup completed: ${coordsCount}/${testPostcodes.length} postcodes have precise coordinates`);
     
-    console.log("✅ Real scraping test with native location search completed");
+    // Run enhanced testing pipeline
+    const enhancedResults = await runEnhancedTests(postcodesWithCoordinates);
     
-    // Count successful coordinate lookups vs fallbacks
-    const placesApiCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
+    console.log("\n🎉 Enhanced test pipeline completed");
     
-    const coordinateService = placesApiCount > 0 
-      ? `OS Places API (${placesApiCount}/${testPostcodes.length} building-level coordinates) with postcodes.io fallback`
-      : "postcodes.io fallback only";
-    
-    // Format results for easy viewing
+    // Format comprehensive results
     const summary = {
+      test_type: "enhanced_airbnb_websocket_test",
       total_postcodes: testPostcodes.length,
       test_completed: new Date().toISOString(),
-      connection_status: "success",
-      coordinate_service: coordinateService,
-      search_precision: "Native location search with postcode validation using real Bright Data scraping",
-      improvements: `Using Airbnb's native location search instead of coordinate bounding boxes, with real web scraping and postcode validation`,
-      scraping_method: "Real Bright Data WebSocket scraping (not simulation)",
-      results: scrapingResults.map(result => ({
+      connection_status: enhancedResults.workingEndpoint ? "success" : "failed",
+      working_endpoint: enhancedResults.workingEndpoint,
+      coordinate_service: coordsCount > 0 
+        ? `OS Places API (${coordsCount}/${testPostcodes.length} building-level coordinates) with postcodes.io fallback`
+        : "postcodes.io fallback only",
+      
+      // Connection diagnostics
+      connection_diagnostics: enhancedResults.connectionDiagnostics.map(diag => ({
+        port: diag.port,
+        success: diag.success,
+        response_time_ms: diag.responseTime,
+        error_type: diag.errorType,
+        details: diag.details
+      })),
+      connection_summary: enhancedResults.connectionSummary,
+      
+      // Performance metrics
+      performance: {
+        airbnb_success_rate: `${enhancedResults.testResults.filter(r => r.airbnb.status === 'investigate' || r.airbnb.count > 0).length}/${testPostcodes.length}`,
+        total_matches_found: enhancedResults.testResults.reduce((sum, r) => sum + r.airbnb.count, 0),
+        average_response_time: enhancedResults.connectionDiagnostics
+          .filter(d => d.success && d.responseTime)
+          .reduce((sum, d) => sum + (d.responseTime || 0), 0) / 
+          enhancedResults.connectionDiagnostics.filter(d => d.success).length || 0
+      },
+      
+      // Recommendations
+      recommendations: enhancedResults.recommendations,
+      overall_success: enhancedResults.overallSuccess,
+      
+      // Detailed results
+      results: enhancedResults.testResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
         coordinates: result.latitude && result.longitude ? 
           { lat: result.latitude, lng: result.longitude } : null,
-        boundary: result.boundary ? {
-          southwest: result.boundary.southwest,
-          northeast: result.boundary.northeast
-        } : null,
+        
         airbnb: {
-          status: result.airbnb?.status || "unknown",
-          count: result.airbnb?.count || 0,
-          totalFound: result.airbnb?.totalFound || 0,
-          url: result.airbnb?.url,
-          search_method: result.airbnb?.search_method || "unknown",
-          boundary_method: result.airbnb?.boundary_method || "unknown",
-          precision: result.airbnb?.precision || "unknown",
-          message: result.airbnb?.message
-        },
-        spareroom: {
-          status: result.spareroom?.status || "unknown", 
-          count: result.spareroom?.count || 0,
-          url: result.spareroom?.url,
-          search_method: result.spareroom?.search_method || "full-address",
-          precision: result.spareroom?.precision || "high"
-        },
-        gumtree: {
-          status: result.gumtree?.status || "unknown",
-          count: result.gumtree?.count || 0,
-          url: result.gumtree?.url,
-          search_method: result.gumtree?.search_method || "full-address",
-          precision: result.gumtree?.precision || "high"
+          status: result.airbnb.status,
+          count: result.airbnb.count,
+          total_found: result.airbnb.totalFound,
+          search_method: result.airbnb.search_method,
+          precision: result.airbnb.precision,
+          message: result.airbnb.message,
+          url: result.airbnb.url
         }
-      }))
+      })),
+      
+      // Next steps
+      next_steps: enhancedResults.overallSuccess 
+        ? [
+            "Implement SpareRoom scraper with similar multi-strategy approach",
+            "Add Gumtree scraper functionality", 
+            "Optimize performance and add concurrent scraping",
+            "Implement result caching and rate limiting"
+          ]
+        : [
+            "Fix WebSocket connection issues first",
+            "Debug Airbnb scraping problems",
+            "Verify Bright Data configuration",
+            "Test with different postcode samples"
+          ]
     };
     
     return new Response(
@@ -97,14 +118,19 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ Real scraping test pipeline error:', err);
+    console.error('❌ Enhanced test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "Real scraping test pipeline failed",
+        error: "Enhanced test pipeline failed",
         message: err.message || 'Unknown error occurred',
         connection_status: "failed",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        recommendations: [
+          "Check Bright Data WebSocket endpoint configuration",
+          "Verify network connectivity",
+          "Check Supabase Edge Function logs for detailed error information"
+        ]
       }, null, 2),
       { 
         status: 500, 
