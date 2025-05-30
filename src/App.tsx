@@ -13,7 +13,8 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import SampleOffer from "./components/SampleOffer";
-import ApproveProcessingPage from "./pages/ApproveProcessingPage"; // ✅ ADD THIS IMPORT
+import ApproveProcessingPage from "./pages/ApproveProcessingPage";
+import TestPipeline from "./pages/TestPipeline";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,10 @@ const App = () => (
             <Route 
               path="/approve-processing"  
               element={<ApproveProcessingPage />} 
+            />
+            <Route 
+              path="/test-pipeline" 
+              element={<TestPipeline />} 
             />
             {/* Temporary route to access Dashboard without authentication */}
             <Route path="/temp-dashboard" element={<Dashboard />} />
