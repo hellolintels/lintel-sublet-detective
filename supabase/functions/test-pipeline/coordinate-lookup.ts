@@ -2,22 +2,23 @@
 import { PostcodeResult, CoordinateResult, PostcodeBoundary, OSDataHubResult } from './types.ts';
 
 export async function addCoordinatesToPostcodes(postcodes: PostcodeResult[]): Promise<PostcodeResult[]> {
-  console.log("🗺️ Looking up OS Data Hub boundaries for postcodes...");
+  console.log("🗺️ Looking up OS Places API coordinates for precise address locations...");
   
-  const postcodesWithBoundaries = await Promise.all(
+  const postcodesWithCoordinates = await Promise.all(
     postcodes.map(async (postcodeData) => {
       try {
-        const osData = await lookupPostcodeBoundary(postcodeData.postcode);
+        // Try OS Places API first for building-level precision
+        const placesData = await lookupAddressWithPlacesAPI(postcodeData);
+        console.log(`✅ OS Places API found precise coordinates for ${postcodeData.postcode}: ${placesData.latitude}, ${placesData.longitude}`);
         return {
           ...postcodeData,
-          latitude: osData.latitude,
-          longitude: osData.longitude,
-          boundary: osData.boundary
+          latitude: placesData.latitude,
+          longitude: placesData.longitude
         };
       } catch (error) {
-        console.warn(`Could not get OS Data Hub boundary for ${postcodeData.postcode}:`, error.message);
+        console.warn(`OS Places API failed for ${postcodeData.postcode}:`, error.message);
         
-        // Fallback to postcodes.io for coordinates only
+        // Fallback to postcodes.io for basic postcode coordinates
         try {
           const fallbackData = await lookupPostcodeCoordinates(postcodeData.postcode);
           console.log(`✅ Fallback coordinates found for ${postcodeData.postcode}: ${fallbackData.latitude}, ${fallbackData.longitude}`);
@@ -25,89 +26,65 @@ export async function addCoordinatesToPostcodes(postcodes: PostcodeResult[]): Pr
             ...postcodeData,
             latitude: fallbackData.latitude,
             longitude: fallbackData.longitude
-            // No boundary data in fallback
           };
         } catch (fallbackError) {
           console.warn(`Fallback coordinate lookup also failed for ${postcodeData.postcode}:`, fallbackError.message);
-          return postcodeData; // Return without coordinates or boundaries
+          return postcodeData; // Return without coordinates
         }
       }
     })
   );
   
-  console.log(`✅ Coordinate lookup completed for ${postcodesWithBoundaries.length} postcodes`);
-  return postcodesWithBoundaries;
+  console.log(`✅ Coordinate lookup completed for ${postcodesWithCoordinates.length} postcodes`);
+  return postcodesWithCoordinates;
 }
 
-export async function lookupPostcodeBoundary(postcode: string): Promise<CoordinateResult> {
-  const cleanPostcode = postcode.replace(/\s+/g, '').toUpperCase();
-  const apiKey = Deno.env.get('OS_DATA_HUB_API_KEY');
+export async function lookupAddressWithPlacesAPI(postcodeData: PostcodeResult): Promise<{ latitude: number; longitude: number }> {
+  const apiKey = Deno.env.get('OS_DATA_HUB_PLACES_API_KEY');
   
   if (!apiKey) {
-    throw new Error('OS_DATA_HUB_API_KEY not configured');
+    throw new Error('OS_DATA_HUB_PLACES_API_KEY not configured');
   }
   
-  // Corrected OS Data Hub WFS endpoint and type name
-  const baseUrl = 'https://api.os.uk/features/v1/wfs';
+  // Use the full address for building-level precision
+  const query = postcodeData.address || (postcodeData.streetName ? `${postcodeData.streetName}, ${postcodeData.postcode}` : postcodeData.postcode);
   
-  // Fixed filter XML with proper namespaces and property name
-  const filter = `<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
-    <ogc:PropertyIsEqualTo>
-      <ogc:PropertyName>POSTCODE</ogc:PropertyName>
-      <ogc:Literal>${cleanPostcode}</ogc:Literal>
-    </ogc:PropertyIsEqualTo>
-  </ogc:Filter>`;
+  // OS Places API endpoint for text search
+  const baseUrl = 'https://api.os.uk/search/places/v1/find';
+  const apiUrl = `${baseUrl}?query=${encodeURIComponent(query)}&key=${apiKey}&maxresults=1&minmatch=0.6`;
   
-  // Properly encode the filter parameter
-  const encodedFilter = encodeURIComponent(filter);
-  
-  // Corrected API URL with proper type name and parameters
-  const apiUrl = `${baseUrl}?service=WFS&request=GetFeature&version=2.0.0&typeNames=osfeatures:postcode_polygons&filter=${encodedFilter}&outputFormat=application/json&srsName=EPSG:4326&key=${apiKey}`;
-  
-  console.log(`Looking up OS Data Hub boundary for postcode: ${postcode}`);
-  console.log(`API URL: ${apiUrl.substring(0, 150)}...`); // Log truncated URL for debugging
+  console.log(`Looking up address with OS Places API: ${query}`);
   
   try {
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`OS Data Hub API error (${response.status}):`, errorText);
-      throw new Error(`OS Data Hub API request failed: ${response.status} - ${errorText.substring(0, 200)}`);
+      console.error(`OS Places API error (${response.status}):`, errorText);
+      throw new Error(`OS Places API request failed: ${response.status} - ${errorText.substring(0, 200)}`);
     }
     
     const data = await response.json();
-    console.log(`OS Data Hub response for ${postcode}:`, JSON.stringify(data, null, 2).substring(0, 500));
+    console.log(`OS Places API response for ${postcodeData.postcode}:`, JSON.stringify(data, null, 2).substring(0, 500));
     
-    if (!data.features || data.features.length === 0) {
-      throw new Error(`No boundary data found for postcode: ${postcode}`);
+    if (!data.results || data.results.length === 0) {
+      throw new Error(`No address data found for: ${query}`);
     }
     
-    const feature = data.features[0];
-    const geometry = feature.geometry;
+    const result = data.results[0];
+    const dpa = result.DPA || result.LPI;
     
-    if (!geometry || !geometry.coordinates) {
-      throw new Error(`Invalid geometry data for postcode: ${postcode}`);
+    if (!dpa || !dpa.LNG || !dpa.LAT) {
+      throw new Error(`Invalid coordinate data for address: ${query}`);
     }
-    
-    // Extract bounding box from polygon coordinates
-    const boundary = extractBoundingBox(geometry.coordinates);
-    
-    // Calculate center point from boundary
-    const centerLat = (boundary.southwest.lat + boundary.northeast.lat) / 2;
-    const centerLng = (boundary.southwest.lng + boundary.northeast.lng) / 2;
-    
-    console.log(`✅ Found OS boundary for ${postcode}: SW(${boundary.southwest.lat}, ${boundary.southwest.lng}) NE(${boundary.northeast.lat}, ${boundary.northeast.lng})`);
     
     return {
-      latitude: centerLat,
-      longitude: centerLng,
-      postcode: cleanPostcode,
-      boundary: boundary
+      latitude: parseFloat(dpa.LAT),
+      longitude: parseFloat(dpa.LNG)
     };
     
   } catch (error) {
-    console.error(`Error looking up OS Data Hub boundary for ${postcode}:`, error);
+    console.error(`Error looking up address with OS Places API for ${query}:`, error);
     throw error;
   }
 }
@@ -134,27 +111,5 @@ async function lookupPostcodeCoordinates(postcode: string): Promise<{ latitude: 
   return {
     latitude: data.result.latitude,
     longitude: data.result.longitude
-  };
-}
-
-function extractBoundingBox(coordinates: number[][][]): PostcodeBoundary {
-  let minLat = Infinity, maxLat = -Infinity;
-  let minLng = Infinity, maxLng = -Infinity;
-  
-  // Handle polygon coordinates (could be MultiPolygon or Polygon)
-  const coords = Array.isArray(coordinates[0][0]) ? coordinates[0] : coordinates;
-  
-  coords.forEach((ring: number[][]) => {
-    ring.forEach(([lng, lat]: number[]) => {
-      minLat = Math.min(minLat, lat);
-      maxLat = Math.max(maxLat, lat);
-      minLng = Math.min(minLng, lng);
-      maxLng = Math.max(maxLng, lng);
-    });
-  });
-  
-  return {
-    southwest: { lat: minLat, lng: minLng },
-    northeast: { lat: maxLat, lng: maxLng }
   };
 }

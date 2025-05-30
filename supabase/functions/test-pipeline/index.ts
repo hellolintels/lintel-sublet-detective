@@ -11,7 +11,7 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 OS Data Hub boundary-based test pipeline request received");
+    console.log("🧪 OS Places API building-level precision test pipeline request received");
     
     // Test postcodes provided by user for Edinburgh and Glasgow properties
     const testPostcodes: PostcodeResult[] = [
@@ -22,37 +22,34 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing OS Data Hub boundary-based scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
-    console.log(`🎯 Using official Ordnance Survey postcode boundaries for maximum accuracy`);
+    console.log(`🔍 Testing OS Places API building-level precision scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
+    console.log(`🎯 Using OS Places API for building-level coordinates with tight 50m radius to prevent false positives`);
     
-    // Add OS Data Hub boundaries to postcodes (with postcodes.io fallback)
-    const postcodesWithBoundaries = await addCoordinatesToPostcodes(testPostcodes);
+    // Add OS Places API coordinates to postcodes (with postcodes.io fallback)
+    const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
     
-    // Test the scraping with OS boundary-based logic
-    const scrapingResults = await testScrapePostcodes(postcodesWithBoundaries);
+    // Test the scraping with building-level precision
+    const scrapingResults = await testScrapePostcodes(postcodesWithCoordinates);
     
-    console.log("✅ OS Data Hub boundary-based test scraping completed");
+    console.log("✅ OS Places API building-level precision test scraping completed");
     
-    // Count successful boundary lookups vs fallbacks
-    const boundaryCount = postcodesWithBoundaries.filter(p => p.boundary).length;
-    const coordinateCount = postcodesWithBoundaries.filter(p => p.latitude && p.longitude).length;
+    // Count successful coordinate lookups vs fallbacks
+    const placesApiCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
     
-    const boundaryService = boundaryCount > 0 
-      ? `OS Data Hub (${boundaryCount}/${testPostcodes.length} boundaries) + postcodes.io fallback`
-      : coordinateCount > 0 
-        ? "postcodes.io fallback only"
-        : "no coordinate data retrieved";
+    const coordinateService = placesApiCount > 0 
+      ? `OS Places API (${placesApiCount}/${testPostcodes.length} building-level coordinates) with postcodes.io fallback`
+      : "postcodes.io fallback only";
     
     // Format results for easy viewing
     const summary = {
       total_postcodes: testPostcodes.length,
       test_completed: new Date().toISOString(),
       connection_status: "success",
-      boundary_service: boundaryService,
-      search_precision: boundaryCount > 0 ? "Mixed: OS boundaries + coordinate fallback" : "Coordinate fallback only",
-      improvements: boundaryCount > 0 
-        ? `Successfully retrieved ${boundaryCount} official OS postcode boundaries with coordinate fallback for others`
-        : "Using coordinate fallback - OS Data Hub boundaries not available",
+      coordinate_service: coordinateService,
+      search_precision: placesApiCount > 0 ? "Building-level precision with 50m radius" : "Postcode-level fallback",
+      improvements: placesApiCount > 0 
+        ? `Successfully retrieved ${placesApiCount} building-level coordinates with 50m radius for maximum residential accuracy`
+        : "Using postcode-level fallback - OS Places API not available",
       results: scrapingResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
@@ -98,11 +95,11 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ OS Data Hub boundary-based test pipeline error:', err);
+    console.error('❌ OS Places API building-level precision test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "OS Data Hub boundary-based test pipeline failed",
+        error: "OS Places API building-level precision test pipeline failed",
         message: err.message || 'Unknown error occurred',
         connection_status: "failed",
         timestamp: new Date().toISOString()

@@ -16,7 +16,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting OS Data Hub boundary-based test pipeline...");
+      console.log("Starting OS Places API building-level precision test pipeline...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -30,13 +30,13 @@ const TestPipeline = () => {
         return;
       }
       
-      console.log("OS Data Hub boundary-based test pipeline results:", data);
+      console.log("OS Places API building-level precision test pipeline results:", data);
       setTestResults(data);
       
       if (data.connection_status === "success") {
         toast({
-          title: "OS Boundary Test Completed",
-          description: `Test completed using ${data.boundary_service || 'OS Data Hub official boundaries'}`,
+          title: "Building-Level Precision Test Completed",
+          description: `Test completed using ${data.coordinate_service || 'OS Places API building-level coordinates'}`,
         });
       } else {
         toast({
@@ -47,10 +47,10 @@ const TestPipeline = () => {
       }
       
     } catch (err) {
-      console.error("Error running OS Data Hub boundary test:", err);
+      console.error("Error running OS Places API building-level precision test:", err);
       toast({
         title: "Error",
-        description: "Failed to run OS Data Hub boundary test pipeline",
+        description: "Failed to run OS Places API building-level precision test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -63,10 +63,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            OS Data Hub Boundary-Based Property Search Test
+            OS Places API Building-Level Precision Property Search Test
           </h1>
           <p className="text-gray-400">
-            Precision scraping using official Ordnance Survey postcode boundaries for maximum geographic accuracy
+            High-precision scraping using OS Places API for building-level coordinates with tight 50m radius to prevent false positives in residential areas
           </p>
         </div>
 

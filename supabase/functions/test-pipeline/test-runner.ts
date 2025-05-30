@@ -5,20 +5,20 @@ import { testScrapeSpareRoom } from './spareroom-scraper.ts';
 import { testScrapeGumtree } from './gumtree-scraper.ts';
 
 export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<TestResult[]> {
-  console.log(`Starting OS Data Hub boundary-based test scraping for ${postcodes.length} postcodes`);
+  console.log(`Starting OS Places API building-level test scraping for ${postcodes.length} postcodes`);
 
   const results = [];
   
   for (const postcodeData of postcodes) {
-    const boundaryInfo = postcodeData.boundary 
-      ? `(OS boundary: SW ${postcodeData.boundary.southwest.lat}, ${postcodeData.boundary.southwest.lng} NE ${postcodeData.boundary.northeast.lat}, ${postcodeData.boundary.northeast.lng})`
-      : '(no OS boundary)';
+    const coordinateInfo = postcodeData.latitude && postcodeData.longitude 
+      ? `(Building coords: ${postcodeData.latitude}, ${postcodeData.longitude})`
+      : '(no coordinates)';
     
-    console.log(`Testing postcode: ${postcodeData.postcode} ${boundaryInfo}`);
+    console.log(`Testing postcode: ${postcodeData.postcode} ${coordinateInfo}`);
     
-    // Special logging for G11 5AW test case with OS boundary
+    // Special logging for G11 5AW test case with building-level precision
     if (postcodeData.postcode === "G11 5AW") {
-      console.log(`🎯 Testing G11 5AW with OS Data Hub boundary to capture live listing with official postcode boundary`);
+      console.log(`🎯 Testing G11 5AW with OS Places API building-level coordinates and 50m radius to capture live listing`);
     }
     
     try {
@@ -36,7 +36,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
       
       // Log results for validation
       if (postcodeData.postcode === "G11 5AW") {
-        console.log(`✅ G11 5AW OS boundary test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
+        console.log(`✅ G11 5AW building-level test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
       }
       
       results.push(result);
@@ -56,6 +56,6 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
     }
   }
 
-  console.log(`OS Data Hub boundary-based test scraping completed for all ${postcodes.length} postcodes`);
+  console.log(`OS Places API building-level test scraping completed for all ${postcodes.length} postcodes`);
   return results;
 }
