@@ -1,10 +1,10 @@
 
 import { PostcodeResult, ScrapingResult } from './types.ts';
-import { executeWebSocketScraping } from './websocket-handler.ts';
+import { executeEnhancedWebSocketScraping } from './enhanced-websocket-handler.ts';
 
 export async function testScrapeGumtree(postcodeData: PostcodeResult): Promise<ScrapingResult> {
   const { postcode, streetName, address } = postcodeData;
-  console.log(`🏠 Testing Gumtree with real scraping for postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
+  console.log(`🏠 Testing Gumtree with enhanced WebSocket for postcode: ${postcode}, Street: ${streetName || "Unknown"}`);
   
   // Use full address for better precision
   const searchQuery = address || (streetName ? `${streetName}, ${postcode}` : postcode);
@@ -13,22 +13,22 @@ export async function testScrapeGumtree(postcodeData: PostcodeResult): Promise<S
   console.log(`🔍 Using full address search: ${searchQuery}`);
   
   try {
-    const result = await executeWebSocketScraping(searchUrl, postcodeData, 'gumtree');
+    const result = await executeEnhancedWebSocketScraping(searchUrl, postcodeData, 'gumtree');
     return {
       ...result,
       search_method: "full-address",
       precision: "high"
     };
   } catch (error) {
-    console.error(`❌ Gumtree scraping failed for ${postcode}:`, error);
+    console.error(`❌ Gumtree enhanced scraping failed for ${postcode}:`, error);
     return {
       status: "error",
       count: 0,
       url: searchUrl,
       search_method: "full-address",
-      boundary_method: "websocket-failed",
+      boundary_method: "enhanced-websocket-failed",
       precision: "failed",
-      message: `Gumtree scraping failed: ${error.message}`
+      message: `Gumtree enhanced scraping failed: ${error.message}`
     };
   }
 }

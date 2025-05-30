@@ -16,21 +16,21 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("🚀 Starting enhanced precision test with WebSocket diagnostics...");
+      console.log("🚀 Starting enhanced WebSocket connection test...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
       if (error) {
-        console.error("❌ Test pipeline error:", error);
+        console.error("❌ Enhanced WebSocket test error:", error);
         toast({
           title: "Test Failed",
-          description: error.message || "Failed to run enhanced precision test",
+          description: error.message || "Failed to run enhanced WebSocket test",
           variant: "destructive",
         });
         return;
       }
       
-      console.log("📊 Enhanced precision test results:", data);
+      console.log("📊 Enhanced WebSocket test results:", data);
       setTestResults(data);
       
       // Check for WebSocket connection issues
@@ -40,26 +40,39 @@ const TestPipeline = () => {
         result.gumtree?.message?.includes("WebSocket")
       );
       
-      const hasBroadResults = data.results?.some((result: any) => 
-        result.airbnb?.status === "too_broad"
+      const hasConnectionDiagnostics = data.results?.some((result: any) => 
+        result.airbnb?.connectionDiagnostics || 
+        result.spareroom?.connectionDiagnostics || 
+        result.gumtree?.connectionDiagnostics
       );
       
-      if (hasWebSocketErrors) {
+      const hasWorkingConnection = data.results?.some((result: any) => 
+        result.airbnb?.workingEndpoint || 
+        result.spareroom?.workingEndpoint || 
+        result.gumtree?.workingEndpoint
+      );
+      
+      if (hasWorkingConnection) {
         toast({
-          title: "WebSocket Connection Issues Detected",
-          description: "Check the test results for detailed WebSocket diagnostics",
+          title: "WebSocket Connection Resolved!",
+          description: "Found working Bright Data endpoint configuration",
+        });
+      } else if (hasConnectionDiagnostics) {
+        toast({
+          title: "WebSocket Diagnostics Available",
+          description: "Detailed connection test results available in test output",
           variant: "destructive",
         });
-      } else if (hasBroadResults) {
+      } else if (hasWebSocketErrors) {
         toast({
-          title: "Map Scale Issues Detected",
-          description: "Some searches returned 'Over 1,000 places' - check results for refinement attempts",
+          title: "WebSocket Connection Issues",
+          description: "Multiple endpoint configurations tested - check diagnostics",
           variant: "destructive",
         });
       } else if (data.connection_status === "success") {
         toast({
-          title: "Enhanced Precision Test Completed",
-          description: `Test completed with enhanced precision algorithms and WebSocket diagnostics`,
+          title: "Enhanced WebSocket Test Completed",
+          description: "Test completed with enhanced connection diagnostics",
         });
       } else {
         toast({
@@ -70,10 +83,10 @@ const TestPipeline = () => {
       }
       
     } catch (err) {
-      console.error("❌ Error running enhanced precision test:", err);
+      console.error("❌ Error running enhanced WebSocket test:", err);
       toast({
         title: "Error",
-        description: "Failed to run enhanced precision test pipeline",
+        description: "Failed to run enhanced WebSocket test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -86,10 +99,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            Enhanced Precision Test with WebSocket Diagnostics
+            Enhanced Bright Data WebSocket Connection Test
           </h1>
           <p className="text-gray-400">
-            Testing property search with progressive refinement algorithms, ultra-precise coordinates, and comprehensive WebSocket connection diagnostics
+            Multi-port testing with comprehensive diagnostics to resolve Bright Data WebSocket connection issues
           </p>
         </div>
 
