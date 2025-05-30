@@ -5,7 +5,7 @@ import { testScrapeSpareRoom } from './spareroom-scraper.ts';
 import { testScrapeGumtree } from './gumtree-scraper.ts';
 
 export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<TestResult[]> {
-  console.log(`Starting real scraping test with native location search for ${postcodes.length} postcodes`);
+  console.log(`🚀 Starting real scraping test with enhanced precision for ${postcodes.length} postcodes`);
 
   const results = [];
   
@@ -14,11 +14,11 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
       ? `(Coords: ${postcodeData.latitude}, ${postcodeData.longitude})`
       : '(no coordinates)';
     
-    console.log(`Testing postcode: ${postcodeData.postcode} ${coordinateInfo}`);
+    console.log(`\n🎯 Testing postcode: ${postcodeData.postcode} ${coordinateInfo}`);
     
-    // Special logging for G11 5AW test case with native search
+    // Special logging for test cases
     if (postcodeData.postcode === "G11 5AW") {
-      console.log(`🎯 Testing G11 5AW with native location search and real Bright Data scraping`);
+      console.log(`🔍 Testing G11 5AW with enhanced precision and real Bright Data scraping`);
     }
     
     try {
@@ -34,14 +34,19 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
         gumtree: await testScrapeGumtree(postcodeData)
       };
       
-      // Log results for validation
-      if (postcodeData.postcode === "G11 5AW") {
-        console.log(`✅ G11 5AW real scraping test completed - Airbnb status: ${result.airbnb.status}, method: ${result.airbnb.boundary_method}, count: ${result.airbnb.count}`);
+      // Enhanced logging for validation
+      console.log(`📊 ${postcodeData.postcode} results:`);
+      console.log(`  Airbnb: ${result.airbnb.status} (${result.airbnb.count} matches, method: ${result.airbnb.search_method})`);
+      console.log(`  SpareRoom: ${result.spareroom.status} (${result.spareroom.count} matches)`);
+      console.log(`  Gumtree: ${result.gumtree.status} (${result.gumtree.count} matches)`);
+      
+      if (result.airbnb.status === "too_broad") {
+        console.log(`⚠️ ${postcodeData.postcode}: Airbnb map area too broad - need more precise search parameters`);
       }
       
       results.push(result);
     } catch (error) {
-      console.error(`Error testing postcode ${postcodeData.postcode}:`, error);
+      console.error(`❌ Error testing postcode ${postcodeData.postcode}:`, error);
       results.push({
         postcode: postcodeData.postcode,
         address: postcodeData.address,
@@ -49,13 +54,34 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
         latitude: postcodeData.latitude,
         longitude: postcodeData.longitude,
         boundary: postcodeData.boundary,
-        airbnb: { status: "error", count: 0, message: error.message },
-        spareroom: { status: "error", count: 0, message: error.message },
-        gumtree: { status: "error", count: 0, message: error.message }
+        airbnb: { 
+          status: "error", 
+          count: 0, 
+          search_method: "unknown",
+          boundary_method: "error",
+          precision: "failed",
+          message: error.message 
+        },
+        spareroom: { 
+          status: "error", 
+          count: 0, 
+          search_method: "unknown",
+          boundary_method: "error", 
+          precision: "failed",
+          message: error.message 
+        },
+        gumtree: { 
+          status: "error", 
+          count: 0, 
+          search_method: "unknown",
+          boundary_method: "error",
+          precision: "failed", 
+          message: error.message 
+        }
       });
     }
   }
 
-  console.log(`Real scraping test with native location search completed for all ${postcodes.length} postcodes`);
+  console.log(`✅ Enhanced precision test completed for all ${postcodes.length} postcodes`);
   return results;
 }

@@ -1,212 +1,155 @@
 
 import { PostcodeResult, ScrapingResult } from './types.ts';
-
-// Import the real WebSocket scraper function
-async function executeWebSocketScraping(url: string, postcodeData: PostcodeResult, platform: string) {
-  const BRIGHT_DATA_WEBSOCKET_ENDPOINT = Deno.env.get("BRIGHT_DATA_WEBSOCKET_ENDPOINT");
-  
-  if (!BRIGHT_DATA_WEBSOCKET_ENDPOINT) {
-    throw new Error("Bright Data WebSocket endpoint not configured");
-  }
-
-  const { postcode, streetName } = postcodeData;
-  
-  try {
-    const ws = new WebSocket(BRIGHT_DATA_WEBSOCKET_ENDPOINT);
-    
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        ws.close();
-        reject(new Error('WebSocket timeout'));
-      }, 60000);
-
-      ws.onopen = () => {
-        console.log(`WebSocket connected for ${platform} scraping`);
-        
-        const command = {
-          action: 'navigate_and_extract',
-          url: url,
-          extractors: {
-            listings: {
-              selector: '[data-testid="card-container"]',
-              extract: 'text'
-            },
-            totalCount: {
-              selector: '[data-testid="homes-search-results-count"], .search-results-count, .results-header',
-              extract: 'text'
-            }
-          },
-          postcode: postcode,
-          streetName: streetName
-        };
-        
-        ws.send(JSON.stringify(command));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          clearTimeout(timeout);
-          ws.close();
-          
-          // Process the extracted data
-          const result = processScrapingResult(data, postcodeData, platform, url);
-          resolve(result);
-        } catch (error) {
-          clearTimeout(timeout);
-          ws.close();
-          reject(error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        ws.close();
-        reject(error);
-      };
-
-      ws.onclose = () => {
-        clearTimeout(timeout);
-      };
-    });
-  } catch (error) {
-    console.error(`WebSocket error for ${platform}:`, error);
-    return { status: "error", message: error.message, url };
-  }
-}
-
-function processScrapingResult(data: any, postcodeData: PostcodeResult, platform: string, url: string) {
-  const { postcode, streetName } = postcodeData;
-  
-  if (!data || !data.listings) {
-    return { status: "no_match", url, count: 0 };
-  }
-
-  // Extract property count from Airbnb's results count text
-  let propertyCount = 0;
-  if (data.totalCount && data.totalCount.text) {
-    const countMatch = data.totalCount.text.match(/(\d+)\s*places?\s*within\s*map\s*area/i) ||
-                      data.totalCount.text.match(/(\d+)\s*properties?/i) ||
-                      data.totalCount.text.match(/(\d+)/);
-    if (countMatch) {
-      propertyCount = parseInt(countMatch[1], 10);
-    }
-  }
-
-  const listings = Array.isArray(data.listings) ? data.listings : [];
-  const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
-  
-  // Filter listings to only include those matching the target postcode
-  const matchedListings = listings.filter((listing: any) => {
-    const text = listing.text || '';
-    const hasExactPostcode = postcodeRegex.test(text);
-    return hasExactPostcode;
-  }).map((listing: any) => ({
-    title: listing.text?.substring(0, 100) || `${platform} listing`,
-    hasExactPostcode: true,
-    hasStreetNameMatch: streetName ? listing.text?.toLowerCase().includes(streetName.toLowerCase()) : false,
-    confidenceScore: 0.8
-  }));
-
-  const validatedCount = matchedListings.length;
-  
-  return validatedCount > 0
-    ? { 
-        status: "investigate", 
-        url, 
-        count: validatedCount,
-        totalFound: propertyCount,
-        matches: matchedListings,
-        search_method: "native-location-search",
-        boundary_method: "Airbnb native location search with postcode validation",
-        precision: "high",
-        message: `Found ${validatedCount} validated matches (${propertyCount} total in area) using native location search`
-      }
-    : { 
-        status: "no_match", 
-        url, 
-        count: 0,
-        totalFound: propertyCount,
-        search_method: "native-location-search",
-        boundary_method: "Airbnb native location search",
-        precision: "high",
-        message: `No matches found in postcode ${postcode} (${propertyCount} total properties in search area)`
-      };
-}
+import { executeWebSocketScraping } from './websocket-handler.ts';
 
 export async function testScrapeAirbnb(postcodeData: PostcodeResult): Promise<ScrapingResult> {
   const { postcode, streetName, latitude, longitude, address } = postcodeData;
-  console.log(`Testing Airbnb with native location search for: ${postcode}, Street: ${streetName || "Unknown"}`);
+  console.log(`🏠 Testing Airbnb with progressive search refinement for: ${postcode}`);
   
-  let searchUrl: string;
-  let searchMethod: string;
-  let boundaryMethod: string;
+  // Strategy 1: Ultra-precise coordinate search with postcode-level zoom
+  if (latitude && longitude) {
+    console.log(`🎯 Trying ultra-precise coordinate search first`);
+    const preciseResult = await tryPreciseCoordinateSearch(postcodeData);
+    
+    if (preciseResult.status !== "too_broad" && preciseResult.status !== "error") {
+      return preciseResult;
+    }
+    
+    console.log(`⚠️ Precise search failed: ${preciseResult.message}`);
+  }
   
-  // Primary approach: Use Airbnb's native location search with postcode
-  const locationQuery = address || (streetName ? `${streetName}, ${postcode}` : postcode);
-  searchUrl = `https://www.airbnb.com/s/${encodeURIComponent(locationQuery)}/homes`;
-  searchMethod = "native-location-search";
-  boundaryMethod = "Airbnb native location search with postcode validation";
+  // Strategy 2: Native location search with progressive refinement
+  console.log(`🔍 Trying native location search with refinement`);
+  const locationResult = await tryProgressiveLocationSearch(postcodeData);
   
-  console.log(`Using native location search: ${locationQuery}`);
+  if (locationResult.status !== "too_broad" && locationResult.status !== "error") {
+    return locationResult;
+  }
+  
+  // Strategy 3: Place ID search (if we can implement it)
+  console.log(`🏷️ Trying place ID search as final fallback`);
+  return await tryPlaceIdSearch(postcodeData);
+}
+
+async function tryPreciseCoordinateSearch(postcodeData: PostcodeResult): Promise<ScrapingResult> {
+  const { postcode, latitude, longitude } = postcodeData;
+  
+  // Use very small radius for postcode-level precision
+  const precision = 0.0002; // ~20m radius for ultra-precise search
+  const swLat = latitude! - precision;
+  const swLng = longitude! - precision; 
+  const neLat = latitude! + precision;
+  const neLng = longitude! + precision;
+  
+  // Force maximum zoom for postcode-level view
+  const searchUrl = `https://www.airbnb.com/s/homes?tab_id=home_tab&refinement_paths%5B%5D=%2Fhomes&sw_lat=${swLat}&sw_lng=${swLng}&ne_lat=${neLat}&ne_lng=${neLng}&zoom=20&center_lat=${latitude}&center_lng=${longitude}&search_type=pagination`;
+  
+  console.log(`📍 Ultra-precise coordinate search: ${latitude}, ${longitude} with 20m radius and zoom=20`);
   
   try {
-    // Use real Bright Data scraping instead of simulation
     const result = await executeWebSocketScraping(searchUrl, postcodeData, 'airbnb');
-    
-    // Add search method metadata
     return {
       ...result,
-      search_method: searchMethod,
-      boundary_method: boundaryMethod,
-      precision: "high"
+      search_method: "ultra-precise-coordinates",
+      boundary_method: "20m radius with zoom=20",
+      precision: result.status === "too_broad" ? "insufficient" : "very-high"
     };
-    
   } catch (error) {
-    console.error(`Real scraping failed for ${postcode}, falling back to coordinate search:`, error);
+    console.error(`❌ Ultra-precise coordinate search failed for ${postcode}:`, error);
+    return {
+      status: "error",
+      count: 0,
+      url: searchUrl,
+      search_method: "ultra-precise-coordinates",
+      boundary_method: "20m radius with zoom=20",
+      precision: "failed",
+      message: `Ultra-precise search failed: ${error.message}`
+    };
+  }
+}
+
+async function tryProgressiveLocationSearch(postcodeData: PostcodeResult): Promise<ScrapingResult> {
+  const { postcode, streetName, address } = postcodeData;
+  
+  // Try different search queries in order of specificity
+  const searchQueries = [
+    // Most specific: full address if available
+    address,
+    // Medium: street + postcode
+    streetName ? `${streetName}, ${postcode}` : null,
+    // Least specific: postcode only
+    postcode
+  ].filter(Boolean);
+  
+  for (let i = 0; i < searchQueries.length; i++) {
+    const query = searchQueries[i];
+    console.log(`🔍 Trying location search ${i + 1}/${searchQueries.length}: "${query}"`);
     
-    // Fallback: Use coordinate search with small radius if location search fails
-    if (latitude && longitude) {
-      const precision = 0.00005; // ~5m radius for ultra-precise search
-      const swLat = latitude - precision;
-      const swLng = longitude - precision; 
-      const neLat = latitude + precision;
-      const neLng = longitude + precision;
+    // Add parameters to force precise map view
+    const searchUrl = `https://www.airbnb.com/s/${encodeURIComponent(query!)}/homes?tab_id=home_tab&refinement_paths%5B%5D=%2Fhomes&flexible_trip_lengths%5B%5D=one_week&monthly_start_date=2024-06-01&monthly_length=3&price_filter_input_type=0&search_type=filter_change&zoom=18`;
+    
+    try {
+      const result = await executeWebSocketScraping(searchUrl, postcodeData, 'airbnb');
       
-      const fallbackUrl = `https://www.airbnb.com/s/homes?tab_id=home_tab&refinement_paths%5B%5D=%2Fhomes&sw_lat=${swLat}&sw_lng=${swLng}&ne_lat=${neLat}&ne_lng=${neLng}&zoom=19&center_lat=${latitude}&center_lng=${longitude}`;
+      // If we get "too_broad", try next query
+      if (result.status === "too_broad") {
+        console.log(`⚠️ Query "${query}" too broad, trying more specific search`);
+        continue;
+      }
       
-      console.log(`Fallback: Using coordinate search with 5m radius: ${latitude}, ${longitude}`);
-      
-      try {
-        const fallbackResult = await executeWebSocketScraping(fallbackUrl, postcodeData, 'airbnb');
+      // If we get results or no_match (but not too_broad), return it
+      if (result.status !== "error") {
         return {
-          ...fallbackResult,
-          search_method: "coordinate-fallback",
-          boundary_method: "5m coordinate radius fallback",
-          precision: "medium"
-        };
-      } catch (fallbackError) {
-        console.error(`Coordinate fallback also failed for ${postcode}:`, fallbackError);
-        return {
-          status: "error",
-          count: 0,
-          url: searchUrl,
-          search_method: searchMethod,
-          boundary_method: boundaryMethod,
-          precision: "low",
-          message: `Both native search and coordinate fallback failed: ${fallbackError.message}`
+          ...result,
+          search_method: "progressive-location-search",
+          boundary_method: `Native location search: "${query}" with zoom=18`,
+          precision: result.status === "investigate" ? "high" : "medium"
         };
       }
-    } else {
-      return {
-        status: "error",
-        count: 0,
-        url: searchUrl,
-        search_method: searchMethod,
-        boundary_method: boundaryMethod,
-        precision: "low",
-        message: `Native search failed and no coordinates available for fallback: ${error.message}`
-      };
+      
+    } catch (error) {
+      console.error(`❌ Location search failed for query "${query}":`, error);
+      continue;
     }
+  }
+  
+  return {
+    status: "error",
+    count: 0,
+    url: "",
+    search_method: "progressive-location-search",
+    boundary_method: "all queries failed",
+    precision: "failed",
+    message: "All progressive location searches failed"
+  };
+}
+
+async function tryPlaceIdSearch(postcodeData: PostcodeResult): Promise<ScrapingResult> {
+  const { postcode } = postcodeData;
+  
+  console.log(`🏷️ Attempting place ID search for ${postcode}`);
+  
+  // First, try to get place ID by searching for the postcode
+  const placeSearchUrl = `https://www.airbnb.com/api/v3/StaysSearch?operationName=StaysSearch&locale=en&currency=GBP&variables=%7B%22request%22%3A%7B%22metadataOnly%22%3Afalse%2C%22version%22%3A%221.8.3%22%2C%22tabId%22%3A%22home_tab%22%2C%22refinementPaths%22%3A%5B%22%2Fhomes%22%5D%2C%22source%22%3A%22structured_search_input_header%22%2C%22searchType%22%3A%22pagination%22%2C%22neLat%22%3A90%2C%22neLng%22%3A180%2C%22swLat%22%3A-90%2C%22swLng%22%3A-180%2C%22zoom%22%3A20%2C%22query%22%3A%22${encodeURIComponent(postcode)}%22%7D%7D`;
+  
+  try {
+    const result = await executeWebSocketScraping(placeSearchUrl, postcodeData, 'airbnb');
+    return {
+      ...result,
+      search_method: "place-id-search",
+      boundary_method: "API search with place ID",
+      precision: result.status === "investigate" ? "high" : "medium"
+    };
+  } catch (error) {
+    console.error(`❌ Place ID search failed for ${postcode}:`, error);
+    return {
+      status: "error",
+      count: 0,
+      url: placeSearchUrl,
+      search_method: "place-id-search",
+      boundary_method: "API search with place ID",
+      precision: "failed",
+      message: `Place ID search failed: ${error.message}`
+    };
   }
 }
