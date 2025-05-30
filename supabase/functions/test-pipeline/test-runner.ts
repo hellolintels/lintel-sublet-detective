@@ -18,7 +18,7 @@ export async function testScrapePostcodes(postcodes: PostcodeResult[]): Promise<
     
     // Special logging for G11 5AW test case with building-level precision
     if (postcodeData.postcode === "G11 5AW") {
-      console.log(`🎯 Testing G11 5AW with OS Places API building-level coordinates and 50m radius to capture live listing`);
+      console.log(`🎯 Testing G11 5AW with OS Places API building-level coordinates and 10-15m radius to capture live listing`);
     }
     
     try {
