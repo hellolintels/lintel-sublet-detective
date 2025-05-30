@@ -1,12 +1,10 @@
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ExternalLink, CheckCircle, XCircle } from "lucide-react";
+import { MatchTable } from "./match-review/MatchTable";
+import { MatchReviewStats } from "./match-review/MatchReviewStats";
 
 interface Match {
   id: string;
@@ -93,17 +91,6 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
     }
   };
 
-  const getOutcomeBadge = (outcome: string) => {
-    switch (outcome) {
-      case 'investigate':
-        return <Badge className="bg-green-600">Investigate</Badge>;
-      case 'no_match':
-        return <Badge variant="destructive">No Match</Badge>;
-      default:
-        return <Badge variant="outline">Pending</Badge>;
-    }
-  };
-
   const investigateCount = matches.filter(m => m.outcome === 'investigate').length;
   const totalMatches = matches.filter(m => m.matched_listing_url).length;
 
@@ -111,8 +98,12 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
         <CardTitle className="text-white">Match Review - {contactName}</CardTitle>
-        <CardDescription className="text-gray-400">
-          Review individual matches before generating the final report ({investigateCount} marked for investigation out of {totalMatches} matches)
+        <CardDescription>
+          <MatchReviewStats 
+            investigateCount={investigateCount}
+            totalMatches={totalMatches}
+            contactName={contactName}
+          />
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -121,69 +112,11 @@ export const MatchReview = ({ contactId, contactName, onMatchesUpdated }: MatchR
         ) : matches.length === 0 ? (
           <div className="text-center py-4 text-gray-400">No matches found</div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Postcode</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Listing</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matches.map((match) => (
-                  <TableRow key={match.id}>
-                    <TableCell className="font-mono">{match.postcode}</TableCell>
-                    <TableCell>{match.address || '-'}</TableCell>
-                    <TableCell className="capitalize">{match.platform}</TableCell>
-                    <TableCell>{getOutcomeBadge(match.outcome)}</TableCell>
-                    <TableCell>
-                      {match.matched_listing_url ? (
-                        <a 
-                          href={match.matched_listing_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                        >
-                          <ExternalLink size={14} />
-                          View
-                        </a>
-                      ) : (
-                        <span className="text-gray-500">No URL</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {match.matched_listing_url && match.outcome === 'pending' && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-                            onClick={() => updateMatchOutcome(match.id, 'investigate')}
-                            disabled={updatingId === match.id}
-                          >
-                            <CheckCircle size={14} />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-red-600 hover:bg-red-700 text-white border-red-600"
-                            onClick={() => updateMatchOutcome(match.id, 'no_match')}
-                            disabled={updatingId === match.id}
-                          >
-                            <XCircle size={14} />
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <MatchTable
+            matches={matches}
+            updatingId={updatingId}
+            onUpdateMatch={updateMatchOutcome}
+          />
         )}
       </CardContent>
     </Card>
