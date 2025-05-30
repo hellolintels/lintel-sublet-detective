@@ -10,6 +10,7 @@ import { DashboardHeader } from "@/components/admin/DashboardHeader";
 import { PendingRequests } from "@/components/admin/PendingRequests";
 import { ProcessedReports } from "@/components/admin/ProcessedReports";
 import { FileUploader } from "@/components/admin/FileUploader";
+import BrightDataTester from "@/pages/dashboard/BrightDataTester";
 
 const AdminDashboard = () => {
   const { logout } = useAuth();
@@ -98,6 +99,7 @@ const AdminDashboard = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FileUploader />
+          <BrightDataTester />
         </div>
       </div>
     </div>
