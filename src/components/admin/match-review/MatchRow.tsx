@@ -23,6 +23,41 @@ interface MatchRowProps {
 }
 
 export const MatchRow = ({ match, updatingId, onUpdateMatch }: MatchRowProps) => {
+  const renderListingLink = () => {
+    if (!match.matched_listing_url) {
+      return <span className="text-gray-500">No URL</span>;
+    }
+
+    // For "no match" results, show as "Verify Search" with different styling
+    if (match.outcome === 'no_match') {
+      return (
+        <a 
+          href={match.matched_listing_url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-orange-400 hover:text-orange-300 flex items-center gap-1"
+          title="Click to verify the search that was performed"
+        >
+          <ExternalLink size={14} />
+          Verify Search
+        </a>
+      );
+    }
+
+    // For "investigate" results, show as "View Listing"
+    return (
+      <a 
+        href={match.matched_listing_url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+      >
+        <ExternalLink size={14} />
+        View Listing
+      </a>
+    );
+  };
+
   return (
     <TableRow>
       <TableCell className="font-mono">{match.postcode}</TableCell>
@@ -32,19 +67,7 @@ export const MatchRow = ({ match, updatingId, onUpdateMatch }: MatchRowProps) =>
         <MatchStatusBadge outcome={match.outcome} />
       </TableCell>
       <TableCell>
-        {match.matched_listing_url ? (
-          <a 
-            href={match.matched_listing_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-          >
-            <ExternalLink size={14} />
-            View
-          </a>
-        ) : (
-          <span className="text-gray-500">No URL</span>
-        )}
+        {renderListingLink()}
       </TableCell>
       <TableCell>
         {match.matched_listing_url && match.outcome === 'pending' && (

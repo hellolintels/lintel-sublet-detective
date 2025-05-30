@@ -8,7 +8,7 @@ import { countRows, MAX_ROWS } from '../_shared/file-processing.ts';
 import { updateContactStatus, createReport } from '../_shared/db.ts';
 import { sendEmail, buildTooManyAddressesEmail, buildAdminReportEmail } from '../_shared/email.ts';
 import { storeMatches, generateReportFromMatches } from './utils/match-processor.ts';
-import { scrapePlaceholders } from '../_shared/scrapers.ts';
+import { scrapePostcodes } from './scraping/bright-data-scraper.ts';
 
 serve(async (req) => {
   try {
@@ -93,8 +93,10 @@ async function handleApproveProcessing(contactId: string) {
   // Update status to scraping
   await updateContactStatus(contactId, "scraping");
   
-  // For now, use placeholder scraper - this will be replaced with Bright Data integration
-  const scrapingResults = await scrapePlaceholders(postcodes);
+  // Use the new Bright Data WebSocket scraper for real data
+  console.log("Starting Bright Data WebSocket scraping...");
+  const scrapingResults = await scrapePostcodes(postcodes);
+  console.log("Bright Data WebSocket scraping completed");
   
   // Store individual matches in the database
   const matchesStored = await storeMatches(contactId, scrapingResults);
@@ -110,28 +112,30 @@ async function handleApproveProcessing(contactId: string) {
   
   await sendEmail(
     adminEmail,
-    `[Lintels] Matches Ready for Review - ${contact.company}`,
+    `[Lintels] Real Data Matches Ready for Review - ${contact.company}`,
     `
     <p>Hello,</p>
-    <p>Matches have been found for ${contact.full_name} from ${contact.company}.</p>
+    <p>Real property matches have been found using Bright Data for ${contact.full_name} from ${contact.company}.</p>
     <p><strong>Summary:</strong></p>
     <ul>
       <li>Total Postcodes: ${postcodes.length}</li>
       <li>Matches Found: ${matchesStored}</li>
       <li>Contact Email: ${contact.email}</li>
+      <li>Data Source: Bright Data WebSocket API</li>
     </ul>
-    <p>Please review the matches in the admin dashboard and generate the final report.</p>
+    <p>Please review the matches in the admin dashboard. All "no match" results include search URLs for audit verification.</p>
     <p><a href="${dashboardUrl}">View Admin Dashboard</a></p>
     `
   );
   
   return new Response(
     JSON.stringify({
-      message: "Address processing completed successfully",
+      message: "Real data processing completed successfully",
       contact_id: contactId,
       postcodes_count: postcodes.length,
       matches_count: matchesStored,
-      status: "matches_found"
+      status: "matches_found",
+      data_source: "bright_data_websocket"
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
