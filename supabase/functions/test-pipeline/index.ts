@@ -16,16 +16,16 @@ serve(async (req) => {
     
     console.log("🧪 Test pipeline request received");
     
-    // Simple test postcodes for UK property matching
+    // Test postcodes provided by user for Edinburgh and Glasgow properties
     const testPostcodes: PostcodeResult[] = [
-      { postcode: "E1 6AN", address: "5 Commercial Street, London E1 6AN", streetName: "Commercial Street" },
-      { postcode: "SW1A 1AA", address: "Buckingham Palace, London SW1A 1AA", streetName: "Buckingham Palace" },
-      { postcode: "M1 1AE", address: "1 Corporation Street, Manchester M1 1AE", streetName: "Corporation Street" },
-      { postcode: "B1 1HH", address: "2 Temple Row, Birmingham B1 1HH", streetName: "Temple Row" },
-      { postcode: "LS1 4DY", address: "The Headrow, Leeds LS1 4DY", streetName: "The Headrow" }
+      { postcode: "EH12 8UU", address: "Flat 4, 1 Stuart Court, Stuart Square, EDINBURGH EH12 8UU", streetName: "Stuart Square" },
+      { postcode: "EH15 2PS", address: "Flat 6, 279 Portobello High Street, EDINBURGH EH15 2PS", streetName: "Portobello High Street" },
+      { postcode: "EH7 5DW", address: "Flat 8, 8 Lyne Street, EDINBURGH EH7 5DW", streetName: "Lyne Street" },
+      { postcode: "G12 9HB", address: "10 Crown Circus, G12 9HB", streetName: "Crown Circus" },
+      { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing scraping with ${testPostcodes.length} postcodes`);
+    console.log(`🔍 Testing scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
     
     // Test the scraping directly with simplified logic
     const scrapingResults = await testScrapePostcodes(testPostcodes);
