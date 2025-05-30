@@ -6,18 +6,16 @@
 import { BrowserSDK } from '@brightdata/browser-sdk';
 import { PostcodeResult } from "../utils/postcode-extractor.ts";
 
-// Configuration for Bright Data WebSocket API
+// Configuration for Bright Data WebSocket API - only need the endpoint URL with embedded credentials
 const BRIGHT_DATA_WEBSOCKET_ENDPOINT = Deno.env.get("BRIGHT_DATA_WEBSOCKET_ENDPOINT");
-const BRIGHT_DATA_USERNAME = Deno.env.get("BRIGHT_DATA_USERNAME");
-const BRIGHT_DATA_PASSWORD = Deno.env.get("BRIGHT_DATA_PASSWORD");
 
 export async function scrapePostcodes(postcodes: PostcodeResult[]) {
   console.log(`Starting WebSocket scraping for ${postcodes.length} postcodes`);
 
-  // Validate Bright Data WebSocket credentials
-  if (!BRIGHT_DATA_WEBSOCKET_ENDPOINT || !BRIGHT_DATA_USERNAME || !BRIGHT_DATA_PASSWORD) {
-    console.error("Bright Data WebSocket credentials not configured");
-    throw new Error("Bright Data WebSocket credentials not configured");
+  // Validate Bright Data WebSocket endpoint
+  if (!BRIGHT_DATA_WEBSOCKET_ENDPOINT) {
+    console.error("Bright Data WebSocket endpoint not configured");
+    throw new Error("Bright Data WebSocket endpoint not configured");
   }
 
   const results = [];
@@ -86,11 +84,7 @@ async function scrapeAirbnb(postcodeData: PostcodeResult) {
   
   try {
     const browserSDK = new BrowserSDK({
-      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT,
-      auth: {
-        username: BRIGHT_DATA_USERNAME,
-        password: BRIGHT_DATA_PASSWORD
-      }
+      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT
     });
 
     const result = await browserSDK.run(async (page) => {
@@ -195,11 +189,7 @@ async function scrapeSpareRoom(postcodeData: PostcodeResult) {
   
   try {
     const browserSDK = new BrowserSDK({
-      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT,
-      auth: {
-        username: BRIGHT_DATA_USERNAME,
-        password: BRIGHT_DATA_PASSWORD
-      }
+      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT
     });
 
     const result = await browserSDK.run(async (page) => {
@@ -304,11 +294,7 @@ async function scrapeGumtree(postcodeData: PostcodeResult) {
   
   try {
     const browserSDK = new BrowserSDK({
-      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT,
-      auth: {
-        username: BRIGHT_DATA_USERNAME,
-        password: BRIGHT_DATA_PASSWORD
-      }
+      endpoint: BRIGHT_DATA_WEBSOCKET_ENDPOINT
     });
 
     const result = await browserSDK.run(async (page) => {
