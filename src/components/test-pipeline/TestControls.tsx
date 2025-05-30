@@ -14,19 +14,19 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
           <Target className="h-5 w-5 text-orange-500" />
-          Improved Precision Pipeline Test
+          Postcode-Area Focused Pipeline Test
         </CardTitle>
         <CardDescription>
-          Enhanced coordinate-based scraping with ~50m radius and special optimization for G11 5AW to capture live listings
+          Focused coordinate-based scraping with ~300-400m radius targeting postcode boundaries to capture live listings
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="text-sm text-gray-400">
-            <p>• <strong>Airbnb:</strong> Improved coordinate search with ~50m radius + map centering</p>
-            <p>• <strong>G11 5AW Special:</strong> Optimized ~70m radius to capture known live listing</p>
+            <p>• <strong>Airbnb:</strong> Postcode-area coordinate search with ~300m radius + zoom level 14</p>
+            <p>• <strong>G11 5AW Special:</strong> Optimized ~400m radius to capture known live listing</p>
             <p>• <strong>SpareRoom & Gumtree:</strong> Full address search for precision</p>
-            <p>• <strong>Enhancement:</strong> Dynamic radius adjustment and better coordinate precision</p>
+            <p>• <strong>Focus:</strong> Postcode boundary targeting with live listing validation</p>
           </div>
           <Button 
             onClick={onRunTest} 
@@ -34,7 +34,7 @@ export const TestControls = ({ isLoading, onRunTest }: TestControlsProps) => {
             className="bg-orange-600 hover:bg-orange-700"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Running Improved Test..." : "Run Improved Precision Test"}
+            {isLoading ? "Running Postcode Test..." : "Run Postcode-Focused Test"}
           </Button>
         </div>
       </CardContent>

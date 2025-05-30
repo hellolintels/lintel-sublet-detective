@@ -11,7 +11,7 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 Improved Test pipeline request received");
+    console.log("🧪 Postcode-focused test pipeline request received");
     
     // Test postcodes provided by user for Edinburgh and Glasgow properties
     const testPostcodes: PostcodeResult[] = [
@@ -22,16 +22,16 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🔍 Testing improved coordinate-based scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
-    console.log(`🎯 Special focus on G11 5AW to capture known live listing`);
+    console.log(`🔍 Testing postcode-area focused scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
+    console.log(`🎯 Optimized for G11 5AW to capture known live listing within postcode boundary`);
     
     // Add coordinates to postcodes
     const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
     
-    // Test the scraping with improved coordinate-based logic
+    // Test the scraping with postcode-area focused logic
     const scrapingResults = await testScrapePostcodes(postcodesWithCoordinates);
     
-    console.log("✅ Improved test scraping completed");
+    console.log("✅ Postcode-focused test scraping completed");
     
     // Format results for easy viewing
     const summary = {
@@ -39,8 +39,8 @@ serve(async (req) => {
       test_completed: new Date().toISOString(),
       connection_status: "success",
       coordinate_lookup: "enabled",
-      search_precision: "improved ~50m radius with G11 5AW optimization",
-      improvements: "Enhanced radius, map centering, and live listing validation",
+      search_precision: "postcode-area focused ~300-400m radius",
+      improvements: "Focused on postcode boundaries with live listing validation",
       results: scrapingResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
@@ -50,8 +50,8 @@ serve(async (req) => {
           status: result.airbnb?.status || "unknown",
           count: result.airbnb?.count || 0,
           url: result.airbnb?.url,
-          search_method: result.airbnb?.search_method || "improved-coordinate",
-          radius: result.airbnb?.radius || "~50m",
+          search_method: result.airbnb?.search_method || "postcode-area-focused",
+          radius: result.airbnb?.radius || "~300m",
           message: result.airbnb?.message
         },
         spareroom: {
@@ -81,11 +81,11 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ Improved test pipeline error:', err);
+    console.error('❌ Postcode-focused test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "Improved test pipeline failed",
+        error: "Postcode-focused test pipeline failed",
         message: err.message || 'Unknown error occurred',
         connection_status: "failed",
         timestamp: new Date().toISOString()

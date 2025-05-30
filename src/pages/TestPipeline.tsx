@@ -16,7 +16,7 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("Starting improved coordinate-based test pipeline...");
+      console.log("Starting postcode-area focused test pipeline...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
@@ -30,13 +30,13 @@ const TestPipeline = () => {
         return;
       }
       
-      console.log("Improved test pipeline results:", data);
+      console.log("Postcode-focused test pipeline results:", data);
       setTestResults(data);
       
       if (data.connection_status === "success") {
         toast({
-          title: "Improved Test Completed",
-          description: `Enhanced precision test completed with ${data.search_precision || 'improved coordinate lookup'}`,
+          title: "Postcode Test Completed",
+          description: `Postcode-area focused test completed with ${data.search_precision || 'postcode boundary targeting'}`,
         });
       } else {
         toast({
@@ -47,10 +47,10 @@ const TestPipeline = () => {
       }
       
     } catch (err) {
-      console.error("Error running improved test:", err);
+      console.error("Error running postcode-focused test:", err);
       toast({
         title: "Error",
-        description: "Failed to run improved test pipeline",
+        description: "Failed to run postcode-focused test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -63,10 +63,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            Improved Property Search Test
+            Postcode-Focused Property Search Test
           </h1>
           <p className="text-gray-400">
-            Enhanced coordinate-based searches with ~50m radius and G11 5AW optimization to capture live listings
+            Targeted coordinate-based searches within postcode boundaries (~300-400m radius) with G11 5AW optimization
           </p>
         </div>
 
