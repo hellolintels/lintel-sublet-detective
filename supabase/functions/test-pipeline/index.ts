@@ -25,7 +25,7 @@ serve(async (req) => {
     console.log(`🔍 Testing OS Data Hub boundary-based scraping with ${testPostcodes.length} Edinburgh/Glasgow postcodes`);
     console.log(`🎯 Using official Ordnance Survey postcode boundaries for maximum accuracy`);
     
-    // Add OS Data Hub boundaries to postcodes
+    // Add OS Data Hub boundaries to postcodes (with postcodes.io fallback)
     const postcodesWithBoundaries = await addCoordinatesToPostcodes(testPostcodes);
     
     // Test the scraping with OS boundary-based logic
@@ -33,14 +33,26 @@ serve(async (req) => {
     
     console.log("✅ OS Data Hub boundary-based test scraping completed");
     
+    // Count successful boundary lookups vs fallbacks
+    const boundaryCount = postcodesWithBoundaries.filter(p => p.boundary).length;
+    const coordinateCount = postcodesWithBoundaries.filter(p => p.latitude && p.longitude).length;
+    
+    const boundaryService = boundaryCount > 0 
+      ? `OS Data Hub (${boundaryCount}/${testPostcodes.length} boundaries) + postcodes.io fallback`
+      : coordinateCount > 0 
+        ? "postcodes.io fallback only"
+        : "no coordinate data retrieved";
+    
     // Format results for easy viewing
     const summary = {
       total_postcodes: testPostcodes.length,
       test_completed: new Date().toISOString(),
       connection_status: "success",
-      boundary_service: "OS Data Hub Features API",
-      search_precision: "Official OS postcode boundaries",
-      improvements: "Uses official Ordnance Survey postcode polygons for precise boundary matching",
+      boundary_service: boundaryService,
+      search_precision: boundaryCount > 0 ? "Mixed: OS boundaries + coordinate fallback" : "Coordinate fallback only",
+      improvements: boundaryCount > 0 
+        ? `Successfully retrieved ${boundaryCount} official OS postcode boundaries with coordinate fallback for others`
+        : "Using coordinate fallback - OS Data Hub boundaries not available",
       results: scrapingResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
@@ -54,9 +66,9 @@ serve(async (req) => {
           status: result.airbnb?.status || "unknown",
           count: result.airbnb?.count || 0,
           url: result.airbnb?.url,
-          search_method: result.airbnb?.search_method || "os-boundary-precise",
-          boundary_method: result.airbnb?.boundary_method || "OS Data Hub official boundary",
-          precision: result.airbnb?.precision || "ultra-high",
+          search_method: result.airbnb?.search_method || "unknown",
+          boundary_method: result.airbnb?.boundary_method || "unknown",
+          precision: result.airbnb?.precision || "unknown",
           message: result.airbnb?.message
         },
         spareroom: {

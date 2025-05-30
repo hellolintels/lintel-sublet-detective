@@ -16,12 +16,26 @@ export async function addCoordinatesToPostcodes(postcodes: PostcodeResult[]): Pr
         };
       } catch (error) {
         console.warn(`Could not get OS Data Hub boundary for ${postcodeData.postcode}:`, error.message);
-        return postcodeData; // Return without boundaries
+        
+        // Fallback to postcodes.io for coordinates only
+        try {
+          const fallbackData = await lookupPostcodeCoordinates(postcodeData.postcode);
+          console.log(`✅ Fallback coordinates found for ${postcodeData.postcode}: ${fallbackData.latitude}, ${fallbackData.longitude}`);
+          return {
+            ...postcodeData,
+            latitude: fallbackData.latitude,
+            longitude: fallbackData.longitude
+            // No boundary data in fallback
+          };
+        } catch (fallbackError) {
+          console.warn(`Fallback coordinate lookup also failed for ${postcodeData.postcode}:`, fallbackError.message);
+          return postcodeData; // Return without coordinates or boundaries
+        }
       }
     })
   );
   
-  console.log(`✅ OS Data Hub boundary lookup completed for ${postcodesWithBoundaries.length} postcodes`);
+  console.log(`✅ Coordinate lookup completed for ${postcodesWithBoundaries.length} postcodes`);
   return postcodesWithBoundaries;
 }
 
@@ -33,19 +47,37 @@ export async function lookupPostcodeBoundary(postcode: string): Promise<Coordina
     throw new Error('OS_DATA_HUB_API_KEY not configured');
   }
   
-  // OS Data Hub Features API endpoint for postcode boundaries
-  const apiUrl = `https://api.os.uk/features/v1/wfs?service=WFS&request=GetFeature&version=2.0.0&typeNames=Postcodes_PostalPolygon&filter=<ogc:Filter><ogc:PropertyIsEqualTo><ogc:PropertyName>POSTCODE</ogc:PropertyName><ogc:Literal>${cleanPostcode}</ogc:Literal></ogc:PropertyIsEqualTo></ogc:Filter>&outputFormat=application/json&srsName=EPSG:4326&key=${apiKey}`;
+  // Corrected OS Data Hub WFS endpoint and type name
+  const baseUrl = 'https://api.os.uk/features/v1/wfs';
+  
+  // Fixed filter XML with proper namespaces and property name
+  const filter = `<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+    <ogc:PropertyIsEqualTo>
+      <ogc:PropertyName>POSTCODE</ogc:PropertyName>
+      <ogc:Literal>${cleanPostcode}</ogc:Literal>
+    </ogc:PropertyIsEqualTo>
+  </ogc:Filter>`;
+  
+  // Properly encode the filter parameter
+  const encodedFilter = encodeURIComponent(filter);
+  
+  // Corrected API URL with proper type name and parameters
+  const apiUrl = `${baseUrl}?service=WFS&request=GetFeature&version=2.0.0&typeNames=osfeatures:postcode_polygons&filter=${encodedFilter}&outputFormat=application/json&srsName=EPSG:4326&key=${apiKey}`;
   
   console.log(`Looking up OS Data Hub boundary for postcode: ${postcode}`);
+  console.log(`API URL: ${apiUrl.substring(0, 150)}...`); // Log truncated URL for debugging
   
   try {
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
-      throw new Error(`OS Data Hub API request failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`OS Data Hub API error (${response.status}):`, errorText);
+      throw new Error(`OS Data Hub API request failed: ${response.status} - ${errorText.substring(0, 200)}`);
     }
     
     const data = await response.json();
+    console.log(`OS Data Hub response for ${postcode}:`, JSON.stringify(data, null, 2).substring(0, 500));
     
     if (!data.features || data.features.length === 0) {
       throw new Error(`No boundary data found for postcode: ${postcode}`);
@@ -78,6 +110,31 @@ export async function lookupPostcodeBoundary(postcode: string): Promise<Coordina
     console.error(`Error looking up OS Data Hub boundary for ${postcode}:`, error);
     throw error;
   }
+}
+
+// Fallback function using postcodes.io for basic coordinates
+async function lookupPostcodeCoordinates(postcode: string): Promise<{ latitude: number; longitude: number }> {
+  const cleanPostcode = postcode.replace(/\s+/g, '');
+  const apiUrl = `https://api.postcodes.io/postcodes/${encodeURIComponent(cleanPostcode)}`;
+  
+  console.log(`Fallback coordinate lookup for ${postcode} using postcodes.io`);
+  
+  const response = await fetch(apiUrl);
+  
+  if (!response.ok) {
+    throw new Error(`Postcodes.io API request failed: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  if (!data.result || !data.result.latitude || !data.result.longitude) {
+    throw new Error(`No coordinate data found for postcode: ${postcode}`);
+  }
+  
+  return {
+    latitude: data.result.latitude,
+    longitude: data.result.longitude
+  };
 }
 
 function extractBoundingBox(coordinates: number[][][]): PostcodeBoundary {
