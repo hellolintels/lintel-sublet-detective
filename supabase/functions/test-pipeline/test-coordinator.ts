@@ -1,31 +1,25 @@
-
-import { PostcodeResult } from './types.ts';
-import { EnhancedScrapingBeeResults } from './enhanced-types.ts';
 import { addCoordinatesToPostcodes } from './coordinate-lookup.ts';
-import { runEnhancedScrapingBeeTests } from './enhanced-scrapingbee-runner.ts';
+import { testScrapePostcodes } from './test-runner.ts';
 
 export class TestCoordinator {
-  static async executeTestPipeline(testPostcodes: PostcodeResult[]): Promise<{
-    coordsCount: number;
-    enhancedResults: EnhancedScrapingBeeResults;
-  }> {
-    console.log(`🚀 Enhanced ScrapingBee API Test Pipeline - Production Ready`);
-    console.log(`🎯 Running Enhanced ScrapingBee tests for ${testPostcodes.length} postcodes`);
-    console.log(`🔧 Features: Smart proxy strategy, circuit breakers, geographic batching, credit optimization`);
+  static async executeTestPipeline(testPostcodes: any[]) {
+    console.log(`🎯 Enhanced Test Pipeline: Starting accuracy-focused testing for ${testPostcodes.length} postcodes`);
     
-    // Phase 1: Coordinate Lookup & Postcode Grouping
-    console.log(`\n📍 Phase 1: Coordinate Lookup & Postcode Grouping`);
-    const postcodesWithCoordinates = await addCoordinatesToPostcodes(testPostcodes);
+    // Phase 1: Add coordinates for precision
+    const postcodesWithCoords = await addCoordinatesToPostcodes(testPostcodes);
+    const coordsCount = postcodesWithCoords.filter(p => p.latitude && p.longitude).length;
     
-    const coordsCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
-    console.log(`✅ Coordinate lookup completed: ${coordsCount}/${testPostcodes.length} postcodes have precise coordinates`);
+    console.log(`📍 Coordinate enhancement: ${coordsCount}/${testPostcodes.length} postcodes now have precise coordinates`);
     
-    // Phase 2: Enhanced ScrapingBee Testing
-    console.log(`\n🧪 Phase 2: Enhanced ScrapingBee API Testing`);
-    const enhancedResults = await runEnhancedScrapingBeeTests(postcodesWithCoordinates);
+    // Phase 2: Run accuracy-focused testing
+    console.log(`🎯 Phase 2: Running enhanced accuracy tests with location validation`);
+    const enhancedResults = await testScrapePostcodes(postcodesWithCoords);
     
-    console.log("\n🎉 Enhanced ScrapingBee test pipeline completed");
+    console.log(`✅ Enhanced accuracy pipeline completed successfully`);
     
-    return { coordsCount, enhancedResults };
+    return {
+      coordsCount,
+      enhancedResults
+    };
   }
 }
