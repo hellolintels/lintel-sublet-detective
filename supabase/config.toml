@@ -62,6 +62,11 @@ verify_jwt = false
 include_cross_origin_headers = true
 max_timeout = 10
 
+[functions.test-pipeline]
+verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 60
+
 [vector]
 enabled = false
 port = 54326

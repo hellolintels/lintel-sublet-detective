@@ -41,6 +41,11 @@ jobs:
                --project-ref uejymkggevuvuerldzhv \
                --no-verify-jwt
 
+      - name: Deploy test-pipeline
+        run: supabase functions deploy test-pipeline \
+               --project-ref uejymkggevuvuerldzhv \
+               --no-verify-jwt
+
       - name: Output Deployed URLs
         run: |
           echo "Deployed URLs:"
@@ -48,3 +53,4 @@ jobs:
           echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/approve-submission"
           echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/process-data"
           echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/setup"
+          echo "- https://uejymkggevuvuerldzhv.functions.supabase.co/test-pipeline"
