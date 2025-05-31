@@ -6,6 +6,7 @@ import { TestSummary } from "@/types/test-pipeline";
 import { TestControls } from "@/components/test-pipeline/TestControls";
 import { TestSummaryCard } from "@/components/test-pipeline/TestSummaryCard";
 import { TestResultCard } from "@/components/test-pipeline/TestResultCard";
+import { Target, Zap } from "lucide-react";
 
 const TestPipeline = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,24 +17,24 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("🔍 Starting property search result verification...");
+      console.log("🎯 Starting Enhanced Property Search Verification with ScrapingBee...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
       if (error) {
-        console.error("❌ Property search verification error:", error);
+        console.error("❌ Enhanced verification error:", error);
         toast({
           title: "Verification Failed",
-          description: error.message || "Failed to run property search verification",
+          description: error.message || "Failed to run enhanced property search verification",
           variant: "destructive",
         });
         return;
       }
       
-      console.log("📊 Property search verification results:", data);
+      console.log("📊 Enhanced verification results:", data);
       setTestResults(data);
       
-      // Focus on verification results
+      // Enhanced result reporting
       if (data.overall_success) {
         const totalMatches = data.results?.reduce((count, result) => {
           if (result.airbnb?.status === "investigate") count++;
@@ -42,30 +43,32 @@ const TestPipeline = () => {
           return count;
         }, 0) || 0;
         
+        const coordinateBasedResults = data.results?.filter(r => r.coordinates).length || 0;
+        
         toast({
-          title: "✅ Property Search Verification Complete",
-          description: `Found ${totalMatches} properties requiring verification across all postcodes`,
+          title: "✅ Enhanced Verification Complete",
+          description: `Found ${totalMatches} properties requiring verification. ${coordinateBasedResults} searches used precise coordinates.`,
         });
       } else {
-        const noMatchCount = data.results?.reduce((count, result) => {
-          if (result.airbnb?.status === "no_match") count++;
-          if (result.spareroom?.status === "no_match") count++;
-          if (result.gumtree?.status === "no_match") count++;
+        const totalErrors = data.results?.reduce((count, result) => {
+          if (result.airbnb?.status === "error") count++;
+          if (result.spareroom?.status === "error") count++;
+          if (result.gumtree?.status === "error") count++;
           return count;
         }, 0) || 0;
         
         toast({
-          title: "🔍 Verification Results Mixed",
-          description: `${noMatchCount} search areas need verification for no listings found`,
+          title: "⚠️ Verification Completed with Issues",
+          description: `Verification completed but encountered ${totalErrors} errors. Check results for details.`,
           variant: "default",
         });
       }
       
     } catch (err) {
-      console.error("❌ Error running property search verification:", err);
+      console.error("❌ Error running enhanced verification:", err);
       toast({
         title: "Error",
-        description: "Failed to run property search verification - check console for details",
+        description: "Failed to run enhanced property search verification - check console for details",
         variant: "destructive",
       });
     } finally {
@@ -75,14 +78,38 @@ const TestPipeline = () => {
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-green-500 mb-2">
-            Property Search Result Verification
-          </h1>
-          <p className="text-gray-400">
-            Verify the accuracy of property search results for specific postcodes. Each result links directly to live listings or map views for manual verification.
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <Target className="h-8 w-8 text-green-400" />
+            <h1 className="text-4xl font-bold text-green-500">
+              Enhanced Property Search Verification
+            </h1>
+            <Zap className="h-6 w-6 text-yellow-400" />
+          </div>
+          <div className="space-y-2 text-gray-400">
+            <p className="text-lg">
+              Verify property search accuracy across Airbnb, SpareRoom, and Gumtree using ScrapingBee with enhanced location validation.
+            </p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                Postcode/Coordinate Level Precision
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                Hyperlinked Verification Results
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                Enhanced Location Validation
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                Premium ScrapingBee Proxies
+              </span>
+            </div>
+          </div>
         </div>
 
         <TestControls isLoading={isLoading} onRunTest={runTest} />

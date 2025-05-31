@@ -4,44 +4,49 @@ export interface TestSummary {
   total_postcodes: number;
   test_completed: string;
   api_status: string;
-  connection_status?: string;
   boundary_service?: string;
   search_precision?: string;
-  improvements?: string;
+  coordinate_precision?: string;
   error?: string;
   
-  // Enhanced diagnostics
-  api_diagnostics?: {
-    response_time_avg: number;
+  summary?: {
+    test_type: string;
+    total_postcodes: number;
+    total_platform_tests: number;
     success_rate: string;
-    success_percentage: string;
-    circuit_breaker_status: any;
-  };
-  
-  // Performance metrics
-  performance?: {
-    airbnb_success_rate: string;
-    spareroom_success_rate: string;
-    gumtree_success_rate: string;
-    total_matches_found: number;
-    average_response_time: number;
-    geographic_batching?: string;
-    smart_proxy_strategy?: string;
-  };
-  
-  // Credit usage
-  credit_analytics?: {
-    total_credits_used: number;
-    premium_requests: number;
-    standard_requests: number;
-    daily_budget_remaining: number;
-    cost_per_platform: any;
-    credit_efficiency: string;
+    result_breakdown: {
+      properties_found: number;
+      no_properties: number;
+      errors: number;
+    };
+    accuracy_metrics: {
+      coordinate_based_searches: number;
+      address_based_searches: number;
+      postcode_only_searches: number;
+    };
+    platform_performance: {
+      airbnb: PlatformStats;
+      spareroom: PlatformStats;
+      gumtree: PlatformStats;
+    };
+    scraping_bee_usage: {
+      requestsUsed: number;
+      requestsRemaining: number;
+      dailyLimit: number;
+    };
+    recommendations: string[];
   };
   
   recommendations?: string[];
   overall_success: boolean;
   results?: TestResult[];
+}
+
+export interface PlatformStats {
+  investigated: number;
+  no_match: number;
+  errors: number;
+  avg_confidence: string;
 }
 
 export interface TestResult {
@@ -72,8 +77,11 @@ export interface PlatformResult {
   listing_url?: string;
   map_view_url?: string;
   responseTime?: number;
-  creditCost?: number;
+  credit_cost?: number;
   search_method?: string;
-  boundary_method?: string;
   precision?: string;
+  validation_score?: number;
+  extracted_postcode?: string;
+  accuracy_reasons?: string[];
+  requests_remaining?: number;
 }
