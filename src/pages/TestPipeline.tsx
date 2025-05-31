@@ -16,77 +16,64 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("🚀 Starting enhanced WebSocket connection test...");
+      console.log("🚀 Starting ScrapingBee API test...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
       if (error) {
-        console.error("❌ Enhanced WebSocket test error:", error);
+        console.error("❌ ScrapingBee API test error:", error);
         toast({
           title: "Test Failed",
-          description: error.message || "Failed to run enhanced WebSocket test",
+          description: error.message || "Failed to run ScrapingBee API test",
           variant: "destructive",
         });
         return;
       }
       
-      console.log("📊 Enhanced WebSocket test results:", data);
+      console.log("📊 ScrapingBee API test results:", data);
       setTestResults(data);
       
-      // Check for WebSocket connection issues
-      const hasWebSocketErrors = data.results?.some((result: any) => 
-        result.airbnb?.message?.includes("WebSocket") ||
-        result.spareroom?.message?.includes("WebSocket") ||
-        result.gumtree?.message?.includes("WebSocket")
+      // Check for API issues
+      const hasApiErrors = data.results?.some((result: any) => 
+        result.airbnb?.status === "error" ||
+        result.spareroom?.status === "error" ||
+        result.gumtree?.status === "error"
       );
       
-      const hasConnectionDiagnostics = data.results?.some((result: any) => 
-        result.airbnb?.connectionDiagnostics || 
-        result.spareroom?.connectionDiagnostics || 
-        result.gumtree?.connectionDiagnostics
-      );
+      const hasHighSuccessRate = data.performance?.airbnb_success_rate || 
+        data.performance?.spareroom_success_rate || 
+        data.performance?.gumtree_success_rate;
       
-      const hasWorkingConnection = data.results?.some((result: any) => 
-        result.airbnb?.workingEndpoint || 
-        result.spareroom?.workingEndpoint || 
-        result.gumtree?.workingEndpoint
-      );
-      
-      if (hasWorkingConnection) {
+      if (data.api_status === "success" && !hasApiErrors) {
         toast({
-          title: "WebSocket Connection Resolved!",
-          description: "Found working Bright Data endpoint configuration",
+          title: "ScrapingBee API Test Successful!",
+          description: "API is working reliably and ready for production use",
         });
-      } else if (hasConnectionDiagnostics) {
+      } else if (hasHighSuccessRate) {
         toast({
-          title: "WebSocket Diagnostics Available",
-          description: "Detailed connection test results available in test output",
+          title: "ScrapingBee Test Completed",
+          description: "Some platforms working - check detailed results for specifics",
+          variant: "default",
+        });
+      } else if (hasApiErrors) {
+        toast({
+          title: "ScrapingBee API Issues Detected",
+          description: "Check API key configuration and account status",
           variant: "destructive",
-        });
-      } else if (hasWebSocketErrors) {
-        toast({
-          title: "WebSocket Connection Issues",
-          description: "Multiple endpoint configurations tested - check diagnostics",
-          variant: "destructive",
-        });
-      } else if (data.connection_status === "success") {
-        toast({
-          title: "Enhanced WebSocket Test Completed",
-          description: "Test completed with enhanced connection diagnostics",
         });
       } else {
         toast({
           title: "Test Issues",
-          description: data.message || "Test completed with issues",
+          description: data.message || "Test completed with issues - check detailed results",
           variant: "destructive",
         });
       }
       
     } catch (err) {
-      console.error("❌ Error running enhanced WebSocket test:", err);
+      console.error("❌ Error running ScrapingBee API test:", err);
       toast({
         title: "Error",
-        description: "Failed to run enhanced WebSocket test pipeline",
+        description: "Failed to run ScrapingBee API test pipeline",
         variant: "destructive",
       });
     } finally {
@@ -98,11 +85,11 @@ const TestPipeline = () => {
     <div className="min-h-screen bg-black text-white p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-orange-500 mb-2">
-            Enhanced Bright Data WebSocket Connection Test
+          <h1 className="text-3xl font-bold text-green-500 mb-2">
+            ScrapingBee API Reliability Test
           </h1>
           <p className="text-gray-400">
-            Multi-port testing with comprehensive diagnostics to resolve Bright Data WebSocket connection issues
+            Comprehensive testing of ScrapingBee REST API for reliable property scraping across multiple platforms
           </p>
         </div>
 

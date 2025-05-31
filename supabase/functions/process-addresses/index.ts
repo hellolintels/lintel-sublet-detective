@@ -7,7 +7,7 @@ import { countRows, MAX_ROWS } from '../_shared/file-processing.ts';
 import { updateContactStatus, createReport } from '../_shared/db.ts';
 import { sendEmail, buildTooManyAddressesEmail, buildAdminReportEmail } from '../_shared/email.ts';
 import { storeMatches, generateReportFromMatches } from './utils/match-processor.ts';
-import { scrapePostcodes } from './scraping/bright-data-scraper.ts';
+import { scrapePostcodes } from './scraping/scraping-bee-scraper.ts';
 
 serve(async (req) => {
   try {
@@ -38,8 +38,8 @@ serve(async (req) => {
         );
       }
       return await handleApproveProcessing(contactId);
-    } else if (action === 'test_bright_data') {
-      return await handleTestBrightData(postcodes, testType);
+    } else if (action === 'test_scrapingbee') {
+      return await handleTestScrapingBee(postcodes, testType);
     }
     
     return new Response(
@@ -60,8 +60,8 @@ serve(async (req) => {
   }
 });
 
-async function handleTestBrightData(postcodes: string[], testType: string = 'basic') {
-  console.log(`🧪 Testing Bright Data connection with ${postcodes?.length || 0} postcodes`);
+async function handleTestScrapingBee(postcodes: string[], testType: string = 'basic') {
+  console.log(`🧪 Testing ScrapingBee connection with ${postcodes?.length || 0} postcodes`);
   
   if (!postcodes || !Array.isArray(postcodes) || postcodes.length === 0) {
     return new Response(
@@ -82,12 +82,12 @@ async function handleTestBrightData(postcodes: string[], testType: string = 'bas
       streetName: undefined
     }));
 
-    console.log(`🔍 Starting Bright Data test scraping for postcodes: ${postcodes.join(', ')}`);
+    console.log(`🔍 Starting ScrapingBee test scraping for postcodes: ${postcodes.join(', ')}`);
     
-    // Test the Bright Data WebSocket connection
+    // Test the ScrapingBee API connection
     const scrapingResults = await scrapePostcodes(postcodeData);
     
-    console.log(`✅ Bright Data test completed successfully`);
+    console.log(`✅ ScrapingBee test completed successfully`);
     
     // Format results for the test component
     const formattedResults = scrapingResults.map(result => ({
@@ -102,20 +102,20 @@ async function handleTestBrightData(postcodes: string[], testType: string = 'bas
         results: formattedResults,
         connectionStatus: "success",
         testType: testType,
-        message: `Successfully tested ${postcodes.length} postcodes using Bright Data WebSocket API`
+        message: `Successfully tested ${postcodes.length} postcodes using ScrapingBee REST API`
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error('❌ Bright Data test failed:', error);
+    console.error('❌ ScrapingBee test failed:', error);
     
     return new Response(
       JSON.stringify({
         connectionStatus: "error",
         connectionError: error.message || 'Unknown error occurred during testing',
         testType: testType,
-        message: "Bright Data connection test failed"
+        message: "ScrapingBee connection test failed"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -196,10 +196,10 @@ async function handleApproveProcessing(contactId: string) {
   // Update status to scraping
   await updateContactStatus(contactId, "scraping");
   
-  // Use the new Bright Data WebSocket scraper for real data
-  console.log("Starting Bright Data WebSocket scraping...");
+  // Use ScrapingBee for real data
+  console.log("Starting ScrapingBee scraping...");
   const scrapingResults = await scrapePostcodes(postcodes);
-  console.log("Bright Data WebSocket scraping completed");
+  console.log("ScrapingBee scraping completed");
   
   // Store individual matches in the database
   const matchesStored = await storeMatches(contactId, scrapingResults);
@@ -215,16 +215,16 @@ async function handleApproveProcessing(contactId: string) {
   
   await sendEmail(
     adminEmail,
-    `[Lintels] Real Data Matches Ready for Review - ${contact.company}`,
+    `[Lintels] Property Matches Ready for Review - ${contact.company}`,
     `
     <p>Hello,</p>
-    <p>Real property matches have been found using Bright Data for ${contact.full_name} from ${contact.company}.</p>
+    <p>Property matches have been found using ScrapingBee for ${contact.full_name} from ${contact.company}.</p>
     <p><strong>Summary:</strong></p>
     <ul>
       <li>Total Postcodes: ${postcodes.length}</li>
       <li>Matches Found: ${matchesStored}</li>
       <li>Contact Email: ${contact.email}</li>
-      <li>Data Source: Bright Data WebSocket API</li>
+      <li>Data Source: ScrapingBee REST API</li>
     </ul>
     <p>Please review the matches in the admin dashboard. All "no match" results include search URLs for audit verification.</p>
     <p><a href="${dashboardUrl}">View Admin Dashboard</a></p>
@@ -233,12 +233,12 @@ async function handleApproveProcessing(contactId: string) {
   
   return new Response(
     JSON.stringify({
-      message: "Real data processing completed successfully",
+      message: "Data processing completed successfully",
       contact_id: contactId,
       postcodes_count: postcodes.length,
       matches_count: matchesStored,
       status: "matches_found",
-      data_source: "bright_data_websocket"
+      data_source: "scrapingbee_api"
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );

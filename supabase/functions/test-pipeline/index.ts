@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { PostcodeResult } from './types.ts';
 import { addCoordinatesToPostcodes } from './coordinate-lookup.ts';
-import { runEnhancedTests } from './enhanced-test-runner.ts';
+import { runScrapingBeeTests } from './scrapingbee-test-runner.ts';
 
 serve(async (req) => {
   try {
@@ -11,7 +11,7 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log("🧪 Enhanced Airbnb WebSocket Connection & Scraping Test Pipeline");
+    console.log("🧪 Enhanced ScrapingBee API Test Pipeline");
     
     // Test postcodes for comprehensive testing
     const testPostcodes: PostcodeResult[] = [
@@ -22,8 +22,8 @@ serve(async (req) => {
       { postcode: "G11 5AW", address: "23 Banavie Road, G11 5AW", streetName: "Banavie Road" }
     ];
     
-    console.log(`🎯 Running enhanced tests for ${testPostcodes.length} postcodes with multi-strategy Airbnb scraping`);
-    console.log(`🔍 Test Focus: WebSocket connection resolution + Airbnb search strategy optimization`);
+    console.log(`🎯 Running ScrapingBee tests for ${testPostcodes.length} postcodes with REST API scraping`);
+    console.log(`🔍 Test Focus: ScrapingBee API reliability + multi-platform property search`);
     
     // Add coordinates to postcodes for precise search strategies
     console.log(`\n📍 Phase 0: Coordinate Lookup`);
@@ -32,48 +32,47 @@ serve(async (req) => {
     const coordsCount = postcodesWithCoordinates.filter(p => p.latitude && p.longitude).length;
     console.log(`✅ Coordinate lookup completed: ${coordsCount}/${testPostcodes.length} postcodes have precise coordinates`);
     
-    // Run enhanced testing pipeline
-    const enhancedResults = await runEnhancedTests(postcodesWithCoordinates);
+    // Run ScrapingBee testing pipeline
+    const scrapingBeeResults = await runScrapingBeeTests(postcodesWithCoordinates);
     
-    console.log("\n🎉 Enhanced test pipeline completed");
+    console.log("\n🎉 ScrapingBee test pipeline completed");
     
     // Format comprehensive results
     const summary = {
-      test_type: "enhanced_airbnb_websocket_test",
+      test_type: "scrapingbee_api_test",
       total_postcodes: testPostcodes.length,
       test_completed: new Date().toISOString(),
-      connection_status: enhancedResults.workingEndpoint ? "success" : "failed",
-      working_endpoint: enhancedResults.workingEndpoint,
+      api_status: scrapingBeeResults.apiWorking ? "success" : "failed",
+      api_service: "ScrapingBee REST API",
       coordinate_service: coordsCount > 0 
         ? `OS Places API (${coordsCount}/${testPostcodes.length} building-level coordinates) with postcodes.io fallback`
         : "postcodes.io fallback only",
       
-      // Connection diagnostics
-      connection_diagnostics: enhancedResults.connectionDiagnostics.map(diag => ({
-        port: diag.port,
-        success: diag.success,
-        response_time_ms: diag.responseTime,
-        error_type: diag.errorType,
-        details: diag.details
-      })),
-      connection_summary: enhancedResults.connectionSummary,
+      // API diagnostics
+      api_diagnostics: {
+        response_time_avg: scrapingBeeResults.avgResponseTime,
+        success_rate: `${scrapingBeeResults.successfulRequests}/${scrapingBeeResults.totalRequests}`,
+        rate_limit_status: scrapingBeeResults.rateLimitStatus,
+        error_types: scrapingBeeResults.errorTypes
+      },
       
       // Performance metrics
       performance: {
-        airbnb_success_rate: `${enhancedResults.testResults.filter(r => r.airbnb.status === 'investigate' || r.airbnb.count > 0).length}/${testPostcodes.length}`,
-        total_matches_found: enhancedResults.testResults.reduce((sum, r) => sum + r.airbnb.count, 0),
-        average_response_time: enhancedResults.connectionDiagnostics
-          .filter(d => d.success && d.responseTime)
-          .reduce((sum, d) => sum + (d.responseTime || 0), 0) / 
-          enhancedResults.connectionDiagnostics.filter(d => d.success).length || 0
+        airbnb_success_rate: `${scrapingBeeResults.testResults.filter(r => r.airbnb.status === 'investigate' || r.airbnb.count > 0).length}/${testPostcodes.length}`,
+        spareroom_success_rate: `${scrapingBeeResults.testResults.filter(r => r.spareroom.status === 'investigate' || r.spareroom.count > 0).length}/${testPostcodes.length}`,
+        gumtree_success_rate: `${scrapingBeeResults.testResults.filter(r => r.gumtree.status === 'investigate' || r.gumtree.count > 0).length}/${testPostcodes.length}`,
+        total_matches_found: scrapingBeeResults.testResults.reduce((sum, r) => 
+          sum + (r.airbnb.count || 0) + (r.spareroom.count || 0) + (r.gumtree.count || 0), 0
+        ),
+        average_response_time: scrapingBeeResults.avgResponseTime
       },
       
       // Recommendations
-      recommendations: enhancedResults.recommendations,
-      overall_success: enhancedResults.overallSuccess,
+      recommendations: scrapingBeeResults.recommendations,
+      overall_success: scrapingBeeResults.overallSuccess,
       
       // Detailed results
-      results: enhancedResults.testResults.map(result => ({
+      results: scrapingBeeResults.testResults.map(result => ({
         postcode: result.postcode,
         address: result.address,
         coordinates: result.latitude && result.longitude ? 
@@ -82,27 +81,36 @@ serve(async (req) => {
         airbnb: {
           status: result.airbnb.status,
           count: result.airbnb.count,
-          total_found: result.airbnb.totalFound,
-          search_method: result.airbnb.search_method,
-          precision: result.airbnb.precision,
-          message: result.airbnb.message,
-          url: result.airbnb.url
+          url: result.airbnb.url,
+          response_time: result.airbnb.responseTime
+        },
+        spareroom: {
+          status: result.spareroom.status,
+          count: result.spareroom.count,
+          url: result.spareroom.url,
+          response_time: result.spareroom.responseTime
+        },
+        gumtree: {
+          status: result.gumtree.status,
+          count: result.gumtree.count,
+          url: result.gumtree.url,
+          response_time: result.gumtree.responseTime
         }
       })),
       
       // Next steps
-      next_steps: enhancedResults.overallSuccess 
+      next_steps: scrapingBeeResults.overallSuccess 
         ? [
-            "Implement SpareRoom scraper with similar multi-strategy approach",
-            "Add Gumtree scraper functionality", 
-            "Optimize performance and add concurrent scraping",
-            "Implement result caching and rate limiting"
+            "ScrapingBee API working reliably",
+            "Deploy to production environment",
+            "Implement result caching for performance",
+            "Add request monitoring and alerts"
           ]
         : [
-            "Fix WebSocket connection issues first",
-            "Debug Airbnb scraping problems",
-            "Verify Bright Data configuration",
-            "Test with different postcode samples"
+            "Check ScrapingBee API key configuration",
+            "Verify account usage limits",
+            "Test with different postcode samples",
+            "Contact ScrapingBee support if issues persist"
           ]
     };
     
@@ -118,18 +126,19 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ Enhanced test pipeline error:', err);
+    console.error('❌ ScrapingBee test pipeline error:', err);
     
     return new Response(
       JSON.stringify({
-        error: "Enhanced test pipeline failed",
+        error: "ScrapingBee test pipeline failed",
         message: err.message || 'Unknown error occurred',
-        connection_status: "failed",
+        api_status: "failed",
         timestamp: new Date().toISOString(),
         recommendations: [
-          "Check Bright Data WebSocket endpoint configuration",
+          "Check ScrapingBee API key configuration in Supabase secrets",
           "Verify network connectivity",
-          "Check Supabase Edge Function logs for detailed error information"
+          "Check Supabase Edge Function logs for detailed error information",
+          "Ensure ScrapingBee account has sufficient credits"
         ]
       }, null, 2),
       { 
