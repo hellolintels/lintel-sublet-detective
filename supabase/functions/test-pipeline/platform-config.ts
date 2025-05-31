@@ -29,7 +29,7 @@ export class PlatformConfigManager {
             premium_proxy: 'true',
             stealth_proxy: 'true',
             block_ads: 'true',
-            wait: '7000',
+            wait: '8000',
             wait_browser: 'load',
             country_code: 'gb',
             render_js: 'true'
@@ -39,38 +39,45 @@ export class PlatformConfigManager {
         };
       
       case 'spareroom':
-        const usesPremium = isProblematicArea || this.getFailureCount('spareroom') > 2;
+        // Always use premium for anti-blocking
         return {
           params: {
-            premium_proxy: usesPremium ? 'true' : 'false',
-            wait: '3000',
+            premium_proxy: 'true',
+            stealth_proxy: 'true',
+            wait: '5000',
             country_code: 'gb',
             render_js: 'true',
             block_ads: 'true'
           },
-          creditCost: usesPremium ? 10 : 5,
-          description: usesPremium ? 'Premium (Enhanced)' : 'Standard'
+          creditCost: 10,
+          description: 'Premium+Stealth (Anti-Block)'
         };
       
       case 'gumtree':
-        const needsPremium = isProblematicArea || this.getFailureCount('gumtree') > 5;
+        // Use premium and remove problematic cookies
         return {
           params: {
-            premium_proxy: needsPremium ? 'true' : 'false',
-            wait: '2000',
+            premium_proxy: 'true',
+            stealth_proxy: 'true',
+            wait: '4000',
             country_code: 'gb',
             render_js: 'true',
-            cookies: 'true'
+            block_ads: 'true'
+            // Removed 'cookies' parameter that was causing 400 errors
           },
-          creditCost: needsPremium ? 10 : 5,
-          description: needsPremium ? 'Premium (Escalated)' : 'Standard'
+          creditCost: 10,
+          description: 'Premium+Stealth (Fixed Cookies)'
         };
       
       default:
         return {
-          params: { render_js: 'true', wait: '2000' },
-          creditCost: 5,
-          description: 'Basic'
+          params: { 
+            render_js: 'true', 
+            wait: '3000',
+            premium_proxy: 'true'
+          },
+          creditCost: 10,
+          description: 'Premium Default'
         };
     }
   }

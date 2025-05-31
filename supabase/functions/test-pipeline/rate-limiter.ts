@@ -1,9 +1,9 @@
 
 export class RateLimiter {
   private platformLimits = {
-    airbnb: { daily: 300, hourly: 15 },
-    spareroom: { daily: 250, hourly: 20 },
-    gumtree: { daily: 250, hourly: 25 }
+    airbnb: { daily: 200, hourly: 10 }, // Reduced limits for anti-blocking
+    spareroom: { daily: 150, hourly: 12 },
+    gumtree: { daily: 150, hourly: 15 }
   };
   
   private requestCounts = {
@@ -11,6 +11,8 @@ export class RateLimiter {
     spareroom: { daily: 0, hourly: 0, lastHourReset: Date.now() },
     gumtree: { daily: 0, hourly: 0, lastHourReset: Date.now() }
   };
+
+  private conservativeMode = true; // Enable conservative mode by default
 
   canMakeRequest(platform: string): boolean {
     const now = Date.now();
@@ -36,13 +38,32 @@ export class RateLimiter {
   }
 
   async waitBetweenRequests(type: 'platform' | 'batch'): Promise<void> {
-    const delays = {
+    // Conservative delays with jitter for human-like behavior
+    const delays = this.conservativeMode ? {
+      platform: { min: 5000, max: 12000 }, // Increased from 3-8s to 5-12s
+      batch: { min: 2000, max: 4000 }      // Increased from 1-2s to 2-4s
+    } : {
       platform: { min: 3000, max: 8000 },
       batch: { min: 1000, max: 2000 }
     };
     
     const delay = delays[type];
-    const waitTime = Math.random() * (delay.max - delay.min) + delay.min;
+    const baseWait = Math.random() * (delay.max - delay.min) + delay.min;
+    
+    // Add jitter (±20%) to make timing more human-like
+    const jitter = (Math.random() - 0.5) * 0.4 * baseWait;
+    const waitTime = Math.max(1000, baseWait + jitter);
+    
+    console.log(`⏱️ Anti-blocking delay: ${Math.round(waitTime)}ms for ${type}`);
     await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+
+  setConservativeMode(enabled: boolean): void {
+    this.conservativeMode = enabled;
+    console.log(`🛡️ Conservative mode ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  isConservativeMode(): boolean {
+    return this.conservativeMode;
   }
 }

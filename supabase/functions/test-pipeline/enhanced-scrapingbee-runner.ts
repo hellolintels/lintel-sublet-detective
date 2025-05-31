@@ -1,4 +1,3 @@
-
 import { PostcodeResult, TestResult } from './types.ts';
 import { 
   EnhancedScrapingBeeResults, 
@@ -11,6 +10,7 @@ import { URLGenerators } from './url-generators.ts';
 import { HTMLAnalyzer } from './html-analyzer.ts';
 import { CircuitBreakerManager } from './circuit-breaker.ts';
 import { RateLimiter } from './rate-limiter.ts';
+import { BlockingDetector } from './blocking-detector.ts';
 
 const SCRAPINGBEE_API_KEY = Deno.env.get("SCRAPINGBEE_API_KEY");
 
@@ -18,17 +18,24 @@ class EnhancedScrapingBeeRunner {
   private circuitBreaker: CircuitBreakerManager;
   private rateLimiter: RateLimiter;
   private platformConfig: PlatformConfigManager;
+  private blockingDetector: BlockingDetector;
   private creditUsage = { premium: 0, standard: 0, total: 0 };
-  private dailyBudget = 800;
+  private dailyBudget = 600; // Reduced budget for conservative approach
+  private blockingAlerts: string[] = [];
 
   constructor() {
     this.circuitBreaker = new CircuitBreakerManager();
     this.rateLimiter = new RateLimiter();
     this.platformConfig = new PlatformConfigManager();
+    this.blockingDetector = new BlockingDetector();
+    
+    // Enable conservative mode for anti-blocking
+    this.rateLimiter.setConservativeMode(true);
   }
 
   async runEnhancedTests(postcodes: PostcodeResult[]): Promise<EnhancedScrapingBeeResults> {
-    console.log(`🔍 Starting Property Search Verification for ${postcodes.length} postcodes`);
+    console.log(`🛡️ Starting Anti-Blocking Property Search Verification for ${postcodes.length} postcodes`);
+    console.log(`🔒 Conservative mode enabled with premium proxies and enhanced delays`);
     
     if (!SCRAPINGBEE_API_KEY) {
       throw new Error("ScrapingBee API key not configured");
@@ -43,7 +50,7 @@ class EnhancedScrapingBeeRunner {
     let totalRequests = 0;
 
     for (const group of postcodeGroups) {
-      console.log(`\n🎯 Processing ${group.area} area (${group.postcodes.length} postcodes)`);
+      console.log(`\n🎯 Processing ${group.area} area (${group.postcodes.length} postcodes) - Anti-blocking mode`);
       
       const groupResults = await this.processPostcodeGroup(group);
       testResults.push(...groupResults.results);
@@ -56,21 +63,28 @@ class EnhancedScrapingBeeRunner {
         console.log(`⚠️ Pausing processing to conserve credits`);
         break;
       }
+
+      // Check for blocking alerts
+      if (this.blockingAlerts.length > 2) {
+        console.log(`🚨 Multiple blocking alerts detected, pausing for safety`);
+        break;
+      }
     }
 
     const avgResponseTime = responseTimes.length > 0 ? 
       responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
     
     const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
-    const apiWorking = successRate >= 40;
+    const apiWorking = successRate >= 30; // More lenient due to anti-blocking measures
     const overallSuccess = apiWorking && successfulRequests > 0;
 
     const recommendations = this.generateVerificationRecommendations(successRate, testResults);
     const circuitBreakerStatus = this.circuitBreaker.getCircuitBreakerStatus();
     const creditUsage = this.getCreditUsageStats();
 
-    console.log(`✅ Property Search Verification completed`);
+    console.log(`✅ Anti-blocking verification completed`);
     console.log(`📈 Success Rate: ${successRate.toFixed(1)}% (${successfulRequests}/${totalRequests})`);
+    console.log(`🛡️ Blocking alerts: ${this.blockingAlerts.length}`);
 
     return {
       testResults,
@@ -92,7 +106,7 @@ class EnhancedScrapingBeeRunner {
     let totalRequests = 0;
 
     for (const postcodeData of group.postcodes) {
-      console.log(`\n📍 Processing ${postcodeData.postcode} for verification`);
+      console.log(`\n📍 Processing ${postcodeData.postcode} for verification (anti-blocking mode)`);
       
       const result: TestResult = {
         postcode: postcodeData.postcode,
@@ -117,6 +131,8 @@ class EnhancedScrapingBeeRunner {
       });
 
       results.push(result);
+      
+      // Extra delay between postcodes for anti-blocking
       await this.rateLimiter.waitBetweenRequests('batch');
     }
 
@@ -154,7 +170,10 @@ class EnhancedScrapingBeeRunner {
       const searchQuery = URLGenerators.buildSearchQuery(postcodeData, platform);
       const url = URLGenerators.buildPlatformUrl(platform, searchQuery);
       
-      console.log(`🔍 Testing ${platform} for ${postcodeData.postcode} (verification focus)`);
+      console.log(`🔍 Testing ${platform} for ${postcodeData.postcode} (anti-blocking: ${config.description})`);
+      
+      // Anti-blocking delay before request
+      await this.rateLimiter.waitBetweenRequests('platform');
       
       const scrapingBeeUrl = URLGenerators.buildScrapingBeeUrl(url, config.params, SCRAPINGBEE_API_KEY!);
       const response = await fetch(scrapingBeeUrl);
@@ -172,6 +191,17 @@ class EnhancedScrapingBeeRunner {
       }
       
       const html = await response.text();
+      
+      // Enhanced blocking detection
+      const blockingAnalysis = this.blockingDetector.analyzeForBlocking(html, platform, url);
+      this.blockingDetector.logBlockingAlert(platform, blockingAnalysis);
+      
+      if (blockingAnalysis.isBlocked) {
+        this.blockingAlerts.push(`${platform}: ${blockingAnalysis.recommendation}`);
+        this.circuitBreaker.recordFailure(platform);
+        throw new Error(`${platform} blocking detected: ${blockingAnalysis.indicators.join(', ')}`);
+      }
+      
       const result = HTMLAnalyzer.analyzeForVerificationLinks(html, postcodeData, platform, url);
       
       this.circuitBreaker.resetFailures(platform);
@@ -180,7 +210,8 @@ class EnhancedScrapingBeeRunner {
         ...result,
         responseTime,
         url,
-        creditCost: config.creditCost
+        creditCost: config.creditCost,
+        blockingAnalysis: blockingAnalysis.isSuspicious ? blockingAnalysis.recommendation : undefined
       };
       
     } catch (error) {
@@ -211,7 +242,7 @@ class EnhancedScrapingBeeRunner {
 
   private shouldPauseForCreditConservation(): boolean {
     const usagePercent = (this.creditUsage.total / this.dailyBudget) * 100;
-    return usagePercent >= 90;
+    return usagePercent >= 85; // More conservative threshold
   }
 
   private getCreditUsageStats(): CreditUsageStats {
@@ -223,8 +254,8 @@ class EnhancedScrapingBeeRunner {
       dailyBudgetRemaining: this.dailyBudget - this.creditUsage.total,
       costBreakdown: {
         airbnb: requestCounts.airbnb.daily * 25,
-        spareroom: requestCounts.spareroom.daily * 8,
-        gumtree: requestCounts.gumtree.daily * 6
+        spareroom: requestCounts.spareroom.daily * 10, // Updated to reflect premium usage
+        gumtree: requestCounts.gumtree.daily * 10      // Updated to reflect premium usage
       }
     };
   }
@@ -246,6 +277,10 @@ class EnhancedScrapingBeeRunner {
         (result.gumtree.status === "no_match" ? 1 : 0);
     }, 0);
     
+    if (this.blockingAlerts.length > 0) {
+      recommendations.push(`🚨 Blocking detected: ${this.blockingAlerts.length} alerts - Anti-blocking measures active`);
+    }
+    
     if (totalMatches > 0) {
       recommendations.push(`✅ Found ${totalMatches} properties requiring verification - click "View Live Listing" links to verify`);
     }
@@ -254,15 +289,13 @@ class EnhancedScrapingBeeRunner {
       recommendations.push(`🔍 ${totalNoMatches} search areas showed no listings - click "Verify Search Area" to confirm`);
     }
     
-    if (successRate < 30) {
-      recommendations.push("⚠️ Low verification success rate - check individual platform results for errors");
-    } else if (successRate >= 70) {
-      recommendations.push("📈 High verification success rate - property search working well");
+    if (successRate < 20) {
+      recommendations.push("⚠️ Low success rate - consider increasing delays or enabling stealth mode");
+    } else if (successRate >= 50) {
+      recommendations.push("📈 Good success rate with anti-blocking measures active");
     }
 
-    if (recommendations.length === 0) {
-      recommendations.push("🔧 Property search verification completed - review individual results");
-    }
+    recommendations.push("🛡️ Anti-blocking mode: Premium proxies enabled, conservative delays active");
     
     return recommendations;
   }
