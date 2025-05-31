@@ -33,38 +33,35 @@ const TestPipeline = () => {
       console.log("📊 ScrapingBee API test results:", data);
       setTestResults(data);
       
-      // Check for API issues
-      const hasApiErrors = data.results?.some((result: any) => 
-        result.airbnb?.status === "error" ||
-        result.spareroom?.status === "error" ||
-        result.gumtree?.status === "error"
-      );
-      
-      const hasHighSuccessRate = data.performance?.airbnb_success_rate || 
-        data.performance?.spareroom_success_rate || 
-        data.performance?.gumtree_success_rate;
-      
-      if (data.api_status === "success" && !hasApiErrors) {
+      // More detailed success/failure analysis
+      if (data.api_status === "success" && data.overall_success) {
         toast({
-          title: "ScrapingBee API Test Successful!",
-          description: "API is working reliably and ready for production use",
+          title: "✅ ScrapingBee API Test Successful!",
+          description: `API working reliably with ${data.api_diagnostics?.success_rate || 'good'} success rate`,
         });
-      } else if (hasHighSuccessRate) {
+      } else if (data.api_status === "success") {
+        // API works but results are mixed
+        const successfulPlatforms = data.results?.reduce((count, result) => {
+          if (result.airbnb?.status === "investigate" && result.airbnb?.count > 0) count++;
+          if (result.spareroom?.status === "investigate" && result.spareroom?.count > 0) count++;
+          if (result.gumtree?.status === "investigate" && result.gumtree?.count > 0) count++;
+          return count;
+        }, 0) || 0;
+        
         toast({
-          title: "ScrapingBee Test Completed",
-          description: "Some platforms working - check detailed results for specifics",
+          title: "⚡ ScrapingBee Test Completed",
+          description: `API working, found results on ${successfulPlatforms} platform searches - check details`,
           variant: "default",
         });
-      } else if (hasApiErrors) {
-        toast({
-          title: "ScrapingBee API Issues Detected",
-          description: "Check API key configuration and account status",
-          variant: "destructive",
-        });
       } else {
+        // API failed or major issues
+        const errorMessage = data.recommendations?.length > 0 
+          ? data.recommendations[0] 
+          : "Check API key configuration and account status";
+          
         toast({
-          title: "Test Issues",
-          description: data.message || "Test completed with issues - check detailed results",
+          title: "❌ ScrapingBee API Issues",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -73,7 +70,7 @@ const TestPipeline = () => {
       console.error("❌ Error running ScrapingBee API test:", err);
       toast({
         title: "Error",
-        description: "Failed to run ScrapingBee API test pipeline",
+        description: "Failed to run ScrapingBee API test pipeline - check console for details",
         variant: "destructive",
       });
     } finally {
