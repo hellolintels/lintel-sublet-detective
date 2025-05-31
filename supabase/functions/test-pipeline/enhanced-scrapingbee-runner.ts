@@ -41,7 +41,7 @@ interface PostcodeGroup {
 class EnhancedScrapingBeeRunner {
   private circuitBreakers: Map<string, { failures: number; lastFailure: number; isOpen: boolean }> = new Map();
   private creditUsage = { premium: 0, standard: 0, total: 0 };
-  private dailyBudget = 800; // Conservative daily request limit
+  private dailyBudget = 800;
   private platformLimits = {
     airbnb: { daily: 300, hourly: 15 },
     spareroom: { daily: 250, hourly: 20 },
@@ -54,13 +54,12 @@ class EnhancedScrapingBeeRunner {
   };
 
   async runEnhancedTests(postcodes: PostcodeResult[]): Promise<EnhancedScrapingBeeResults> {
-    console.log(`🚀 Starting Enhanced ScrapingBee tests for ${postcodes.length} postcodes`);
+    console.log(`🔍 Starting Property Search Verification for ${postcodes.length} postcodes`);
     
     if (!SCRAPINGBEE_API_KEY) {
       throw new Error("ScrapingBee API key not configured");
     }
 
-    // Group and prioritize postcodes by geographic area
     const postcodeGroups = this.groupPostcodesByArea(postcodes);
     console.log(`📍 Grouped ${postcodes.length} postcodes into ${postcodeGroups.length} geographic areas`);
 
@@ -69,21 +68,18 @@ class EnhancedScrapingBeeRunner {
     let successfulRequests = 0;
     let totalRequests = 0;
 
-    // Process postcodes in optimized order with platform rotation
     for (const group of postcodeGroups) {
-      console.log(`\n🎯 Processing ${group.area} area (${group.postcodes.length} postcodes, priority: ${group.priority})`);
+      console.log(`\n🎯 Processing ${group.area} area (${group.postcodes.length} postcodes)`);
       
       const groupResults = await this.processPostcodeGroup(group);
       testResults.push(...groupResults.results);
       
-      // Update metrics
       responseTimes.push(...groupResults.responseTimes);
       successfulRequests += groupResults.successCount;
       totalRequests += groupResults.totalRequests;
 
-      // Check if we should continue based on credit usage
       if (this.shouldPauseForCreditConservation()) {
-        console.log(`⚠️ Pausing processing to conserve credits (${this.creditUsage.total}/${this.dailyBudget} used)`);
+        console.log(`⚠️ Pausing processing to conserve credits`);
         break;
       }
     }
@@ -92,16 +88,15 @@ class EnhancedScrapingBeeRunner {
       responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
     
     const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
-    const apiWorking = successRate >= 40; // Adjusted threshold for enhanced system
+    const apiWorking = successRate >= 40;
     const overallSuccess = apiWorking && successfulRequests > 0;
 
-    const recommendations = this.generateEnhancedRecommendations(successRate, testResults);
+    const recommendations = this.generateVerificationRecommendations(successRate, testResults);
     const circuitBreakerStatus = this.getCircuitBreakerStatus();
     const creditUsage = this.getCreditUsageStats();
 
-    console.log(`✅ Enhanced ScrapingBee tests completed`);
+    console.log(`✅ Property Search Verification completed`);
     console.log(`📈 Success Rate: ${successRate.toFixed(1)}% (${successfulRequests}/${totalRequests})`);
-    console.log(`💰 Credits Used: ${creditUsage.totalCreditsUsed} (${creditUsage.premiumRequestsUsed} premium, ${creditUsage.standardRequestsUsed} standard)`);
 
     return {
       testResults,
@@ -120,7 +115,6 @@ class EnhancedScrapingBeeRunner {
     const groups = new Map<string, PostcodeResult[]>();
     
     postcodes.forEach(postcode => {
-      // Extract area from postcode (e.g., "EH12 8UU" -> "EH12", "G11 5AW" -> "G11")
       const area = postcode.postcode.split(' ')[0];
       if (!groups.has(area)) {
         groups.set(area, []);
@@ -139,11 +133,8 @@ class EnhancedScrapingBeeRunner {
   }
 
   private assessAreaPriority(area: string, postcodes: PostcodeResult[]): 'high' | 'medium' | 'low' {
-    // Edinburgh and Glasgow high priority (major cities)
     if (area.startsWith('EH') || area.startsWith('G')) return 'high';
-    // London postcodes would be high priority
     if (area.match(/^[ENSW][0-9]/)) return 'high';
-    // Other major cities medium priority
     if (area.match(/^(M|B|L|S|CF|LS|NE)[0-9]/)) return 'medium';
     return 'low';
   }
@@ -159,9 +150,8 @@ class EnhancedScrapingBeeRunner {
     let successCount = 0;
     let totalRequests = 0;
 
-    // Process with platform rotation for better cache utilization
     for (const postcodeData of group.postcodes) {
-      console.log(`\n📍 Processing ${postcodeData.postcode} (${group.area} area)`);
+      console.log(`\n📍 Processing ${postcodeData.postcode} for verification`);
       
       const result: TestResult = {
         postcode: postcodeData.postcode,
@@ -170,31 +160,27 @@ class EnhancedScrapingBeeRunner {
         latitude: postcodeData.latitude,
         longitude: postcodeData.longitude,
         boundary: postcodeData.boundary,
-        airbnb: await this.testPlatformWithEnhancements(postcodeData, 'airbnb'),
-        spareroom: await this.testPlatformWithEnhancements(postcodeData, 'spareroom'),
-        gumtree: await this.testPlatformWithEnhancements(postcodeData, 'gumtree')
+        airbnb: await this.testPlatformForVerification(postcodeData, 'airbnb'),
+        spareroom: await this.testPlatformForVerification(postcodeData, 'spareroom'),
+        gumtree: await this.testPlatformForVerification(postcodeData, 'gumtree')
       };
 
-      // Collect metrics
       [result.airbnb, result.spareroom, result.gumtree].forEach(platformResult => {
         if (platformResult.responseTime) responseTimes.push(platformResult.responseTime);
         totalRequests++;
-        if (platformResult.status === "investigate" || platformResult.count > 0) {
+        if (platformResult.status === "investigate" || platformResult.status === "no_match") {
           successCount++;
         }
       });
 
       results.push(result);
-
-      // Intelligent spacing between requests
       await this.waitBetweenRequests('batch');
     }
 
     return { results, responseTimes, successCount, totalRequests };
   }
 
-  private async testPlatformWithEnhancements(postcodeData: PostcodeResult, platform: string) {
-    // Check circuit breaker
+  private async testPlatformForVerification(postcodeData: PostcodeResult, platform: string) {
     if (this.isCircuitBreakerOpen(platform)) {
       console.log(`🚫 Circuit breaker open for ${platform}, skipping request`);
       return {
@@ -205,7 +191,6 @@ class EnhancedScrapingBeeRunner {
       };
     }
 
-    // Check rate limits
     if (!this.canMakeRequest(platform)) {
       console.log(`⏳ Rate limit reached for ${platform}, skipping request`);
       return {
@@ -223,17 +208,16 @@ class EnhancedScrapingBeeRunner {
       const searchQuery = this.buildSearchQuery(postcodeData, platform);
       const url = this.buildPlatformUrl(platform, searchQuery);
       
-      console.log(`🔍 Testing ${platform} for ${postcodeData.postcode} (config: ${config.description})`);
+      console.log(`🔍 Testing ${platform} for ${postcodeData.postcode} (verification focus)`);
       
       const scrapingBeeUrl = this.buildScrapingBeeUrl(url, config.params);
       const response = await fetch(scrapingBeeUrl);
       const responseTime = Date.now() - startTime;
       
-      // Update credit usage
       this.updateCreditUsage(platform, config.params.premium_proxy === 'true');
       this.updateRequestCounts(platform);
 
-      console.log(`📊 ${platform} response: ${response.status} (${responseTime}ms, credits: +${config.creditCost})`);
+      console.log(`📊 ${platform} response: ${response.status} (${responseTime}ms)`);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -242,9 +226,8 @@ class EnhancedScrapingBeeRunner {
       }
       
       const html = await response.text();
-      const result = this.analyzeEnhancedResponse(html, postcodeData, platform, url, config);
+      const result = this.analyzeForVerificationLinks(html, postcodeData, platform, url, config);
       
-      // Reset failure count on success
       this.resetFailures(platform);
       
       return {
@@ -269,6 +252,115 @@ class EnhancedScrapingBeeRunner {
     }
   }
 
+  private analyzeForVerificationLinks(html: string, postcodeData: PostcodeResult, platform: string, url: string, config: any) {
+    const { postcode, streetName } = postcodeData;
+    
+    if (this.detectBlocking(html, platform)) {
+      return {
+        status: "error",
+        count: 0,
+        message: `${platform} blocking detected`
+      };
+    }
+
+    const selectors = this.getEnhancedSelectors(platform);
+    const listingCount = this.countListings(html, selectors);
+    
+    console.log(`🔍 ${platform} verification analysis: ${listingCount} listings found`);
+    
+    if (listingCount === 0) {
+      // Generate map view URL for verification
+      const mapViewUrl = this.generateMapViewUrl(platform, postcodeData);
+      return {
+        status: "no_match",
+        count: 0,
+        message: "No listings found in search area",
+        map_view_url: mapViewUrl
+      };
+    }
+
+    // Extract first listing URL for verification
+    const listingUrl = this.extractFirstListingUrl(html, platform, postcodeData);
+    
+    const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
+    const hasPostcodeMatch = postcodeRegex.test(html);
+    const hasStreetMatch = streetName ? html.toLowerCase().includes(streetName.toLowerCase()) : false;
+    
+    let confidence = "Low";
+    if (hasStreetMatch) {
+      confidence = "High";
+    } else if (hasPostcodeMatch) {
+      confidence = "Medium";
+    }
+
+    return {
+      status: "investigate",
+      count: listingCount,
+      confidence,
+      message: `Found ${listingCount} listings requiring verification`,
+      listing_url: listingUrl
+    };
+  }
+
+  private generateMapViewUrl(platform: string, postcodeData: PostcodeResult): string {
+    const { postcode, latitude, longitude } = postcodeData;
+    
+    switch (platform) {
+      case 'airbnb':
+        if (latitude && longitude) {
+          const radiusDelta = 0.002; // Small radius to show postcode area
+          const swLat = latitude - radiusDelta;
+          const swLng = longitude - radiusDelta;
+          const neLat = latitude + radiusDelta;
+          const neLng = longitude + radiusDelta;
+          return `https://www.airbnb.com/s/homes?refinement_paths%5B%5D=%2Fhomes&search_mode=flex_destinations_search&sw_lat=${swLat}&sw_lng=${swLng}&ne_lat=${neLat}&ne_lng=${neLng}&zoom=16&search_by_map=true`;
+        }
+        return `https://www.airbnb.com/s/${encodeURIComponent(postcode)}/homes?refinement_paths%5B%5D=%2Fhomes`;
+      
+      case 'spareroom':
+        return `https://www.spareroom.co.uk/flatshare/?search=${encodeURIComponent(postcode)}&mode=map`;
+      
+      case 'gumtree':
+        return `https://www.gumtree.com/search?search_location=${encodeURIComponent(postcode)}&search_category=property-to-rent&search_scope=false&photos_filter=false&map_view=true`;
+      
+      default:
+        return '';
+    }
+  }
+
+  private extractFirstListingUrl(html: string, platform: string, postcodeData: PostcodeResult): string {
+    const { postcode } = postcodeData;
+    
+    switch (platform) {
+      case 'airbnb':
+        // Extract first listing URL from Airbnb HTML
+        const airbnbMatch = html.match(/href="\/rooms\/(\d+)[^"]*"/);
+        if (airbnbMatch) {
+          return `https://www.airbnb.com/rooms/${airbnbMatch[1]}`;
+        }
+        return `https://www.airbnb.com/s/${encodeURIComponent(postcode)}/homes`;
+      
+      case 'spareroom':
+        // Extract first SpareRoom listing
+        const spareroomMatch = html.match(/href="[^"]*flatshare_detail\.pl\?flatshare_id=(\d+)[^"]*"/);
+        if (spareroomMatch) {
+          return `https://www.spareroom.co.uk/flatshare/flatshare_detail.pl?flatshare_id=${spareroomMatch[1]}`;
+        }
+        return `https://www.spareroom.co.uk/flatshare/?search=${encodeURIComponent(postcode)}`;
+      
+      case 'gumtree':
+        // Extract first Gumtree ad
+        const gumtreeMatch = html.match(/href="[^"]*\/ad\/(\d+)[^"]*"/);
+        if (gumtreeMatch) {
+          return `https://www.gumtree.com/p/${gumtreeMatch[1]}`;
+        }
+        return `https://www.gumtree.com/search?search_location=${encodeURIComponent(postcode)}&search_category=property-to-rent`;
+      
+      default:
+        return '';
+    }
+  }
+
   private getPlatformConfig(platform: string, postcodeData: PostcodeResult) {
     const isProblematicArea = this.isProblematicPostcode(postcodeData.postcode);
     
@@ -284,7 +376,7 @@ class EnhancedScrapingBeeRunner {
             country_code: 'gb',
             render_js: 'true'
           },
-          creditCost: 25, // Premium + stealth
+          creditCost: 25,
           description: 'Premium+Stealth (Max Protection)'
         };
       
@@ -328,12 +420,10 @@ class EnhancedScrapingBeeRunner {
   private buildSearchQuery(postcodeData: PostcodeResult, platform: string): string {
     const { postcode, streetName, address } = postcodeData;
     
-    // Use full address for better precision when available
     if (address && address.length > postcode.length + 10) {
       return address;
     }
     
-    // Use street + postcode combination
     if (streetName) {
       return `${streetName}, ${postcode}`;
     }
@@ -364,53 +454,6 @@ class EnhancedScrapingBeeRunner {
     });
     
     return `https://app.scrapingbee.com/api/v1/?${searchParams.toString()}`;
-  }
-
-  private analyzeEnhancedResponse(html: string, postcodeData: PostcodeResult, platform: string, url: string, config: any) {
-    const { postcode, streetName } = postcodeData;
-    
-    // Enhanced blocking detection
-    if (this.detectBlocking(html, platform)) {
-      return {
-        status: "error",
-        count: 0,
-        message: `${platform} blocking detected - consider increasing wait time or using different proxy tier`
-      };
-    }
-
-    // Use manus.ai recommended selectors
-    const selectors = this.getEnhancedSelectors(platform);
-    const listingCount = this.countListings(html, selectors);
-    
-    console.log(`🔍 ${platform} enhanced analysis: ${listingCount} listings found`);
-    
-    if (listingCount === 0) {
-      return {
-        status: "no_match",
-        count: 0,
-        message: "No listings found in search area"
-      };
-    }
-
-    // Enhanced postcode validation
-    const postcodeRegex = new RegExp(`\\b${postcode.replace(/\s+/g, '\\s*')}\\b`, 'i');
-    const hasPostcodeMatch = postcodeRegex.test(html);
-    const hasStreetMatch = streetName ? html.toLowerCase().includes(streetName.toLowerCase()) : false;
-    
-    // Confidence scoring
-    let confidence = "Low";
-    if (hasStreetMatch) {
-      confidence = "High";
-    } else if (hasPostcodeMatch) {
-      confidence = "Medium";
-    }
-
-    return {
-      status: "investigate",
-      count: listingCount,
-      confidence,
-      message: `Found ${listingCount} listings with ${confidence.toLowerCase()} confidence`
-    };
   }
 
   private detectBlocking(html: string, platform: string): boolean {
@@ -460,10 +503,8 @@ class EnhancedScrapingBeeRunner {
   }
 
   private countListings(html: string, selectors: { primary: string; backup: string[] }): number {
-    // Try primary selector first
     let matches = (html.match(new RegExp(selectors.primary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
     
-    // Fall back to backup selectors if primary fails
     if (matches === 0) {
       for (const backup of selectors.backup) {
         matches = (html.match(new RegExp(backup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
@@ -474,7 +515,6 @@ class EnhancedScrapingBeeRunner {
     return matches;
   }
 
-  // Circuit breaker implementation
   private isCircuitBreakerOpen(platform: string): boolean {
     const breaker = this.circuitBreakers.get(platform);
     if (!breaker) return false;
@@ -521,7 +561,6 @@ class EnhancedScrapingBeeRunner {
     return this.circuitBreakers.get(platform)?.failures || 0;
   }
 
-  // Credit management
   private updateCreditUsage(platform: string, isPremium: boolean): void {
     const cost = isPremium ? (platform === 'airbnb' ? 25 : 10) : 5;
     this.creditUsage.total += cost;
@@ -538,12 +577,10 @@ class EnhancedScrapingBeeRunner {
     return usagePercent >= 90;
   }
 
-  // Rate limiting
   private canMakeRequest(platform: string): boolean {
     const now = Date.now();
     const platformCount = this.requestCounts[platform as keyof typeof this.requestCounts];
     
-    // Reset hourly counter if needed
     if (now - platformCount.lastHourReset > 60 * 60 * 1000) {
       platformCount.hourly = 0;
       platformCount.lastHourReset = now;
@@ -571,7 +608,6 @@ class EnhancedScrapingBeeRunner {
   }
 
   private isProblematicPostcode(postcode: string): boolean {
-    // London and major city centers tend to have more blocking
     const problematicPrefixes = ['SW1', 'W1', 'EC', 'WC', 'E1', 'SE1', 'NW1', 'N1'];
     return problematicPrefixes.some(prefix => postcode.startsWith(prefix));
   }
@@ -584,7 +620,7 @@ class EnhancedScrapingBeeRunner {
       dailyBudgetRemaining: this.dailyBudget - this.creditUsage.total,
       costBreakdown: {
         airbnb: this.requestCounts.airbnb.daily * 25,
-        spareroom: this.requestCounts.spareroom.daily * 8, // Average of premium/standard
+        spareroom: this.requestCounts.spareroom.daily * 8,
         gumtree: this.requestCounts.gumtree.daily * 6
       }
     };
@@ -607,41 +643,41 @@ class EnhancedScrapingBeeRunner {
     };
   }
 
-  private generateEnhancedRecommendations(successRate: number, testResults: TestResult[]): string[] {
+  private generateVerificationRecommendations(successRate: number, testResults: TestResult[]): string[] {
     const recommendations: string[] = [];
     
+    const totalMatches = testResults.reduce((sum, result) => {
+      return sum + 
+        (result.airbnb.status === "investigate" ? 1 : 0) +
+        (result.spareroom.status === "investigate" ? 1 : 0) +
+        (result.gumtree.status === "investigate" ? 1 : 0);
+    }, 0);
+
+    const totalNoMatches = testResults.reduce((sum, result) => {
+      return sum + 
+        (result.airbnb.status === "no_match" ? 1 : 0) +
+        (result.spareroom.status === "no_match" ? 1 : 0) +
+        (result.gumtree.status === "no_match" ? 1 : 0);
+    }, 0);
+    
+    if (totalMatches > 0) {
+      recommendations.push(`✅ Found ${totalMatches} properties requiring verification - click "View Live Listing" links to verify`);
+    }
+    
+    if (totalNoMatches > 0) {
+      recommendations.push(`🔍 ${totalNoMatches} search areas showed no listings - click "Verify Search Area" to confirm`);
+    }
+    
     if (successRate < 30) {
-      recommendations.push("🔧 Success rate critically low - review circuit breaker thresholds and proxy configurations");
-      recommendations.push("💰 Consider increasing premium proxy usage for problematic postcodes");
-    } else if (successRate < 50) {
-      recommendations.push("⚡ Moderate success rate - fine-tune platform-specific configurations");
-      recommendations.push("🎯 Focus credit allocation on highest-performing platforms");
+      recommendations.push("⚠️ Low verification success rate - check individual platform results for errors");
     } else if (successRate >= 70) {
-      recommendations.push("✅ Excellent success rate - system optimized for production deployment");
-      recommendations.push("📈 Consider expanding to additional platforms or postcodes");
+      recommendations.push("📈 High verification success rate - property search working well");
     }
 
-    // Credit efficiency recommendations
-    const creditEfficiency = this.creditUsage.total > 0 ? (testResults.length / this.creditUsage.total) * 100 : 0;
-    if (creditEfficiency < 0.5) {
-      recommendations.push("💸 Credit efficiency low - reduce premium proxy usage for low-priority areas");
+    if (recommendations.length === 0) {
+      recommendations.push("🔧 Property search verification completed - review individual results");
     }
-
-    // Platform-specific recommendations
-    const airbnbSuccess = testResults.filter(r => r.airbnb.status === 'investigate').length;
-    const spareroomSuccess = testResults.filter(r => r.spareroom.status === 'investigate').length;
-    const gumtreeSuccess = testResults.filter(r => r.gumtree.status === 'investigate').length;
-
-    if (airbnbSuccess < testResults.length * 0.3) {
-      recommendations.push("🏠 Airbnb success rate low - consider increasing stealth proxy usage");
-    }
-    if (spareroomSuccess < testResults.length * 0.4) {
-      recommendations.push("🏢 SpareRoom blocking detected - implement longer delays between requests");
-    }
-    if (gumtreeSuccess < testResults.length * 0.5) {
-      recommendations.push("📱 Gumtree performance poor - review cookie handling and user-agent rotation");
-    }
-
+    
     return recommendations;
   }
 }

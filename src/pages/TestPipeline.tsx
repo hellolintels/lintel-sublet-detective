@@ -16,61 +16,56 @@ const TestPipeline = () => {
     setTestResults(null);
     
     try {
-      console.log("🚀 Starting ScrapingBee API test...");
+      console.log("🔍 Starting property search result verification...");
       
       const { data, error } = await supabase.functions.invoke('test-pipeline');
       
       if (error) {
-        console.error("❌ ScrapingBee API test error:", error);
+        console.error("❌ Property search verification error:", error);
         toast({
-          title: "Test Failed",
-          description: error.message || "Failed to run ScrapingBee API test",
+          title: "Verification Failed",
+          description: error.message || "Failed to run property search verification",
           variant: "destructive",
         });
         return;
       }
       
-      console.log("📊 ScrapingBee API test results:", data);
+      console.log("📊 Property search verification results:", data);
       setTestResults(data);
       
-      // More detailed success/failure analysis
-      if (data.api_status === "success" && data.overall_success) {
-        toast({
-          title: "✅ ScrapingBee API Test Successful!",
-          description: `API working reliably with ${data.api_diagnostics?.success_rate || 'good'} success rate`,
-        });
-      } else if (data.api_status === "success") {
-        // API works but results are mixed
-        const successfulPlatforms = data.results?.reduce((count, result) => {
-          if (result.airbnb?.status === "investigate" && result.airbnb?.count > 0) count++;
-          if (result.spareroom?.status === "investigate" && result.spareroom?.count > 0) count++;
-          if (result.gumtree?.status === "investigate" && result.gumtree?.count > 0) count++;
+      // Focus on verification results
+      if (data.overall_success) {
+        const totalMatches = data.results?.reduce((count, result) => {
+          if (result.airbnb?.status === "investigate") count++;
+          if (result.spareroom?.status === "investigate") count++;
+          if (result.gumtree?.status === "investigate") count++;
           return count;
         }, 0) || 0;
         
         toast({
-          title: "⚡ ScrapingBee Test Completed",
-          description: `API working, found results on ${successfulPlatforms} platform searches - check details`,
-          variant: "default",
+          title: "✅ Property Search Verification Complete",
+          description: `Found ${totalMatches} properties requiring verification across all postcodes`,
         });
       } else {
-        // API failed or major issues
-        const errorMessage = data.recommendations?.length > 0 
-          ? data.recommendations[0] 
-          : "Check API key configuration and account status";
-          
+        const noMatchCount = data.results?.reduce((count, result) => {
+          if (result.airbnb?.status === "no_match") count++;
+          if (result.spareroom?.status === "no_match") count++;
+          if (result.gumtree?.status === "no_match") count++;
+          return count;
+        }, 0) || 0;
+        
         toast({
-          title: "❌ ScrapingBee API Issues",
-          description: errorMessage,
-          variant: "destructive",
+          title: "🔍 Verification Results Mixed",
+          description: `${noMatchCount} search areas need verification for no listings found`,
+          variant: "default",
         });
       }
       
     } catch (err) {
-      console.error("❌ Error running ScrapingBee API test:", err);
+      console.error("❌ Error running property search verification:", err);
       toast({
         title: "Error",
-        description: "Failed to run ScrapingBee API test pipeline - check console for details",
+        description: "Failed to run property search verification - check console for details",
         variant: "destructive",
       });
     } finally {
@@ -83,10 +78,10 @@ const TestPipeline = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-green-500 mb-2">
-            ScrapingBee API Reliability Test
+            Property Search Result Verification
           </h1>
           <p className="text-gray-400">
-            Comprehensive testing of ScrapingBee REST API for reliable property scraping across multiple platforms
+            Verify the accuracy of property search results for specific postcodes. Each result links directly to live listings or map views for manual verification.
           </p>
         </div>
 

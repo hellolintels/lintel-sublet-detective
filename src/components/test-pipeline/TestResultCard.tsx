@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Square } from "lucide-react";
+import { MapPin, Square, ExternalLink } from "lucide-react";
 import { TestResult } from "@/types/test-pipeline";
 
 interface TestResultCardProps {
@@ -17,14 +17,53 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const getPrecisionColor = (precision?: string) => {
-  switch (precision) {
-    case "ultra-high": return "bg-emerald-500";
-    case "high": return "bg-green-500";
-    case "medium": return "bg-yellow-500";
-    case "low": return "bg-red-500";
-    default: return "bg-gray-500";
+const getStatusText = (status: string) => {
+  switch (status) {
+    case "investigate": return "Property Found";
+    case "no_match": return "No Listings";
+    case "error": return "Error";
+    default: return status;
   }
+};
+
+const VerificationLink = ({ 
+  platform, 
+  result, 
+  color 
+}: { 
+  platform: string; 
+  result: TestResult['airbnb']; 
+  color: string;
+}) => {
+  if (result.status === "investigate" && result.listing_url) {
+    return (
+      <a 
+        href={result.listing_url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className={`${color} hover:opacity-75 text-sm underline flex items-center gap-1`}
+      >
+        <ExternalLink className="h-3 w-3" />
+        View Live Listing
+      </a>
+    );
+  }
+  
+  if (result.status === "no_match" && result.map_view_url) {
+    return (
+      <a 
+        href={result.map_view_url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className={`${color} hover:opacity-75 text-sm underline flex items-center gap-1`}
+      >
+        <ExternalLink className="h-3 w-3" />
+        Verify Search Area
+      </a>
+    );
+  }
+  
+  return null;
 };
 
 const PlatformResult = ({ 
@@ -40,43 +79,54 @@ const PlatformResult = ({
     <div className="flex items-center gap-2 flex-wrap">
       <span className={`font-medium ${color}`}>{platform}:</span>
       <Badge variant={getStatusColor(result.status)}>
-        {result.status}
+        {getStatusText(result.status)}
       </Badge>
-      {result.precision && (
-        <span className={`px-2 py-1 text-xs rounded ${getPrecisionColor(result.precision)} text-white`}>
-          {result.precision}
-        </span>
-      )}
-      {result.boundary_method && (
+      {result.confidence && (
         <span className="px-2 py-1 text-xs rounded bg-blue-600 text-white">
-          {result.boundary_method}
+          {result.confidence} confidence
         </span>
       )}
     </div>
+    
     {result.count > 0 && (
-      <p className="text-sm text-gray-400">Count: {result.count}</p>
+      <p className="text-sm text-gray-400">
+        {result.count} listing{result.count > 1 ? 's' : ''} found
+      </p>
     )}
-    {result.search_method && (
-      <p className="text-xs text-gray-500">Method: {result.search_method}</p>
-    )}
-    {result.url && (
-      <a 
-        href={result.url} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className={`${color} hover:opacity-75 text-sm underline`}
-      >
-        View {platform === "Airbnb" ? "OS Boundary " : ""}Search
-      </a>
+    
+    <VerificationLink platform={platform} result={result} color={color} />
+    
+    {result.status === "error" && result.message && (
+      <p className="text-xs text-red-400">{result.message}</p>
     )}
   </div>
 );
 
 export const TestResultCard = ({ results }: TestResultCardProps) => {
+  const totalMatches = results.reduce((sum, result) => {
+    return sum + 
+      (result.airbnb.status === "investigate" ? 1 : 0) +
+      (result.spareroom.status === "investigate" ? 1 : 0) +
+      (result.gumtree.status === "investigate" ? 1 : 0);
+  }, 0);
+
+  const totalNoMatches = results.reduce((sum, result) => {
+    return sum + 
+      (result.airbnb.status === "no_match" ? 1 : 0) +
+      (result.spareroom.status === "no_match" ? 1 : 0) +
+      (result.gumtree.status === "no_match" ? 1 : 0);
+  }, 0);
+
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
-        <CardTitle className="text-white">OS Data Hub Boundary-Based Results</CardTitle>
+        <CardTitle className="text-white flex items-center justify-between">
+          <span>Property Search Verification Results</span>
+          <div className="flex gap-4 text-sm">
+            <span className="text-green-400">{totalMatches} Properties Found</span>
+            <span className="text-gray-400">{totalNoMatches} Areas to Verify</span>
+          </div>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -94,17 +144,11 @@ export const TestResultCard = ({ results }: TestResultCardProps) => {
                   {result.boundary && (
                     <div className="flex items-center gap-1 text-blue-400 text-sm">
                       <Square className="h-4 w-4" />
-                      <span>OS Boundary</span>
+                      <span>Precise Boundary</span>
                     </div>
                   )}
                 </div>
                 <p className="text-gray-400 text-sm">{result.address}</p>
-                {result.boundary && (
-                  <p className="text-xs text-blue-300 mt-1">
-                    Boundary: SW({result.boundary.southwest.lat.toFixed(6)}, {result.boundary.southwest.lng.toFixed(6)}) 
-                    NE({result.boundary.northeast.lat.toFixed(6)}, {result.boundary.northeast.lng.toFixed(6)})
-                  </p>
-                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

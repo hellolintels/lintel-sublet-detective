@@ -8,48 +8,69 @@ interface TestSummaryCardProps {
 }
 
 export const TestSummaryCard = ({ testResults }: TestSummaryCardProps) => {
+  const getOverallStatus = () => {
+    if (testResults.overall_success) return "success";
+    if (testResults.api_status === "success") return "mixed";
+    return "failed";
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "success": return "default";
+      case "mixed": return "secondary";
+      case "failed": return "destructive";
+      default: return "outline";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "success": return "Verification Complete";
+      case "mixed": return "Mixed Results";
+      case "failed": return "Verification Issues";
+      default: return "Unknown";
+    }
+  };
+
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
-          Test Summary
-          <Badge variant={testResults.connection_status === "success" ? "default" : "destructive"}>
-            {testResults.connection_status}
+          Verification Summary
+          <Badge variant={getStatusColor(getOverallStatus())}>
+            {getStatusText(getOverallStatus())}
           </Badge>
-          {testResults.boundary_service && (
-            <Badge variant="outline" className="text-green-400 border-green-400">
-              {testResults.boundary_service}
-            </Badge>
-          )}
-          {testResults.search_precision && (
-            <Badge variant="outline" className="text-emerald-400 border-emerald-400">
-              {testResults.search_precision}
-            </Badge>
-          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="text-gray-300">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p><strong>Total Postcodes:</strong> {testResults.total_postcodes}</p>
-            <p><strong>Test Time:</strong> {new Date(testResults.test_completed).toLocaleString()}</p>
+            <p><strong>Postcodes Tested:</strong> {testResults.total_postcodes}</p>
+            <p><strong>Verification Time:</strong> {new Date(testResults.test_completed).toLocaleString()}</p>
           </div>
           <div>
-            <p><strong>Connection:</strong> {testResults.connection_status}</p>
-            {testResults.boundary_service && (
-              <p><strong>Boundary Service:</strong> {testResults.boundary_service}</p>
-            )}
-            {testResults.search_precision && (
-              <p><strong>Precision:</strong> {testResults.search_precision}</p>
-            )}
-            {testResults.improvements && (
-              <p><strong>Improvements:</strong> {testResults.improvements}</p>
+            {testResults.performance && (
+              <div className="space-y-1">
+                <p><strong>Properties Found:</strong> {testResults.performance.total_matches_found || 0}</p>
+                <p><strong>Success Rate:</strong> {testResults.api_diagnostics?.success_percentage || '0%'}</p>
+              </div>
             )}
             {testResults.error && (
               <p className="text-red-400"><strong>Error:</strong> {testResults.error}</p>
             )}
           </div>
         </div>
+        
+        {testResults.recommendations && testResults.recommendations.length > 0 && (
+          <div className="mt-4 p-3 bg-gray-800 rounded">
+            <p className="text-sm font-medium mb-2">Verification Notes:</p>
+            <ul className="text-sm space-y-1">
+              {testResults.recommendations.slice(0, 3).map((rec, index) => (
+                <li key={index} className="text-gray-400">• {rec}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
