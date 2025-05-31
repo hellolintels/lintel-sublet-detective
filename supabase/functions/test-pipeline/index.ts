@@ -11,29 +11,29 @@ serve(async (req) => {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
-    console.log(`🎯 Enhanced Property Search Verification Pipeline Starting with ScrapingBee`);
+    console.log(`🎯 ScrapingBee Property Search Verification Pipeline Starting`);
     
     // Get test postcodes
     const testPostcodes = TestPostcodeProvider.getTestPostcodes();
-    console.log(`📍 Testing ${testPostcodes.length} postcodes with ScrapingBee enhanced accuracy validation`);
+    console.log(`📍 Testing ${testPostcodes.length} postcodes with ScrapingBee HTTP API`);
     
     // Add coordinates for precision
     const postcodesWithCoords = await addCoordinatesToPostcodes(testPostcodes);
     const coordsCount = postcodesWithCoords.filter(p => p.latitude && p.longitude).length;
     console.log(`📍 Coordinate enhancement: ${coordsCount}/${testPostcodes.length} postcodes now have precise coordinates`);
     
-    // Run enhanced test pipeline using ScrapingBee
+    // Run ScrapingBee test pipeline
     const orchestrator = new EnhancedTestOrchestrator();
     const { results, summary } = await orchestrator.runEnhancedTestPipeline(postcodesWithCoords);
     
     // Format final response
     const response = {
-      test_type: "Enhanced Property Search Verification with ScrapingBee",
+      test_type: "ScrapingBee Property Search Verification",
       total_postcodes: testPostcodes.length,
       test_completed: new Date().toISOString(),
       api_status: "success",
-      boundary_service: "OS Places API + ScrapingBee Enhanced Validation",
-      search_precision: "Postcode/Coordinate Level with ScrapingBee Hyperlinked Verification",
+      boundary_service: "OS Places API + ScrapingBee HTTP API",
+      search_precision: "Postcode/Coordinate Level with ScrapingBee Verification",
       
       coordinate_precision: `${coordsCount}/${testPostcodes.length} postcodes with precise coordinates`,
       
@@ -43,7 +43,7 @@ serve(async (req) => {
       results: results
     };
     
-    console.log(`✅ Enhanced ScrapingBee test pipeline completed successfully`);
+    console.log(`✅ ScrapingBee test pipeline completed successfully`);
     console.log(`📈 Final success rate: ${summary.success_rate}`);
     
     return new Response(
@@ -58,19 +58,19 @@ serve(async (req) => {
     );
     
   } catch (err) {
-    console.error('❌ Enhanced ScrapingBee test pipeline error:', err);
+    console.error('❌ ScrapingBee test pipeline error:', err);
     
     const errorResponse = {
-      error: "Enhanced Property Search Verification with ScrapingBee failed",
+      error: "ScrapingBee Property Search Verification failed",
       message: err.message || 'Unknown error occurred',
       api_status: "failed",
-      version: "scrapingbee_enhanced",
+      version: "scrapingbee_http_api",
       timestamp: new Date().toISOString(),
       recommendations: [
         "🔑 Check ScrapingBee API key configuration in Supabase secrets",
         "🌐 Verify network connectivity and ScrapingBee service status",
-        "📊 Review Enhanced ScrapingBee Pipeline logs for detailed error information",
-        "💳 Ensure ScrapingBee account has sufficient credits for premium requests",
+        "📊 Review ScrapingBee API logs for detailed error information",
+        "💳 Ensure ScrapingBee account has sufficient credits for requests",
         "🛠️ Contact support if ScrapingBee configuration appears correct"
       ]
     };

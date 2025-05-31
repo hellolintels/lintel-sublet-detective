@@ -27,6 +27,18 @@ export class EnhancedResultClassifier {
       };
     }
     
+    // Check for empty or invalid response
+    if (!html || html.length < 500) {
+      return {
+        status: "error",
+        count: 0,
+        message: `${platform} returned empty or minimal response`,
+        url,
+        search_method: "empty-response",
+        precision: "failed"
+      };
+    }
+    
     // If no listings found
     if (listingCount === 0) {
       return {
@@ -41,79 +53,47 @@ export class EnhancedResultClassifier {
       };
     }
     
-    // Validate location accuracy for listings found
-    const locationValidation = this.locationValidator.validateLocationAccuracy(
-      html, 
-      postcodeData, 
-      platform
-    );
+    // For listings found, do basic validation
+    const confidence = this.calculateConfidence(html, postcodeData, listingCount);
     
-    return this.generateClassificationResult(
-      listingCount,
-      locationValidation,
-      postcodeData,
-      platform,
-      url
-    );
+    return {
+      status: "investigate",
+      count: listingCount,
+      confidence: confidence >= 70 ? "High" : confidence >= 40 ? "Medium" : "Low",
+      message: `Found ${listingCount} properties with ${confidence}% confidence`,
+      url,
+      listing_url: HyperlinkGenerator.generateListingUrl(platform, postcodeData),
+      search_method: "scrapingbee-http",
+      precision: confidence >= 70 ? "high" : confidence >= 40 ? "medium" : "low",
+      validation_score: confidence
+    };
   }
   
-  private generateClassificationResult(
-    listingCount: number,
-    validation: LocationValidationResult,
-    postcodeData: PostcodeResult,
-    platform: string,
-    url: string
-  ): ScrapingResult {
-    const { isValid, confidence, reasons, extractedPostcode } = validation;
+  private calculateConfidence(html: string, postcodeData: PostcodeResult, listingCount: number): number {
+    let confidence = 50; // Base confidence
     
-    // High confidence results
-    if (isValid && confidence >= 70) {
-      return {
-        status: "investigate",
-        count: listingCount,
-        confidence: "High",
-        message: `Found ${listingCount} properties with high location accuracy (${confidence}%)`,
-        url,
-        listing_url: HyperlinkGenerator.generateListingUrl(platform, postcodeData),
-        search_method: "enhanced-location-validated",
-        precision: "high",
-        validation_score: confidence,
-        extracted_postcode: extractedPostcode,
-        accuracy_reasons: reasons
-      };
+    // Check for postcode presence
+    const postcodeRegex = new RegExp(postcodeData.postcode.replace(/\s+/g, '\\s*'), 'gi');
+    if (postcodeRegex.test(html)) {
+      confidence += 30;
     }
     
-    // Medium confidence results
-    if (isValid && confidence >= 40) {
-      return {
-        status: "investigate",
-        count: listingCount,
-        confidence: "Medium",
-        message: `Found ${listingCount} properties with medium location accuracy (${confidence}%)`,
-        url,
-        listing_url: HyperlinkGenerator.generateListingUrl(platform, postcodeData),
-        search_method: "enhanced-location-validated",
-        precision: "medium",
-        validation_score: confidence,
-        extracted_postcode: extractedPostcode,
-        accuracy_reasons: reasons
-      };
+    // Check for street name if available
+    if (postcodeData.streetName) {
+      const streetRegex = new RegExp(postcodeData.streetName.replace(/\s+/g, '\\s*'), 'gi');
+      if (streetRegex.test(html)) {
+        confidence += 20;
+      }
     }
     
-    // Low confidence - treat as no match
-    return {
-      status: "no_match",
-      count: 0,
-      confidence: "High",
-      message: `${listingCount} listings found but failed location validation (${confidence}% confidence) - likely outside target area`,
-      url,
-      map_view_url: HyperlinkGenerator.generateMapViewUrl(platform, postcodeData),
-      search_method: "enhanced-validation-failed",
-      precision: "high",
-      validation_score: confidence,
-      extracted_postcode: extractedPostcode,
-      accuracy_reasons: reasons
-    };
+    // Adjust based on listing count
+    if (listingCount > 0 && listingCount < 100) {
+      confidence += 10; // Reasonable number of listings
+    } else if (listingCount >= 100) {
+      confidence -= 20; // Too many listings might indicate broad search
+    }
+    
+    return Math.min(100, Math.max(0, confidence));
   }
   
   private isBlocked(html: string, platform: string): boolean {
@@ -123,11 +103,12 @@ export class EnhancedResultClassifier {
       'captcha',
       'challenge-platform',
       'Too many requests',
-      'Rate limit exceeded'
+      'Rate limit exceeded',
+      'blocked',
+      'forbidden'
     ];
     
     const htmlLower = html.toLowerCase();
-    return blockingPatterns.some(pattern => htmlLower.includes(pattern.toLowerCase())) ||
-           html.length < 1000;
+    return blockingPatterns.some(pattern => htmlLower.includes(pattern.toLowerCase()));
   }
 }

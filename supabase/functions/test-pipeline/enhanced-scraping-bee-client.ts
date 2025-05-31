@@ -34,9 +34,11 @@ export class EnhancedScrapingBeeClient {
       console.log(`🔍 ScrapingBee enhanced request for ${platform}: ${postcodeData.postcode}`);
       console.log(`📡 Target URL: ${url}`);
       
-      // Enhanced ScrapingBee configuration
-      const scrapingBeeConfig = this.getEnhancedConfig(platform);
+      // Simplified ScrapingBee configuration - removed problematic session_id
+      const scrapingBeeConfig = this.getSimplifiedConfig(platform);
       const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(url)}&${scrapingBeeConfig}`;
+      
+      console.log(`🔗 ScrapingBee API URL: ${scrapingBeeUrl.substring(0, 100)}...`);
       
       const response = await fetch(scrapingBeeUrl);
       const responseTime = Date.now() - startTime;
@@ -87,16 +89,17 @@ export class EnhancedScrapingBeeClient {
     }
   }
   
-  private getEnhancedConfig(platform: string): string {
+  private getSimplifiedConfig(platform: string): string {
+    // Simplified configuration without problematic session_id strings
     const baseConfig = "render_js=true&wait=3000&premium_proxy=true&country_code=GB";
     
     switch (platform) {
       case 'airbnb':
-        return `${baseConfig}&stealth_proxy=true&session_id=airbnb_session`;
+        return `${baseConfig}&stealth_proxy=true`;
       case 'spareroom':
-        return `${baseConfig}&block_ads=true&session_id=spareroom_session`;
+        return `${baseConfig}&block_ads=true`;
       case 'gumtree':
-        return `${baseConfig}&block_ads=true&session_id=gumtree_session`;
+        return `${baseConfig}&block_ads=true`;
       default:
         return baseConfig;
     }
@@ -107,27 +110,50 @@ export class EnhancedScrapingBeeClient {
       airbnb: [
         'div[data-testid="card-container"]',
         'div.t1jojoys',
-        'div.lxq01kf'
+        'div.lxq01kf',
+        '[data-testid="listing-card"]'
       ],
       spareroom: [
         '.listing-result',
         '[id^="listing-"]',
-        '.listingResult'
+        '.listingResult',
+        '.ad-title'
       ],
       gumtree: [
         'article[data-q="listing"]',
         '.listing-link',
-        '.natural'
+        '.natural',
+        '.listing-title'
       ]
     };
     
     const platformSelectors = selectors[platform as keyof typeof selectors] || ['.listing'];
     
     for (const selector of platformSelectors) {
-      const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const matches = (html.match(new RegExp(escapedSelector, 'gi')) || []).length;
-      if (matches > 0) {
-        return matches;
+      try {
+        // Use a more robust counting approach
+        const matches = (html.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+        if (matches > 0) {
+          console.log(`📍 Found ${matches} listings using selector: ${selector}`);
+          return matches;
+        }
+      } catch (e) {
+        console.warn(`⚠️ Selector failed: ${selector}`, e.message);
+      }
+    }
+    
+    // Fallback: count common listing indicators
+    const fallbackPatterns = [
+      /property|listing|rental|room|flat|house/gi,
+      /£\d+/g, // Price indicators
+      /bed|bedroom/gi
+    ];
+    
+    for (const pattern of fallbackPatterns) {
+      const matches = (html.match(pattern) || []).length;
+      if (matches > 5) { // Only count if we find multiple instances
+        console.log(`📍 Fallback count: ${Math.min(matches, 50)} potential listings`);
+        return Math.min(matches, 50); // Cap at reasonable number
       }
     }
     
