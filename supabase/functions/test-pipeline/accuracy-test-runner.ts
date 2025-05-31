@@ -1,4 +1,3 @@
-
 import { PostcodeResult, TestResult } from './types.ts';
 import { testScrapeAirbnbWithAccuracy } from './enhanced-airbnb-scraper.ts';
 import { testScrapeSpareRoom } from './spareroom-scraper.ts';
@@ -73,7 +72,7 @@ export async function runAccuracyTests(postcodes: PostcodeResult[]): Promise<{
       };
       
       // Analyze results for accuracy
-      this.analyzeResultAccuracy(result, summary);
+      analyzeResultAccuracy(result, summary);
       
       // Enhanced logging for validation
       console.log(`📊 ${postcodeData.postcode} accuracy results:`);
@@ -102,7 +101,6 @@ export async function runAccuracyTests(postcodes: PostcodeResult[]): Promise<{
           status: "error", 
           count: 0, 
           search_method: "unknown",
-          boundary_method: "error",
           precision: "failed",
           message: error.message 
         },
@@ -110,7 +108,6 @@ export async function runAccuracyTests(postcodes: PostcodeResult[]): Promise<{
           status: "error", 
           count: 0, 
           search_method: "unknown",
-          boundary_method: "error", 
           precision: "failed",
           message: error.message 
         },
@@ -118,7 +115,6 @@ export async function runAccuracyTests(postcodes: PostcodeResult[]): Promise<{
           status: "error", 
           count: 0, 
           search_method: "unknown",
-          boundary_method: "error",
           precision: "failed", 
           message: error.message 
         }
@@ -134,7 +130,7 @@ export async function runAccuracyTests(postcodes: PostcodeResult[]): Promise<{
   }
 
   // Generate recommendations based on results
-  summary.recommendations = this.generateAccuracyRecommendations(summary, results);
+  summary.recommendations = generateAccuracyRecommendations(summary, results);
 
   console.log(`\n✅ Accuracy testing completed for all ${postcodes.length} postcodes`);
   console.log(`📈 Accuracy Summary:`);

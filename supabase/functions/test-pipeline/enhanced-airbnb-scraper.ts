@@ -1,13 +1,13 @@
 
 import { PostcodeResult, ScrapingResult } from './types.ts';
-import { executeEnhancedWebSocketScraping } from './enhanced-websocket-handler.ts';
-import { EnhancedHTMLAnalyzer } from './enhanced-html-analyzer.ts';
+import { EnhancedScrapingBeeClient } from './enhanced-scraping-bee-client.ts';
+import { HyperlinkGenerator } from './hyperlink-generator.ts';
 
 export async function testScrapeAirbnbWithAccuracy(postcodeData: PostcodeResult): Promise<ScrapingResult> {
   const { postcode, streetName, address, latitude, longitude } = postcodeData;
-  console.log(`🏠 Testing Airbnb with enhanced accuracy for: ${postcode} (${latitude}, ${longitude})`);
+  console.log(`🏠 Testing Airbnb with ScrapingBee for: ${postcode} (${latitude}, ${longitude})`);
   
-  const analyzer = new EnhancedHTMLAnalyzer();
+  const scrapingBeeClient = new EnhancedScrapingBeeClient();
   
   try {
     // Use precise coordinate-based search when available
@@ -32,52 +32,28 @@ export async function testScrapeAirbnbWithAccuracy(postcodeData: PostcodeResult)
       console.log(`📮 Using postcode search: ${searchQuery}`);
     }
     
-    console.log(`🔍 Airbnb search URL: ${searchUrl}`);
+    console.log(`🔍 Airbnb ScrapingBee URL: ${searchUrl}`);
     
-    // Execute scraping with enhanced configuration
-    const scrapingResult = await executeEnhancedWebSocketScraping(searchUrl, postcodeData, 'airbnb');
+    // Execute scraping with ScrapingBee
+    const result = await scrapingBeeClient.scrapeWithAccuracy(searchUrl, postcodeData, 'airbnb');
     
-    // If we got HTML content, analyze it for accuracy
-    if (scrapingResult.status !== "error" && scrapingResult.html) {
-      console.log(`📄 Analyzing ${scrapingResult.html.length} characters of HTML for accuracy`);
-      
-      const accurateResult = analyzer.analyzeForAccurateVerificationLinks(
-        scrapingResult.html,
-        postcodeData,
-        'airbnb',
-        searchUrl
-      );
-      
-      return {
-        ...accurateResult,
-        search_method: searchMethod,
-        precision: accurateResult.accuracy || "medium",
-        boundary_method: latitude && longitude ? "coordinate-based" : "postcode-based",
-        url: searchUrl,
-        credit_cost: scrapingResult.creditCost || 25
-      };
-    }
-    
-    // Fallback if scraping failed
     return {
-      status: "error",
-      count: 0,
+      ...result,
       search_method: searchMethod,
-      precision: "failed",
-      boundary_method: "enhanced-websocket-failed",
-      message: `Airbnb enhanced scraping failed: ${scrapingResult.message}`,
-      url: searchUrl
+      precision: result.precision || "medium",
+      url: searchUrl,
+      listing_url: result.status === "investigate" ? HyperlinkGenerator.generateListingUrl('airbnb', postcodeData) : undefined,
+      map_view_url: result.status === "no_match" ? HyperlinkGenerator.generateMapViewUrl('airbnb', postcodeData) : undefined
     };
     
   } catch (error) {
-    console.error(`❌ Airbnb enhanced accuracy test failed for ${postcode}:`, error);
+    console.error(`❌ Airbnb ScrapingBee test failed for ${postcode}:`, error);
     return {
       status: "error",
       count: 0,
-      search_method: "unknown",
+      search_method: "scrapingbee-error",
       precision: "failed",
-      boundary_method: "error",
-      message: `Enhanced Airbnb test failed: ${error.message}`
+      message: `ScrapingBee Airbnb test failed: ${error.message}`
     };
   }
 }
