@@ -1,13 +1,14 @@
-
 import { PostcodeResult } from './types.ts';
 import { EnhancedResultClassifier } from './enhanced-result-classifier.ts';
+import { StrictListingCounter } from './strict-listing-counter.ts';
 
 const SCRAPINGBEE_API_KEY = Deno.env.get("SCRAPINGBEE_API_KEY");
 
 export class EnhancedScrapingBeeClient {
   private resultClassifier = new EnhancedResultClassifier();
+  private listingCounter = new StrictListingCounter();
   private requestCount = 0;
-  private dailyLimit = 100; // Conservative limit for testing
+  private dailyLimit = 100;
   
   async scrapeWithAccuracy(
     url: string,
@@ -31,14 +32,11 @@ export class EnhancedScrapingBeeClient {
     const startTime = Date.now();
     
     try {
-      console.log(`🔍 ScrapingBee enhanced request for ${platform}: ${postcodeData.postcode}`);
+      console.log(`🔍 STRICT ScrapingBee request for ${platform}: ${postcodeData.postcode}`);
       console.log(`📡 Target URL: ${url}`);
       
-      // Simplified ScrapingBee configuration - removed problematic session_id
-      const scrapingBeeConfig = this.getSimplifiedConfig(platform);
+      const scrapingBeeConfig = this.getStrictConfig(platform);
       const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(url)}&${scrapingBeeConfig}`;
-      
-      console.log(`🔗 ScrapingBee API URL: ${scrapingBeeUrl.substring(0, 100)}...`);
       
       const response = await fetch(scrapingBeeUrl);
       const responseTime = Date.now() - startTime;
@@ -55,11 +53,11 @@ export class EnhancedScrapingBeeClient {
       const html = await response.text();
       console.log(`📄 HTML received: ${html.length} characters`);
       
-      // Count listings using platform-specific selectors
-      const listingCount = this.countListings(html, platform);
-      console.log(`🏠 Listings detected: ${listingCount}`);
+      // Use strict listing counter
+      const listingCount = this.listingCounter.countListings(html, platform);
+      console.log(`🏠 STRICT count: ${listingCount} listings`);
       
-      // Enhanced classification with location validation
+      // Apply strict classification with 95% threshold
       const result = this.resultClassifier.classifyScrapingResult(
         html,
         postcodeData,
@@ -77,7 +75,7 @@ export class EnhancedScrapingBeeClient {
       
     } catch (error) {
       const responseTime = Date.now() - startTime;
-      console.error(`❌ Enhanced scraping failed for ${platform}:`, error);
+      console.error(`❌ Strict scraping failed for ${platform}:`, error);
       
       return {
         status: "error",
@@ -89,83 +87,27 @@ export class EnhancedScrapingBeeClient {
     }
   }
   
-  private getSimplifiedConfig(platform: string): string {
-    // Simplified configuration without problematic session_id strings
-    const baseConfig = "render_js=true&wait=3000&premium_proxy=true&country_code=GB";
+  private getStrictConfig(platform: string): string {
+    // Enhanced anti-blocking configuration for strict validation
+    const baseConfig = "render_js=true&wait=3000&premium_proxy=true&country_code=GB&block_ads=true&block_resources=false";
     
     switch (platform) {
       case 'airbnb':
-        return `${baseConfig}&stealth_proxy=true`;
+        return `${baseConfig}&stealth_proxy=true&session_id=${Date.now()}`;
       case 'spareroom':
-        return `${baseConfig}&block_ads=true`;
+        return `${baseConfig}&wait=4000`;
       case 'gumtree':
-        return `${baseConfig}&block_ads=true`;
+        return `${baseConfig}&wait=3500&stealth_proxy=true`;
       default:
         return baseConfig;
     }
   }
   
-  private countListings(html: string, platform: string): number {
-    const selectors = {
-      airbnb: [
-        'div[data-testid="card-container"]',
-        'div.t1jojoys',
-        'div.lxq01kf',
-        '[data-testid="listing-card"]'
-      ],
-      spareroom: [
-        '.listing-result',
-        '[id^="listing-"]',
-        '.listingResult',
-        '.ad-title'
-      ],
-      gumtree: [
-        'article[data-q="listing"]',
-        '.listing-link',
-        '.natural',
-        '.listing-title'
-      ]
-    };
-    
-    const platformSelectors = selectors[platform as keyof typeof selectors] || ['.listing'];
-    
-    for (const selector of platformSelectors) {
-      try {
-        // Use a more robust counting approach
-        const matches = (html.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
-        if (matches > 0) {
-          console.log(`📍 Found ${matches} listings using selector: ${selector}`);
-          return matches;
-        }
-      } catch (e) {
-        console.warn(`⚠️ Selector failed: ${selector}`, e.message);
-      }
-    }
-    
-    // Fallback: count common listing indicators
-    const fallbackPatterns = [
-      /property|listing|rental|room|flat|house/gi,
-      /£\d+/g, // Price indicators
-      /bed|bedroom/gi
-    ];
-    
-    for (const pattern of fallbackPatterns) {
-      const matches = (html.match(pattern) || []).length;
-      if (matches > 5) { // Only count if we find multiple instances
-        console.log(`📍 Fallback count: ${Math.min(matches, 50)} potential listings`);
-        return Math.min(matches, 50); // Cap at reasonable number
-      }
-    }
-    
-    return 0;
-  }
-  
   private getCreditCost(platform: string): number {
-    // Premium proxy costs
     switch (platform) {
       case 'airbnb': return 25; // Stealth proxy
       case 'spareroom': return 10; // Premium proxy
-      case 'gumtree': return 10; // Premium proxy
+      case 'gumtree': return 15; // Premium + stealth
       default: return 5;
     }
   }

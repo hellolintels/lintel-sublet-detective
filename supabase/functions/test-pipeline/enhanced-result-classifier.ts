@@ -1,10 +1,14 @@
 
 import { PostcodeResult, ScrapingResult } from './types.ts';
-import { EnhancedLocationValidator, LocationValidationResult } from './enhanced-location-validator.ts';
+import { StrictPostcodeValidator } from './strict-postcode-validator.ts';
+import { StrictErrorClassifier } from './strict-error-classifier.ts';
+import { StrictListingCounter } from './strict-listing-counter.ts';
 import { HyperlinkGenerator } from './hyperlink-generator.ts';
 
 export class EnhancedResultClassifier {
-  private locationValidator = new EnhancedLocationValidator();
+  private postcodeValidator = new StrictPostcodeValidator();
+  private errorClassifier = new StrictErrorClassifier();
+  private listingCounter = new StrictListingCounter();
   
   classifyScrapingResult(
     html: string,
@@ -13,102 +17,97 @@ export class EnhancedResultClassifier {
     listingCount: number,
     url: string
   ): ScrapingResult {
-    console.log(`🎯 Enhanced classification for ${platform} - ${postcodeData.postcode}`);
+    console.log(`🎯 STRICT classification for ${platform} - ${postcodeData.postcode}`);
     
-    // Check for blocking first
-    if (this.isBlocked(html, platform)) {
+    // Step 1: Check for errors first (blocking, loading issues)
+    const errorClassification = this.errorClassifier.classifyResponse(html, platform, url);
+    
+    if (errorClassification.type === 'blocked') {
       return {
         status: "error",
         count: 0,
-        message: `${platform} appears to be blocking requests`,
+        message: `${platform} is blocking requests`,
         url,
         search_method: "blocked",
         precision: "failed"
       };
     }
     
-    // Check for empty or invalid response
-    if (!html || html.length < 500) {
+    if (errorClassification.type === 'loading_issues') {
       return {
         status: "error",
         count: 0,
-        message: `${platform} returned empty or minimal response`,
+        message: `${platform} loading issues detected`,
         url,
-        search_method: "empty-response",
+        search_method: "loading-error",
         precision: "failed"
       };
     }
     
-    // If no listings found
-    if (listingCount === 0) {
+    // Step 2: Get accurate listing count using strict selectors
+    const accurateListingCount = this.listingCounter.countListings(html, platform);
+    
+    // Step 3: If explicit "no results" detected, return confident no_match
+    if (errorClassification.type === 'no_results') {
+      return {
+        status: "no_match",
+        count: 0,
+        message: "Platform confirmed no properties in search area",
+        url,
+        map_view_url: HyperlinkGenerator.generateMapViewUrl(platform, postcodeData),
+        search_method: "strict-validation",
+        precision: "high",
+        confidence: "High"
+      };
+    }
+    
+    // Step 4: If no listings found, return no_match
+    if (accurateListingCount === 0) {
       return {
         status: "no_match",
         count: 0,
         message: "No properties found in search area",
         url,
         map_view_url: HyperlinkGenerator.generateMapViewUrl(platform, postcodeData),
-        search_method: "enhanced-search",
+        search_method: "strict-validation",
         precision: "high",
         confidence: "High"
       };
     }
     
-    // For listings found, do basic validation
-    const confidence = this.calculateConfidence(html, postcodeData, listingCount);
+    // Step 5: Strict postcode validation for listings found
+    const extractedPostcodes = this.postcodeValidator.extractPostcodes(html);
+    const bestMatch = this.postcodeValidator.findBestPostcodeMatch(extractedPostcodes, postcodeData.postcode);
     
+    console.log(`🔍 Strict validation: ${extractedPostcodes.length} postcodes extracted, best confidence: ${bestMatch.confidence}`);
+    
+    // Step 6: Apply strict 95% threshold for INVESTIGATE
+    if (bestMatch.confidence >= 0.95) {
+      return {
+        status: "investigate",
+        count: accurateListingCount,
+        confidence: "High",
+        message: `EXACT MATCH: Found ${accurateListingCount} properties in ${postcodeData.postcode}`,
+        url,
+        listing_url: HyperlinkGenerator.generateListingUrl(platform, postcodeData),
+        search_method: "strict-exact-match",
+        precision: "high",
+        validation_score: Math.round(bestMatch.confidence * 100),
+        extracted_postcode: bestMatch.postcode
+      };
+    }
+    
+    // Step 7: Everything else is classified as no_match (strict approach)
     return {
-      status: "investigate",
-      count: listingCount,
-      confidence: confidence >= 70 ? "High" : confidence >= 40 ? "Medium" : "Low",
-      message: `Found ${listingCount} properties with ${confidence}% confidence`,
+      status: "no_match",
+      count: 0,
+      confidence: "High",
+      message: `Found ${accurateListingCount} listings but NO EXACT postcode match (${Math.round(bestMatch.confidence * 100)}% confidence) - likely different area`,
       url,
-      listing_url: HyperlinkGenerator.generateListingUrl(platform, postcodeData),
-      search_method: "scrapingbee-http",
-      precision: confidence >= 70 ? "high" : confidence >= 40 ? "medium" : "low",
-      validation_score: confidence
+      map_view_url: HyperlinkGenerator.generateMapViewUrl(platform, postcodeData),
+      search_method: "strict-validation",
+      precision: "high",
+      validation_score: Math.round(bestMatch.confidence * 100)
     };
-  }
-  
-  private calculateConfidence(html: string, postcodeData: PostcodeResult, listingCount: number): number {
-    let confidence = 50; // Base confidence
-    
-    // Check for postcode presence
-    const postcodeRegex = new RegExp(postcodeData.postcode.replace(/\s+/g, '\\s*'), 'gi');
-    if (postcodeRegex.test(html)) {
-      confidence += 30;
-    }
-    
-    // Check for street name if available
-    if (postcodeData.streetName) {
-      const streetRegex = new RegExp(postcodeData.streetName.replace(/\s+/g, '\\s*'), 'gi');
-      if (streetRegex.test(html)) {
-        confidence += 20;
-      }
-    }
-    
-    // Adjust based on listing count
-    if (listingCount > 0 && listingCount < 100) {
-      confidence += 10; // Reasonable number of listings
-    } else if (listingCount >= 100) {
-      confidence -= 20; // Too many listings might indicate broad search
-    }
-    
-    return Math.min(100, Math.max(0, confidence));
-  }
-  
-  private isBlocked(html: string, platform: string): boolean {
-    const blockingPatterns = [
-      'Please verify you are a human',
-      'Access to this page has been denied',
-      'captcha',
-      'challenge-platform',
-      'Too many requests',
-      'Rate limit exceeded',
-      'blocked',
-      'forbidden'
-    ];
-    
-    const htmlLower = html.toLowerCase();
-    return blockingPatterns.some(pattern => htmlLower.includes(pattern.toLowerCase()));
   }
 }
