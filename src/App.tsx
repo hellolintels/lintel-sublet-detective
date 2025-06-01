@@ -49,11 +49,7 @@ function App() {
               />
               <Route
                 path="/test-pipeline"
-                element={
-                  <AdminRoute>
-                    <TestPipeline />
-                  </AdminRoute>
-                }
+                element={<TestPipeline />}
               />
               <Route path="*" element={<NotFound />} />
             </Routes>

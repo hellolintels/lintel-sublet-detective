@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -24,11 +23,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
   // Check user role from the new user_roles table
   const checkUserRole = async (userId: string) => {
     try {
+      setRoleLoading(true);
       // Validate UUID format to prevent injection attacks
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(userId)) {
@@ -54,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (data?.role) {
         setUserRole(data.role);
         setIsAdmin(data.role === 'admin');
+        console.log(`User role set to: ${data.role}`);
       } else {
         setUserRole('user');
         setIsAdmin(false);
@@ -62,6 +64,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error checking user role:", error);
       setUserRole('user');
       setIsAdmin(false);
+    } finally {
+      setRoleLoading(false);
     }
   };
   
@@ -85,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setUserRole(null);
           setIsAdmin(false);
+          setRoleLoading(false);
         }
         
         if (event === 'SIGNED_IN') {
@@ -112,12 +117,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (currentSession?.user) {
         await checkUserRole(currentSession.user.id);
+      } else {
+        setRoleLoading(false);
       }
       
       setLoading(false);
     }).catch(error => {
       console.error("Error getting session:", error);
       setLoading(false);
+      setRoleLoading(false);
       setAuthError("Failed to retrieve authentication session");
     });
 
@@ -179,6 +187,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
+  // Don't finish loading until both auth and role checks are complete
+  const finalLoading = loading || roleLoading;
+  
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -188,7 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAdmin,
       login, 
       logout, 
-      loading 
+      loading: finalLoading 
     }}>
       {children}
     </AuthContext.Provider>
