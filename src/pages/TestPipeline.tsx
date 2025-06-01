@@ -74,7 +74,7 @@ const TestPipeline = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
