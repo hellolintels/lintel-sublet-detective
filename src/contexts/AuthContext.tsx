@@ -136,35 +136,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Invalid email or password format");
       }
       
-      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       
-      if (error && error.message === "Email not confirmed") {
-        console.log("Email not confirmed error, attempting to handle admin user");
-        
-        if (email === "jamie@lintels.in") {
-          setUser(data?.user ?? null);
-          setSession(data?.session ?? null);
-          setIsAuthenticated(!!data?.session);
-          
-          if (data?.user) {
-            await checkUserRole(data.user.id);
-          }
-          
-          toast({
-            title: "Admin access granted",
-            description: "Welcome to the admin panel!",
-          });
-          
-          return;
-        }
-        
-        throw error;
-      } else if (error) {
+      if (error) {
         console.error("Login error:", error);
         throw error;
       }
       
-      console.log("Login successful:", data.user?.email);
+      console.log("Login successful");
     } catch (error) {
       console.error("Login exception:", error);
       if (error instanceof Error) {
