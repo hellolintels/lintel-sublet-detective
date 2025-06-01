@@ -67,6 +67,11 @@ verify_jwt = false
 include_cross_origin_headers = true
 max_timeout = 60
 
+[functions.test-g11-5aw]
+verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 30
+
 [vector]
 enabled = false
 port = 54326
