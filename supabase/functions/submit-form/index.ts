@@ -1,9 +1,11 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createLogger } from '../_shared/debug-logger.ts';
 import { sendEmail, buildAdminNotificationEmail, buildClientConfirmationEmail } from '../_shared/email.ts';
+import { countRows, extractPostcodes, MAX_ROWS } from '../_shared/file-processing.ts';
+import { downloadFileContent, moveFileToApprovedBucket } from '../_shared/storage.ts';
+import { createProcessingJob, triggerNextChunk } from '../process-addresses/utils/job-manager.ts';
 
 const logger = createLogger({ module: 'submit-form' });
 
@@ -88,6 +90,99 @@ async function verifyFileExists(storagePath: string): Promise<boolean> {
   }
 }
 
+// Auto-approve and process files that meet criteria
+async function autoProcessIfEligible(submissionId: string, requestData: any): Promise<boolean> {
+  try {
+    const supabase = getSupabaseClient();
+    
+    // Download file content for analysis
+    const fileContent = await downloadFileContent("pending-uploads", requestData.storagePath);
+    const rowCount = countRows(fileContent);
+    
+    console.log(`📊 File analysis: ${rowCount} rows (max allowed: ${MAX_ROWS})`);
+    
+    // Only auto-process files within row limits
+    if (rowCount > MAX_ROWS) {
+      console.log(`❌ File exceeds limit (${rowCount} > ${MAX_ROWS}), requiring manual approval`);
+      return false;
+    }
+    
+    // Extract postcodes for processing
+    const postcodes = extractPostcodes(fileContent);
+    
+    if (postcodes.length === 0) {
+      console.log(`❌ No valid postcodes found, requiring manual review`);
+      return false;
+    }
+    
+    console.log(`✅ Auto-processing eligible: ${postcodes.length} postcodes extracted`);
+    
+    // Move file to approved bucket
+    const approvedPath = await moveFileToApprovedBucket(requestData.storagePath, submissionId);
+    
+    // Create contact record
+    const contactData = {
+      full_name: requestData.full_name,
+      email: requestData.email,
+      company: requestData.company || '',
+      position: requestData.position || '',
+      phone: requestData.phone || '',
+      approved_file_path: approvedPath,
+      status: "scraping",
+      processing_status: "scraping",
+      form_type: "sample"
+    };
+    
+    const { data: contact, error: contactError } = await supabase
+      .from('contacts')
+      .insert(contactData)
+      .select('id')
+      .single();
+      
+    if (contactError) {
+      throw new Error(`Error creating contact: ${contactError.message}`);
+    }
+    
+    // Update submission status
+    await supabase
+      .from('pending_submissions')
+      .update({ status: 'auto_approved' })
+      .eq('id', submissionId);
+    
+    // Create and start processing job
+    const jobId = await createProcessingJob(contact.id, postcodes);
+    
+    // Send client notification about auto-processing
+    await sendEmail(
+      requestData.email,
+      "Your Property Report is Being Processed - Lintels.in",
+      `
+      <p>Hello ${requestData.full_name},</p>
+      <p>Great news! Your property matching report has been automatically approved and is now being processed.</p>
+      <p><strong>Processing Details:</strong></p>
+      <ul>
+        <li>Total Addresses: ${postcodes.length}</li>
+        <li>Expected Completion: Within 24 hours</li>
+        <li>Job ID: ${jobId}</li>
+      </ul>
+      <p>Our automated system will check Airbnb, SpareRoom, and Gumtree for matching properties. You will receive an email with your complete report once processing is finished.</p>
+      <p>Thank you for choosing Lintels.in!</p>
+      <p>Best regards,<br>The Lintels Team</p>
+      `
+    );
+    
+    // Start processing immediately
+    await triggerNextChunk(jobId);
+    
+    console.log(`🚀 Auto-processing started for ${requestData.full_name} (Job ID: ${jobId})`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Auto-processing failed:', error);
+    return false;
+  }
+}
+
 // Process form submission and notify administrators
 serve(async (req) => {
   try {
@@ -129,10 +224,26 @@ serve(async (req) => {
       logger.info("Verified file exists");
     } else {
       logger.warn("File verification failed - continuing anyway");
-      // Continue even if file verification fails - admin review will catch issues
     }
     
-    // Get admin email from env
+    // Attempt auto-processing for eligible files
+    const autoProcessed = await autoProcessIfEligible(submissionId, requestData);
+    
+    if (autoProcessed) {
+      logger.info("File auto-processed successfully");
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          submissionId,
+          autoProcessed: true,
+          message: "Your file has been automatically approved and processing has started. You will receive your report within 24 hours."
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // If not auto-processed, send traditional admin notification
     const adminEmail = Deno.env.get("APPROVER_EMAIL") || "jamie@lintels.in";
     
     // Prepare admin notification email
@@ -166,7 +277,9 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         submissionId,
-        emailSent: adminEmailResult.success && clientEmailResult.success
+        emailSent: adminEmailResult.success && clientEmailResult.success,
+        autoProcessed: false,
+        message: "Your submission is under review. You will be notified once approved."
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

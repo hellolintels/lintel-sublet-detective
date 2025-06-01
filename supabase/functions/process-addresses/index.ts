@@ -8,6 +8,7 @@ import { updateContactStatus, createReport } from '../_shared/db.ts';
 import { sendEmail, buildTooManyAddressesEmail, buildAdminReportEmail } from '../_shared/email.ts';
 import { storeMatches, generateReportFromMatches } from './utils/match-processor.ts';
 import { scrapePostcodes } from './scraping/scraping-bee-scraper.ts';
+import { createProcessingJob, triggerNextChunk } from './utils/job-manager.ts';
 
 serve(async (req) => {
   try {
@@ -157,7 +158,7 @@ function formatPlatformResult(platformResult: any) {
 }
 
 async function handleApproveProcessing(contactId: string) {
-  console.log(`Processing addresses for contact: ${contactId}`);
+  console.log(`🚀 Starting automated processing for contact: ${contactId}`);
   
   // Get contact details
   const contact = await getContactById(contactId);
@@ -189,56 +190,68 @@ async function handleApproveProcessing(contactId: string) {
     );
   }
   
-  // Extract postcodes and start scraping
+  // Extract postcodes
   const postcodes = extractPostcodes(fileContent);
   console.log(`Extracted ${postcodes.length} unique postcodes`);
   
   // Update status to scraping
   await updateContactStatus(contactId, "scraping");
   
-  // Use ScrapingBee for real data
-  console.log("Starting ScrapingBee scraping...");
-  const scrapingResults = await scrapePostcodes(postcodes);
-  console.log("ScrapingBee scraping completed");
+  // Create automated processing job
+  const jobId = await createProcessingJob(contactId, postcodes);
   
-  // Store individual matches in the database
-  const matchesStored = await storeMatches(contactId, scrapingResults);
-  console.log(`Stored ${matchesStored} matches for contact ${contactId}`);
+  // Send confirmation email to client
+  await sendEmail(
+    contact.email,
+    `Your Property Report is Being Processed - ${contact.company}`,
+    `
+    <p>Hello ${contact.full_name},</p>
+    <p>Thank you for your submission to Lintels.in. Your property matching report is now being processed automatically.</p>
+    <p><strong>Processing Details:</strong></p>
+    <ul>
+      <li>Total Addresses: ${postcodes.length}</li>
+      <li>Expected Completion: Within 24 hours</li>
+      <li>Job ID: ${jobId}</li>
+    </ul>
+    <p>You will receive an email with your complete property report once processing is finished. Our system will automatically check Airbnb, SpareRoom, and Gumtree for matching properties.</p>
+    <p>If you have any questions, please don't hesitate to contact us.</p>
+    <p>Best regards,<br>The Lintels Team</p>
+    `
+  );
   
-  // Update contact status to indicate matches were found
-  await updateContactStatus(contactId, "matches_found");
+  // Start the first chunk processing immediately
+  await triggerNextChunk(jobId);
   
-  // Send notification to admin about matches ready for review
+  // Notify admin about automated processing start
   const adminEmail = Deno.env.get('APPROVER_EMAIL') || 'jamie@lintels.in';
-  const projectRef = Deno.env.get('PROJECT_REF') || 'uejymkggevuvuerldzhv';
-  const dashboardUrl = `https://${projectRef}.supabase.co/dashboard/project/${projectRef}`;
   
   await sendEmail(
     adminEmail,
-    `[Lintels] Property Matches Ready for Review - ${contact.company}`,
+    `[Lintels] Automated Processing Started - ${contact.company}`,
     `
     <p>Hello,</p>
-    <p>Property matches have been found using ScrapingBee for ${contact.full_name} from ${contact.company}.</p>
-    <p><strong>Summary:</strong></p>
+    <p>Automated property matching has started for ${contact.full_name} from ${contact.company}.</p>
+    <p><strong>Processing Details:</strong></p>
     <ul>
+      <li>Job ID: ${jobId}</li>
       <li>Total Postcodes: ${postcodes.length}</li>
-      <li>Matches Found: ${matchesStored}</li>
       <li>Contact Email: ${contact.email}</li>
-      <li>Data Source: ScrapingBee REST API</li>
+      <li>Processing Method: Automated queue-based ScrapingBee API</li>
+      <li>Expected Completion: Within 24 hours</li>
     </ul>
-    <p>Please review the matches in the admin dashboard. All "no match" results include search URLs for audit verification.</p>
-    <p><a href="${dashboardUrl}">View Admin Dashboard</a></p>
+    <p>The system will automatically process all postcodes and send the report to the client when complete.</p>
     `
   );
   
   return new Response(
     JSON.stringify({
-      message: "Data processing completed successfully",
+      message: "Automated processing started successfully",
       contact_id: contactId,
+      job_id: jobId,
       postcodes_count: postcodes.length,
-      matches_count: matchesStored,
-      status: "matches_found",
-      data_source: "scrapingbee_api"
+      status: "scraping",
+      data_source: "automated_scrapingbee_queue",
+      expected_completion: "Within 24 hours"
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
