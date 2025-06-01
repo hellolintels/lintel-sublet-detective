@@ -6,7 +6,9 @@ import { TestSummary } from "@/types/test-pipeline";
 import { TestControls } from "@/components/test-pipeline/TestControls";
 import { TestSummaryCard } from "@/components/test-pipeline/TestSummaryCard";
 import { TestResultCard } from "@/components/test-pipeline/TestResultCard";
+import { SimplePostcodeTest } from "@/components/test-pipeline/SimplePostcodeTest";
 import { Target, Zap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TestPipeline = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -72,7 +74,7 @@ const TestPipeline = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -83,46 +85,41 @@ const TestPipeline = () => {
           <div className="flex items-center gap-3 mb-4">
             <Target className="h-8 w-8 text-green-400" />
             <h1 className="text-4xl font-bold text-green-500">
-              Enhanced Property Search Verification
+              Property Search Testing
             </h1>
             <Zap className="h-6 w-6 text-yellow-400" />
           </div>
           <div className="space-y-2 text-gray-400">
             <p className="text-lg">
-              Verify property search accuracy across Airbnb, SpareRoom, and Gumtree using ScrapingBee with enhanced location validation.
+              Test property search accuracy across platforms using ScrapingBee.
             </p>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                Postcode/Coordinate Level Precision
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                Hyperlinked Verification Results
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
-                Enhanced Location Validation
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                Premium ScrapingBee Proxies
-              </span>
-            </div>
           </div>
         </div>
 
-        <TestControls isLoading={isLoading} onRunTest={runTest} />
+        <Tabs defaultValue="simple" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="simple">🎯 Simple G11 5AW Test</TabsTrigger>
+            <TabsTrigger value="full">🔍 Full Pipeline Test</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="simple" className="space-y-6">
+            <SimplePostcodeTest />
+          </TabsContent>
+          
+          <TabsContent value="full" className="space-y-6">
+            <TestControls isLoading={isLoading} onRunTest={runTest} />
 
-        {testResults && (
-          <div className="space-y-6">
-            <TestSummaryCard testResults={testResults} />
+            {testResults && (
+              <div className="space-y-6">
+                <TestSummaryCard testResults={testResults} />
 
-            {testResults.results && testResults.results.length > 0 && (
-              <TestResultCard results={testResults.results} />
+                {testResults.results && testResults.results.length > 0 && (
+                  <TestResultCard results={testResults.results} />
+                )}
+              </div>
             )}
-          </div>
-        )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
