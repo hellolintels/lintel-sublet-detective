@@ -38,15 +38,42 @@ export const SimplePostcodeTest = () => {
     
     try {
       console.log("🎯 Starting simple G11 5AW test...");
+      console.log("📡 Supabase URL:", supabase.supabaseUrl);
+      console.log("🔑 Supabase Key (first 20 chars):", supabase.supabaseKey.substring(0, 20) + "...");
       
-      const { data, error } = await supabase.functions.invoke('test-g11-5aw');
+      const { data, error } = await supabase.functions.invoke('test-g11-5aw', {
+        body: { test: true }
+      });
+      
+      console.log("📊 Raw response:", { data, error });
       
       if (error) {
-        console.error("❌ Test error:", error);
+        console.error("❌ Supabase function error:", error);
         toast({
           title: "Test Failed",
-          description: error.message || "Failed to run simple postcode test",
+          description: `Function error: ${error.message || JSON.stringify(error)}`,
           variant: "destructive",
+        });
+        
+        // Set a basic error result
+        setTestResult({
+          success: false,
+          postcode: "G11 5AW",
+          searchUrl: "N/A",
+          responseTime: 0,
+          htmlLength: 0,
+          htmlPreview: "",
+          checks: {
+            postcodeFound: false,
+            listingsFound: false,
+            hasGlasgow: false,
+            hasScotland: false,
+            hasG11: false,
+            has5AW: false
+          },
+          message: `Function invocation failed: ${error.message || JSON.stringify(error)}`,
+          timestamp: new Date().toISOString(),
+          error: error.message || JSON.stringify(error)
         });
         return;
       }
@@ -54,7 +81,7 @@ export const SimplePostcodeTest = () => {
       console.log("📊 Test results:", data);
       setTestResult(data);
       
-      if (data.success) {
+      if (data?.success) {
         toast({
           title: "✅ Test Successful",
           description: "G11 5AW found on Airbnb!",
@@ -62,17 +89,40 @@ export const SimplePostcodeTest = () => {
       } else {
         toast({
           title: "❌ Test Failed",
-          description: data.message,
+          description: data?.message || "Test completed but no postcode match found",
           variant: "destructive",
         });
       }
       
     } catch (err) {
       console.error("❌ Error running test:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      
       toast({
         title: "Error",
-        description: "Failed to run simple postcode test",
+        description: `Failed to run test: ${errorMessage}`,
         variant: "destructive",
+      });
+      
+      // Set a basic error result
+      setTestResult({
+        success: false,
+        postcode: "G11 5AW",
+        searchUrl: "N/A",
+        responseTime: 0,
+        htmlLength: 0,
+        htmlPreview: "",
+        checks: {
+          postcodeFound: false,
+          listingsFound: false,
+          hasGlasgow: false,
+          hasScotland: false,
+          hasG11: false,
+          has5AW: false
+        },
+        message: `Test execution failed: ${errorMessage}`,
+        timestamp: new Date().toISOString(),
+        error: errorMessage
       });
     } finally {
       setIsLoading(false);
@@ -139,42 +189,46 @@ export const SimplePostcodeTest = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h4 className="font-medium">Detection Results:</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  {testResult.checks.postcodeFound ? "✅" : "❌"}
-                  Postcode Found
-                </div>
-                <div className="flex items-center gap-2">
-                  {testResult.checks.listingsFound ? "✅" : "❌"}
-                  Listings Found
-                </div>
-                <div className="flex items-center gap-2">
-                  {testResult.checks.hasGlasgow ? "✅" : "❌"}
-                  Glasgow Detected
-                </div>
-                <div className="flex items-center gap-2">
-                  {testResult.checks.hasScotland ? "✅" : "❌"}
-                  Scotland Detected
-                </div>
-                <div className="flex items-center gap-2">
-                  {testResult.checks.hasG11 ? "✅" : "❌"}
-                  G11 Found
-                </div>
-                <div className="flex items-center gap-2">
-                  {testResult.checks.has5AW ? "✅" : "❌"}
-                  5AW Found
+            {testResult.checks && (
+              <div className="space-y-2">
+                <h4 className="font-medium">Detection Results:</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    {testResult.checks.postcodeFound ? "✅" : "❌"}
+                    Postcode Found
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {testResult.checks.listingsFound ? "✅" : "❌"}
+                    Listings Found
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {testResult.checks.hasGlasgow ? "✅" : "❌"}
+                    Glasgow Detected
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {testResult.checks.hasScotland ? "✅" : "❌"}
+                    Scotland Detected
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {testResult.checks.hasG11 ? "✅" : "❌"}
+                    G11 Found
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {testResult.checks.has5AW ? "✅" : "❌"}
+                    5AW Found
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <h4 className="font-medium">HTML Preview (first 500 chars):</h4>
-              <div className="bg-gray-100 p-3 rounded text-xs font-mono overflow-x-auto">
-                {testResult.htmlPreview}
+            {testResult.htmlPreview && (
+              <div className="space-y-2">
+                <h4 className="font-medium">HTML Preview (first 500 chars):</h4>
+                <div className="bg-gray-100 p-3 rounded text-xs font-mono overflow-x-auto">
+                  {testResult.htmlPreview}
+                </div>
               </div>
-            </div>
+            )}
 
             {testResult.error && (
               <div className="space-y-2">
