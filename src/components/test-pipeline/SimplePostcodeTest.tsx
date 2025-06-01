@@ -38,8 +38,6 @@ export const SimplePostcodeTest = () => {
     
     try {
       console.log("🎯 Starting simple G11 5AW test...");
-      console.log("📡 Supabase URL:", supabase.supabaseUrl);
-      console.log("🔑 Supabase Key (first 20 chars):", supabase.supabaseKey.substring(0, 20) + "...");
       
       const { data, error } = await supabase.functions.invoke('test-g11-5aw', {
         body: { test: true }
