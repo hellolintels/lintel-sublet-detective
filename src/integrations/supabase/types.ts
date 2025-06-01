@@ -209,6 +209,68 @@ export type Database = {
         }
         Relationships: []
       }
+      processing_jobs: {
+        Row: {
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string
+          current_chunk: number
+          error_message: string | null
+          id: string
+          postcodes: Json
+          processed_postcodes: number
+          report_generated_at: string | null
+          results: Json
+          started_at: string | null
+          status: string
+          total_chunks: number
+          total_postcodes: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          current_chunk?: number
+          error_message?: string | null
+          id?: string
+          postcodes?: Json
+          processed_postcodes?: number
+          report_generated_at?: string | null
+          results?: Json
+          started_at?: string | null
+          status?: string
+          total_chunks?: number
+          total_postcodes?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          current_chunk?: number
+          error_message?: string | null
+          id?: string
+          postcodes?: Json
+          processed_postcodes?: number
+          report_generated_at?: string | null
+          results?: Json
+          started_at?: string | null
+          status?: string
+          total_chunks?: number
+          total_postcodes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processing_jobs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           contact_id: string
