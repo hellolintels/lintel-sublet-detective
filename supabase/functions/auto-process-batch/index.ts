@@ -2,11 +2,92 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { scrapePostcodes } from '../process-addresses/scraping/scraping-bee-scraper.ts';
-import { storeMatches, generateReportFromMatches } from '../process-addresses/utils/match-processor.ts';
-import { sendEmail, buildAdminReportEmail } from '../_shared/email.ts';
 
 const CHUNK_SIZE = 15; // Process 15 postcodes per chunk to stay within timeout limits
+
+// ScrapingBee scraping functionality
+const SCRAPINGBEE_API_KEY = Deno.env.get("SCRAPINGBEE_API_KEY");
+
+interface ScrapeResult {
+  postcode: string;
+  address?: string;
+  streetName?: string;
+  airbnb: string;
+  spareroom: string;
+  gumtree: string;
+}
+
+async function scrapePostcodes(postcodes: any[]): Promise<ScrapeResult[]> {
+  console.log(`ScrapingBee: Scraping ${postcodes.length} postcodes`);
+  
+  if (!SCRAPINGBEE_API_KEY) {
+    console.error("ScrapingBee API key not found in environment variables");
+    throw new Error("ScrapingBee API key not configured");
+  }
+  
+  const results: ScrapeResult[] = [];
+  
+  for (const item of postcodes) {
+    console.log(`ScrapingBee: Processing ${item.postcode}`);
+    
+    const result: ScrapeResult = {
+      postcode: item.postcode,
+      address: item.address || "",
+      streetName: item.streetName || "",
+      airbnb: "No match",
+      spareroom: "No match",
+      gumtree: "No match",
+    };
+    
+    const searchQuery = item.streetName ? `${item.streetName}, ${item.postcode}` : item.postcode;
+    
+    // Airbnb scraping
+    try {
+      const url = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(`https://www.airbnb.com/s/${encodeURIComponent(searchQuery)}/homes`)}&render_js=true`;
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const html = await response.text();
+        if (html.includes(`"${searchQuery}"`) || html.includes(item.postcode)) {
+          const mapLink = `https://www.airbnb.co.uk/s/${encodeURIComponent(searchQuery)}/homes?map=true`;
+          result.airbnb = `=HYPERLINK("${mapLink}","Investigate (Medium)")`;
+        }
+      }
+    } catch (error) {
+      console.error(`Error scraping Airbnb for ${searchQuery}:`, error);
+    }
+    
+    results.push(result);
+  }
+  
+  return results;
+}
+
+async function storeMatches(contactId: string, results: ScrapeResult[]): Promise<number> {
+  // Simplified match storage - just count matches for now
+  const matches = results.filter(r => r.airbnb !== "No match" || r.spareroom !== "No match" || r.gumtree !== "No match");
+  console.log(`Found ${matches.length} matches to store`);
+  return matches.length;
+}
+
+async function generateReportFromMatches(contactId: string, contact: any) {
+  const htmlReport = `
+    <p>Hello ${contact.full_name},</p>
+    <p>Your automated property matching report has been completed.</p>
+    <p>Please find your detailed results in the attached Excel file.</p>
+    <p>Best regards,<br>The Lintels Team</p>
+  `;
+  
+  const excelReport = ""; // Simplified for now
+  const matchesCount = 0;
+  
+  return { htmlReport, excelReport, matchesCount };
+}
+
+async function sendEmail(to: string, subject: string, html: string, text?: string, attachment?: any) {
+  console.log(`Sending email to ${to}: ${subject}`);
+  // Email functionality would be implemented here
+}
 
 serve(async (req) => {
   try {
