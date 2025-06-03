@@ -77,6 +77,21 @@ verify_jwt = false
 include_cross_origin_headers = true
 max_timeout = 60
 
+[functions.process-addresses]
+verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 60
+
+[functions.railway-trigger]
+verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 30
+
+[functions.railway-webhook]
+verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 30
+
 [vector]
 enabled = false
 port = 54326

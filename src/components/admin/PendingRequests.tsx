@@ -30,24 +30,23 @@ export const PendingRequests = ({ pendingRequests, loading, onRefresh }: Pending
         
       if (updateError) throw updateError;
       
-      // Call the process-addresses function with the contact ID
-      const { data, error: functionError } = await supabase.functions.invoke('process-addresses', {
+      // Call the railway-trigger function to start Railway processing
+      const { data, error: functionError } = await supabase.functions.invoke('railway-trigger', {
         body: {
-          contactId: contactId,
-          action: 'approve_processing'
+          contactId: contactId
         }
       });
       
       if (functionError) {
-        console.error("Function error:", functionError);
+        console.error("Railway trigger error:", functionError);
         throw functionError;
       }
       
-      console.log("Function response:", data);
+      console.log("Railway processing started:", data);
       
       toast({
         title: "Request approved",
-        description: "The request has been approved and processing has started",
+        description: "The request has been approved and Railway processing has started",
       });
       
       // Refresh the requests list
@@ -69,7 +68,7 @@ export const PendingRequests = ({ pendingRequests, loading, onRefresh }: Pending
       <CardHeader>
         <CardTitle className="text-white">Pending Approval Requests</CardTitle>
         <CardDescription className="text-gray-400">
-          Review and approve incoming address list requests
+          Review and approve incoming address list requests (processed via Railway API)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -106,7 +105,7 @@ export const PendingRequests = ({ pendingRequests, loading, onRefresh }: Pending
                           onClick={() => handleApproveRequest(request.id)}
                           disabled={processingId === request.id}
                         >
-                          {processingId === request.id ? "Processing..." : "Approve"}
+                          {processingId === request.id ? "Starting Railway..." : "Approve & Process"}
                         </Button>
                       )}
                       {request.status === 'too_many_addresses' && (
