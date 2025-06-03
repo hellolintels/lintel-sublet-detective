@@ -1,8 +1,6 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
-import { extractPostcodes } from '../process-addresses/utils/postcode-extractor.ts';
-import { downloadFileContent } from '../_shared/storage.ts';
 import { updateContactStatus, createReport } from '../_shared/db.ts';
 import { sendEmail } from '../_shared/email.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -63,6 +61,101 @@ async function getContactById(contactId: string) {
     }
     console.error('Error in getContactById:', error);
     throw error;
+  }
+}
+
+// Inline file download function
+async function downloadFileContent(bucket: string, path: string): Promise<string> {
+  try {
+    console.log(`Downloading file from ${bucket}/${path}`);
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Storage configuration error: Missing credentials");
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { data, error } = await supabase
+      .storage
+      .from(bucket)
+      .download(path);
+      
+    if (error) {
+      console.error("File download failed:", error);
+      throw new Error("Storage error: " + error.message);
+    }
+    
+    if (!data) {
+      throw new Error("No file data returned");
+    }
+    
+    const content = await data.text();
+    console.log("File downloaded successfully, size:", content.length);
+    return content;
+  } catch (error) {
+    console.error("File download error:", error);
+    throw error;
+  }
+}
+
+// Inline postcode extraction function
+function extractPostcodes(content: string): Array<{postcode: string, address: string}> {
+  try {
+    console.log("Extracting postcodes from file content");
+    
+    // Clean content and split into lines
+    const cleanContent = content.replace(/^\uFEFF/, '');
+    const lines = cleanContent.split('\n').filter(line => line.trim().length > 0);
+    
+    if (lines.length <= 1) {
+      console.warn("File contains no data rows");
+      return [];
+    }
+    
+    // Remove header row
+    const dataRows = lines.slice(1);
+    
+    // UK postcodes regex pattern
+    const postcodeRegex = /[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}/i;
+    
+    // Extract postcodes from each line
+    const postcodes: Array<{postcode: string, address: string}> = [];
+    const uniquePostcodes = new Set<string>();
+    
+    dataRows.forEach(line => {
+      // Split by comma if CSV
+      const parts = line.split(',');
+      
+      // Find a part that looks like a postcode
+      for (const part of parts) {
+        const trimmed = part.trim();
+        const match = trimmed.match(postcodeRegex);
+        
+        if (match) {
+          const postcode = match[0].toUpperCase().replace(/\s+/g, ' ');
+          
+          // Only add unique postcodes
+          if (!uniquePostcodes.has(postcode)) {
+            uniquePostcodes.add(postcode);
+            postcodes.push({
+              postcode,
+              address: line.trim()
+            });
+          }
+          
+          break;
+        }
+      }
+    });
+    
+    console.log(`Found ${postcodes.length} unique postcodes`);
+    return postcodes;
+  } catch (error) {
+    console.error("Error extracting postcodes:", error);
+    return [];
   }
 }
 
