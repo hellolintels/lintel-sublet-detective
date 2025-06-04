@@ -14,15 +14,20 @@ export const StatusBadge = ({ status }: StatusBadgeProps) => {
     case 'approved':
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Approved</Badge>;
     case 'processing':
-      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Processing</Badge>;
+    case 'scraping':
+    case 'railway_processing':
+      return <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">Processing via Railway</Badge>;
     case 'processed':
       return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Processed</Badge>;
     case 'reviewed':
       return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">Reviewed</Badge>;
     case 'sent':
-      return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Sent</Badge>;
+    case 'report_sent':
+      return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Report Sent</Badge>;
     case 'too_many_addresses':
       return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Too Many Addresses</Badge>;
+    case 'error':
+      return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Error</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }

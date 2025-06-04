@@ -301,6 +301,68 @@ export type Database = {
           },
         ]
       }
+      property_matches: {
+        Row: {
+          address_id: string
+          confidence_score: number | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          listing_title: string | null
+          listing_url: string | null
+          map_view_url: string | null
+          original_address: string
+          outcome: string
+          platform: string | null
+          postcode: string
+          processing_job_id: string | null
+          property_data: Json | null
+          search_urls: Json | null
+        }
+        Insert: {
+          address_id: string
+          confidence_score?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          listing_title?: string | null
+          listing_url?: string | null
+          map_view_url?: string | null
+          original_address: string
+          outcome: string
+          platform?: string | null
+          postcode: string
+          processing_job_id?: string | null
+          property_data?: Json | null
+          search_urls?: Json | null
+        }
+        Update: {
+          address_id?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          listing_title?: string | null
+          listing_url?: string | null
+          map_view_url?: string | null
+          original_address?: string
+          outcome?: string
+          platform?: string | null
+          postcode?: string
+          processing_job_id?: string | null
+          property_data?: Json | null
+          search_urls?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_matches_processing_job_id_fkey"
+            columns: ["processing_job_id"]
+            isOneToOne: false
+            referencedRelation: "processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           contact_id: string

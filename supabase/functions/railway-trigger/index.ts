@@ -1,13 +1,12 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
-import { updateContactStatus, createReport } from '../_shared/db.ts';
+import { updateContactStatus } from '../_shared/db.ts';
 import { sendEmail } from '../_shared/email.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Inline getContactById function to avoid cross-function imports
+// Get contact by ID with validation
 async function getContactById(contactId: string) {
-  // Validate UUID format using regex
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!contactId || !uuidRegex.test(contactId)) {
     console.error('Invalid contact ID format');
@@ -22,19 +21,9 @@ async function getContactById(contactId: string) {
     throw new Error('Server configuration error');
   }
   
-  const supabase = createClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      }
-    }
-  );
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    // Using paranoid timeout to prevent long-running queries
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
@@ -52,7 +41,6 @@ async function getContactById(contactId: string) {
     }
 
     console.log(`Found contact: ${contact.full_name}, email: ${contact.email}, file: ${contact.file_name}`);
-    
     return contact;
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -64,7 +52,7 @@ async function getContactById(contactId: string) {
   }
 }
 
-// Inline file download function
+// Download file content from Supabase storage
 async function downloadFileContent(bucket: string, path: string): Promise<string> {
   try {
     console.log(`Downloading file from ${bucket}/${path}`);
@@ -101,12 +89,11 @@ async function downloadFileContent(bucket: string, path: string): Promise<string
   }
 }
 
-// Inline postcode extraction function
+// Extract postcodes from file content
 function extractPostcodes(content: string): Array<{postcode: string, address: string}> {
   try {
     console.log("Extracting postcodes from file content");
     
-    // Clean content and split into lines
     const cleanContent = content.replace(/^\uFEFF/, '');
     const lines = cleanContent.split('\n').filter(line => line.trim().length > 0);
     
@@ -115,21 +102,15 @@ function extractPostcodes(content: string): Array<{postcode: string, address: st
       return [];
     }
     
-    // Remove header row
     const dataRows = lines.slice(1);
-    
-    // UK postcodes regex pattern
     const postcodeRegex = /[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}/i;
     
-    // Extract postcodes from each line
     const postcodes: Array<{postcode: string, address: string}> = [];
     const uniquePostcodes = new Set<string>();
     
     dataRows.forEach(line => {
-      // Split by comma if CSV
       const parts = line.split(',');
       
-      // Find a part that looks like a postcode
       for (const part of parts) {
         const trimmed = part.trim();
         const match = trimmed.match(postcodeRegex);
@@ -137,7 +118,6 @@ function extractPostcodes(content: string): Array<{postcode: string, address: st
         if (match) {
           const postcode = match[0].toUpperCase().replace(/\s+/g, ' ');
           
-          // Only add unique postcodes
           if (!uniquePostcodes.has(postcode)) {
             uniquePostcodes.add(postcode);
             postcodes.push({
@@ -159,9 +139,39 @@ function extractPostcodes(content: string): Array<{postcode: string, address: st
   }
 }
 
+// Create processing job record
+async function createProcessingJob(contactId: string, postcodes: any[]) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+  
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  const { data, error } = await supabase
+    .from('processing_jobs')
+    .insert({
+      contact_id: contactId,
+      status: 'railway_processing',
+      total_postcodes: postcodes.length,
+      postcodes: postcodes,
+      scraping_method: 'railway_api'
+    })
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Error creating processing job:', error);
+    throw new Error('Failed to create processing job');
+  }
+  
+  return data;
+}
+
 serve(async (req) => {
   try {
-    // Handle CORS preflight
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
     
@@ -190,6 +200,10 @@ serve(async (req) => {
       throw new Error("No valid postcodes found in file");
     }
     
+    // Create processing job record
+    const processingJob = await createProcessingJob(contactId, postcodes);
+    console.log(`💾 Created processing job: ${processingJob.id}`);
+    
     // Update contact status to processing
     await updateContactStatus(contactId, "scraping");
     
@@ -203,8 +217,9 @@ serve(async (req) => {
     
     // Prepare data for Railway API
     const railwayPayload = {
+      processing_job_id: processingJob.id,
       contact_id: contactId,
-      postcodes: postcodes.map(pc => pc.postcode),
+      postcodes: postcodes,
       callback_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/railway-webhook`,
       metadata: {
         contact_name: contact.full_name,
@@ -243,11 +258,11 @@ serve(async (req) => {
       <p><strong>Processing Details:</strong></p>
       <ul>
         <li>Total Addresses: ${postcodes.length}</li>
-        <li>Job ID: ${railwayResult.job_id || 'Processing'}</li>
+        <li>Job ID: ${railwayResult.job_id || processingJob.id}</li>
         <li>Expected Completion: Within 2-4 hours</li>
         <li>Processing System: Railway API with enhanced matching</li>
       </ul>
-      <p>Our system will automatically check Airbnb, SpareRoom, and Gumtree for matching properties. You will receive an email with your complete report once processing is finished.</p>
+      <p>Our system will automatically check Airbnb and SpareRoom for matching properties. You will receive an email with your complete report once processing is finished.</p>
       <p>Thank you for choosing Lintels.in!</p>
       <p>Best regards,<br>The Lintels Team</p>
       `
@@ -264,7 +279,8 @@ serve(async (req) => {
       <p><strong>Processing Details:</strong></p>
       <ul>
         <li>Contact ID: ${contactId}</li>
-        <li>Job ID: ${railwayResult.job_id || 'Processing'}</li>
+        <li>Processing Job ID: ${processingJob.id}</li>
+        <li>Railway Job ID: ${railwayResult.job_id || 'Processing'}</li>
         <li>Total Postcodes: ${postcodes.length}</li>
         <li>Contact Email: ${contact.email}</li>
         <li>Processing Method: Railway API</li>
@@ -279,6 +295,7 @@ serve(async (req) => {
         success: true,
         message: "Railway processing started successfully",
         contact_id: contactId,
+        processing_job_id: processingJob.id,
         railway_job_id: railwayResult.job_id,
         postcodes_count: postcodes.length,
         status: "scraping",

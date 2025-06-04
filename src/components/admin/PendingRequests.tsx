@@ -105,7 +105,7 @@ export const PendingRequests = ({ pendingRequests, loading, onRefresh }: Pending
                           onClick={() => handleApproveRequest(request.id)}
                           disabled={processingId === request.id}
                         >
-                          {processingId === request.id ? "Starting Railway..." : "Approve & Process"}
+                          {processingId === request.id ? "Starting Railway..." : "Approve & Process with Railway"}
                         </Button>
                       )}
                       {request.status === 'too_many_addresses' && (
