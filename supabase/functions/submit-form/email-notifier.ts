@@ -1,3 +1,4 @@
+
 import { sendEmail } from '../_shared/email.ts';
 import { buildAdminNotificationEmail } from '../_shared/email-builder.ts';
 import { downloadFileContent } from '../_shared/storage.ts';
@@ -23,7 +24,7 @@ export async function sendAdminNotification(supabase: any, data: EmailNotificati
     console.log(`Sending admin notification email to: ${adminEmail}`);
     
     // Build the proper admin notification email with approval buttons
-    const emailSubject = `[Lintels] New ${data.form_type} Request - ${data.company}`;
+    const emailSubject = `[lintels.in] New ${data.form_type} Request - ${data.company}`;
     const emailBody = buildAdminNotificationEmail({
       id: data.contactId,
       full_name: data.full_name,

@@ -59,7 +59,7 @@ export async function sendEmail(
       from: { email: sender },
       headers: {
         "X-Priority": "1",
-        "X-Mailer": "Lintels-SecureMailer",
+        "X-Mailer": "lintels.in-SecureMailer",
       }
     };
     
@@ -172,7 +172,7 @@ export function buildAdminNotificationEmail(contact: any) {
         <a href="${rejectUrl}" style="display: inline-block; background-color: #000000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">❌ Reject</a>
       </div>
 
-      <p style="font-size: 12px; color: #666;">This is an automated message from Lintels.in</p>
+      <p style="font-size: 12px; color: #666;">This is an automated message from lintels.in</p>
     </div>
   `;
 }

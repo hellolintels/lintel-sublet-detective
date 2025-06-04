@@ -35,7 +35,7 @@ export function prepareEmailBody(templateHtml: string, subject: string): string 
       <h2 style="color: #F97316;">${subject}</h2>
       ${templateHtml}
       <p style="font-size: 12px; color: #666; margin-top: 30px; text-align: center;">
-        This is an automated message from Lintels.in
+        This is an automated message from lintels.in
       </p>
     </div>
   `;

@@ -1,3 +1,4 @@
+
 /**
  * Shared email building utilities for edge functions
  * This file consolidates email building functions that were previously scattered
@@ -39,7 +40,7 @@ export function prepareEmailBody(templateHtml: string, subject: string): string 
       <h2 style="color: #F97316;">${subject}</h2>
       ${templateHtml}
       <p style="font-size: 12px; color: #666; margin-top: 30px; text-align: center;">
-        This is an automated message from Lintels.in
+        This is an automated message from lintels.in
       </p>
     </div>
   `;
@@ -64,7 +65,7 @@ export function buildClientConfirmationEmail(contactData: any): string {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Thank you for your submission - Lintels.in</title>
+      <title>Thank you for your submission - lintels.in</title>
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -91,7 +92,7 @@ export function buildClientConfirmationEmail(contactData: any): string {
         <div class="content">
           <p>Hello ${contactData.full_name},</p>
           
-          <p>Thank you for submitting your address list to Lintels.in. We have received your file and our team will review it shortly.</p>
+          <p>Thank you for submitting your address list to lintels.in. We have received your file and our team will review it shortly.</p>
           
           <p><strong>Submission Details:</strong></p>
           <ul>
@@ -120,11 +121,11 @@ export function buildClientConfirmationEmail(contactData: any): string {
           <p>If you have any questions, please don't hesitate to contact us.</p>
           
           <p>Best regards,<br>
-          The Lintels Team</p>
+          the lintels.in team</p>
         </div>
         
         <div class="footer">
-          <p>© 2024 Lintels.in - Property Matching Solutions</p>
+          <p>© 2024 lintels.in - Property Matching Solutions</p>
         </div>
       </div>
     </body>
@@ -139,7 +140,7 @@ export function buildAdminNotificationEmail(submissionData: any): string {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>New Submission - Lintels.in</title>
+      <title>New Submission - lintels.in</title>
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -197,7 +198,7 @@ export function buildAdminNotificationEmail(submissionData: any): string {
         </div>
         
         <div class="footer">
-          <p>© 2024 Lintels.in - Admin Notification System</p>
+          <p>© 2024 lintels.in - Admin Notification System</p>
         </div>
       </div>
     </body>

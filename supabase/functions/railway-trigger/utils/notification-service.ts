@@ -16,8 +16,8 @@ export async function sendClientNotification(contact: any, postcodes: any[], rai
       <li>Processing System: Railway API with enhanced matching</li>
     </ul>
     <p>Our system will automatically check Airbnb and SpareRoom for matching properties. You will receive an email with your complete report once processing is finished.</p>
-    <p>Thank you for choosing Lintels.in!</p>
-    <p>Best regards,<br>The Lintels Team</p>
+    <p>Thank you for choosing lintels.in!</p>
+    <p>Best regards,<br>the lintels.in team</p>
     `
   );
 }
@@ -26,7 +26,7 @@ export async function sendAdminNotification(contact: any, contactId: string, pro
   const adminEmail = Deno.env.get('APPROVER_EMAIL') || 'jamie@lintels.in';
   await sendEmail(
     adminEmail,
-    `[Lintels] Railway Processing Started - ${contact.company}`,
+    `[lintels.in] Railway Processing Started - ${contact.company}`,
     `
     <p>Hello,</p>
     <p>Railway processing has started for ${contact.full_name} from ${contact.company}.</p>

@@ -71,8 +71,8 @@ export function generateExcelReport(scrapingResults: any[], contactInfo?: any): 
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
  xmlns:html="http://www.w3.org/TR/REC-html40">
  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>Lintels.in</Author>
-  <LastAuthor>Lintels.in</LastAuthor>
+  <Author>lintels.in</Author>
+  <LastAuthor>lintels.in</LastAuthor>
   <Created>${new Date().toISOString()}</Created>
   <Version>16.00</Version>
  </DocumentProperties>
