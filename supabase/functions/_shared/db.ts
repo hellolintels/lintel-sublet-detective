@@ -141,7 +141,7 @@ export async function createContactFromSubmission(submissionId: string, approved
     // Get submission
     const submission = await getSubmission(submissionId);
     
-    // Create contact
+    // Create contact with approved status and approved_for_matching flag
     const contactData = {
       full_name: submission.full_name,
       email: submission.email,
@@ -150,6 +150,8 @@ export async function createContactFromSubmission(submissionId: string, approved
       phone: submission.phone,
       approved_file_path: approvedFilePath,
       status: "approved",
+      processing_status: "approved", 
+      approved_for_matching: true,
       form_type: "sample"
     };
     

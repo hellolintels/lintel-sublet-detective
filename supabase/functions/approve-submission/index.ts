@@ -2,8 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { getSubmission, updateSubmissionStatus, createContactFromSubmission, updateContactStatus } from '../_shared/db.ts';
-import { moveFileToApprovedBucket, downloadFileContent } from '../_shared/storage.ts';
-import { sendEmail } from '../_shared/email.ts';
+import { moveFileToApprovedBucket } from '../_shared/storage.ts';
 import { ApprovalAction } from '../_shared/types.ts';
 
 /**
@@ -64,42 +63,72 @@ serve(async (req) => {
         console.log("Using placeholder file path:", approvedFilePath);
       }
       
-      // Create contact record
+      // Create contact record with approved status and approved_for_matching flag
       const contactId = await createContactFromSubmission(submissionId, approvedFilePath);
       console.log("Created contact with ID:", contactId);
       
       // Update submission status
       await updateSubmissionStatus(submissionId, 'approved');
       
-      // Update contact status
-      await updateContactStatus(contactId, 'processing');
+      // Update contact status to "approved" and set approved_for_matching to true
+      await updateContactStatus(contactId, 'approved');
+      
+      // Set approved_for_matching flag specifically
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      if (supabaseUrl && supabaseKey) {
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        const { error: flagError } = await supabase
+          .from('contacts')
+          .update({ approved_for_matching: true })
+          .eq('id', contactId);
+          
+        if (flagError) {
+          console.error("Failed to set approved_for_matching flag:", flagError);
+        } else {
+          console.log("Set approved_for_matching flag for contact:", contactId);
+        }
+      }
       
       responseMessage = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <h2 style="color: #4CAF50;">Submission Approved Successfully</h2>
           <p>Submission ID: ${submissionId}</p>
-          <p>The data has been approved and will now be processed.</p>
+          <p>Contact ID: ${contactId}</p>
+          <p>The data has been approved and Railway processing is starting...</p>
           <p>You will receive an email with results once processing is complete.</p>
         </div>
       `;
       
-      // Trigger processing via process-data function
+      // Trigger Railway processing via railway-trigger function
       const projectRef = Deno.env.get('PROJECT_REF') || 'uejymkggevuvuerldzhv';
       try {
-        const processUrl = `https://${projectRef}.functions.supabase.co/process-data?contact_id=${contactId}`;
-        console.log("Calling process-data function at URL:", processUrl);
+        const railwayUrl = `https://${projectRef}.functions.supabase.co/railway-trigger`;
+        console.log("Calling railway-trigger function at URL:", railwayUrl);
         
-        fetch(processUrl, {
-          method: "GET",
+        const railwayResponse = await fetch(railwayUrl, {
+          method: "POST",
           headers: {
-            "Content-Type": "application/json"
-          }
-        }).catch(err => {
-          console.error("Error triggering process-data function:", err);
-          // Non-blocking, we'll continue even if this fails
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            contactId: contactId
+          })
         });
-      } catch (processError) {
-        console.error("Error triggering data processing:", processError);
+        
+        if (railwayResponse.ok) {
+          const railwayResult = await railwayResponse.json();
+          console.log("Railway processing started successfully:", railwayResult);
+        } else {
+          const errorText = await railwayResponse.text();
+          console.error("Railway trigger failed:", railwayResponse.status, errorText);
+        }
+      } catch (railwayError) {
+        console.error("Error triggering Railway processing:", railwayError);
         // Non-blocking, we'll continue even if this fails
       }
     } else {
