@@ -1,4 +1,3 @@
-
 import { sendEmail } from '../_shared/email.ts';
 import { buildAdminNotificationEmail } from '../_shared/email-builder.ts';
 import { downloadFileContent } from '../_shared/storage.ts';
@@ -36,28 +35,25 @@ export async function sendAdminNotification(supabase: any, data: EmailNotificati
       organization_other: data.organization_other,
       form_type: data.form_type,
       file_name: data.file_name,
-      file_type: 'text/csv'
+      file_type: data.file_name ? (data.file_name.toLowerCase().endsWith('.xlsx') ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv') : 'text/csv'
     });
     
     console.log(`Subject: ${emailSubject}`);
     
-    // Download the CSV file from storage to attach it to the email
+    // Download the file from storage to attach it to the email
     let attachment = undefined;
     if (data.file_name && data.storagePath) {
       try {
         console.log(`Downloading file for attachment: ${data.storagePath}`);
-        const fileContent = await downloadFileContent('pending-uploads', data.storagePath);
-        
-        // Convert file content to base64 for email attachment
-        const base64Content = btoa(fileContent);
+        const fileData = await downloadFileContent('pending-uploads', data.storagePath);
         
         attachment = {
-          content: base64Content,
+          content: fileData.content,
           filename: data.file_name,
-          contentType: 'text/csv'
+          contentType: fileData.contentType
         };
         
-        console.log(`File attachment prepared: ${data.file_name} (${fileContent.length} chars)`);
+        console.log(`File attachment prepared: ${data.file_name}, binary: ${fileData.isBinary}, type: ${fileData.contentType}`);
       } catch (attachmentError) {
         console.error('Failed to download file for attachment:', attachmentError);
         // Continue without attachment but log the error

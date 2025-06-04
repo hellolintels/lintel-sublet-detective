@@ -1,4 +1,3 @@
-
 import { corsHeaders } from './cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -163,12 +162,12 @@ export async function moveFileToApprovedBucket(
 }
 
 /**
- * Download file content from storage
+ * Download file content from storage with proper binary handling
  */
 export async function downloadFileContent(
   bucket: string,
   path: string
-): Promise<string> {
+): Promise<{ content: string; isBinary: boolean; contentType: string }> {
   try {
     console.log(`Downloading file from ${bucket}/${path}`);
     
@@ -195,9 +194,39 @@ export async function downloadFileContent(
       throw new Error("No file data returned");
     }
     
-    const content = await data.text();
-    console.log("File downloaded successfully, size:", content.length);
-    return content;
+    // Determine file type from extension
+    const fileExtension = path.toLowerCase().split('.').pop() || '';
+    const isBinary = ['xlsx', 'xls', 'pdf', 'doc', 'docx'].includes(fileExtension);
+    
+    let contentType = 'text/csv';
+    if (fileExtension === 'xlsx') {
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    } else if (fileExtension === 'xls') {
+      contentType = 'application/vnd.ms-excel';
+    }
+    
+    let content: string;
+    
+    if (isBinary) {
+      // Handle binary files (Excel, etc.)
+      const arrayBuffer = await data.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert binary data to base64
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      content = btoa(binary);
+      
+      console.log(`Binary file downloaded successfully, size: ${arrayBuffer.byteLength} bytes`);
+    } else {
+      // Handle text files (CSV, etc.)
+      content = await data.text();
+      console.log(`Text file downloaded successfully, size: ${content.length} chars`);
+    }
+    
+    return { content, isBinary, contentType };
   } catch (error) {
     console.error("File download error:", error);
     throw error;
