@@ -49,8 +49,6 @@ export async function scrapePlaceholders(postcodes: PostcodeResult[]): Promise<P
  */
 export function getScraperForType(type: string) {
   switch (type) {
-    case 'bright-data':
-      return scrapePlaceholders;
     case 'scrapingbee':
       return scrapePlaceholders;
     case 'aws':

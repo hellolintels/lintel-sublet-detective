@@ -28,7 +28,7 @@ export interface SubmissionPayload extends ContactInfo, FileSubmission {}
 export interface ProcessingOptions {
   skipValidation?: boolean;
   maxAddressCount?: number;
-  scraperType?: 'bright-data' | 'scrapingbee' | 'aws' | 'none';
+  scraperType?: 'scrapingbee' | 'aws' | 'none';
 }
 
 // Result formats

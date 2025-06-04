@@ -73,6 +73,7 @@ export async function sendEmail(
     
     // Add attachment if provided
     if (attachment) {
+      console.log(`Adding attachment: ${attachment.filename}`);
       emailPayload.attachments = [
         {
           content: attachment.content,

@@ -1,6 +1,7 @@
 
 import { sendEmail } from '../_shared/email.ts';
 import { buildAdminNotificationEmail } from '../_shared/email-builder.ts';
+import { downloadFileContent } from '../_shared/storage.ts';
 
 export interface EmailNotificationData {
   full_name: string;
@@ -40,7 +41,36 @@ export async function sendAdminNotification(supabase: any, data: EmailNotificati
     
     console.log(`Subject: ${emailSubject}`);
     
-    const emailResult = await sendEmail(adminEmail, emailSubject, emailBody);
+    // Download the CSV file from storage to attach it to the email
+    let attachment = undefined;
+    if (data.file_name && data.storagePath) {
+      try {
+        console.log(`Downloading file for attachment: ${data.storagePath}`);
+        const fileContent = await downloadFileContent('pending-uploads', data.storagePath);
+        
+        // Convert file content to base64 for email attachment
+        const base64Content = btoa(fileContent);
+        
+        attachment = {
+          content: base64Content,
+          filename: data.file_name,
+          contentType: 'text/csv'
+        };
+        
+        console.log(`File attachment prepared: ${data.file_name} (${fileContent.length} chars)`);
+      } catch (attachmentError) {
+        console.error('Failed to download file for attachment:', attachmentError);
+        // Continue without attachment but log the error
+      }
+    }
+    
+    const emailResult = await sendEmail(
+      adminEmail, 
+      emailSubject, 
+      emailBody,
+      undefined, // textContent
+      attachment
+    );
     
     if (!emailResult.success) {
       console.error('Email sending failed:', emailResult.message);
