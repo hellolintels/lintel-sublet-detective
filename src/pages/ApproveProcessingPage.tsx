@@ -1,26 +1,23 @@
-
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 export default function ApproveProcessingPage() {
   const [status, setStatus] = useState("Processing approval...");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
+  const { id: submissionId } = useParams();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const action = params.get("action");
-    const submissionId = params.get("id");
-
-    if (!action || !submissionId) {
-      setStatus("❌ Missing required parameters.");
+    if (!submissionId) {
+      setStatus("❌ Missing submission ID in URL.");
       setIsLoading(false);
       return;
     }
     
-    // Call the approve-submission edge function
+    // Call the approve-submission edge function with approve action
     const projectRef = "uejymkggevuvuerldzhv";
-    const approvalUrl = `https://${projectRef}.functions.supabase.co/approve-submission?action=${action}&id=${submissionId}`;
+    const approvalUrl = `https://${projectRef}.functions.supabase.co/approve-submission?action=approve&id=${submissionId}`;
     
     console.log("📤 Sending approval request to:", approvalUrl);
 
@@ -52,7 +49,7 @@ export default function ApproveProcessingPage() {
         setStatus("❌ Network error sending approval.");
         setErrorDetails(err.message);
       });
-  }, []);
+  }, [submissionId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white">
