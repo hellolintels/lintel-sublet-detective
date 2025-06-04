@@ -29,6 +29,8 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
+          organization_other: string | null
+          organization_type: string | null
           phone: string
           position: string
           processing_status:
@@ -56,6 +58,8 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          organization_other?: string | null
+          organization_type?: string | null
           phone: string
           position: string
           processing_status?:
@@ -83,6 +87,8 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          organization_other?: string | null
+          organization_type?: string | null
           phone?: string
           position?: string
           processing_status?:
@@ -160,6 +166,8 @@ export type Database = {
           error_message: string | null
           full_name: string
           id: string
+          organization_other: string | null
+          organization_type: string | null
           phone: string | null
           position: string | null
           status: string
@@ -173,6 +181,8 @@ export type Database = {
           error_message?: string | null
           full_name: string
           id?: string
+          organization_other?: string | null
+          organization_type?: string | null
           phone?: string | null
           position?: string | null
           status?: string
@@ -186,6 +196,8 @@ export type Database = {
           error_message?: string | null
           full_name?: string
           id?: string
+          organization_other?: string | null
+          organization_type?: string | null
           phone?: string | null
           position?: string | null
           status?: string
