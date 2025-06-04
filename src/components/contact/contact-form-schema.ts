@@ -6,6 +6,16 @@ export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export const ACCEPTED_FILE_TYPES = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
 export const MAX_ROWS = 120; // Maximum number of rows allowed in the address file - increased from 20 to 120
 
+// Organization type options
+export const ORGANIZATION_TYPES = [
+  "Letting Agency",
+  "Housing Association", 
+  "Landlord",
+  "Other"
+] as const;
+
+export type OrganizationType = typeof ORGANIZATION_TYPES[number];
+
 // Validation schema for the contact form
 export const contactFormSchema = z.object({
   fullName: z.string()
@@ -17,6 +27,12 @@ export const contactFormSchema = z.object({
   company: z.string()
     .min(2, { message: "Company must be at least 2 characters" })
     .regex(/^[\w\s-'&.]+$/, { message: "Company name contains invalid characters" }),
+  organizationType: z.enum(ORGANIZATION_TYPES, {
+    required_error: "Please select an organization type"
+  }),
+  organizationOther: z.string()
+    .max(18, { message: "Organization type cannot exceed 18 characters" })
+    .optional(),
   email: z.string()
     .min(1, { message: "Email is required" })
     .email({ message: "Please enter a valid email address" }),
@@ -45,6 +61,15 @@ export const contactFormSchema = z.object({
       },
       "Only Excel and CSV files are accepted"
     ),
+}).refine((data) => {
+  // If "Other" is selected, organizationOther must be provided
+  if (data.organizationType === "Other" && !data.organizationOther?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please specify your organization type",
+  path: ["organizationOther"]
 });
 
 // Type inference

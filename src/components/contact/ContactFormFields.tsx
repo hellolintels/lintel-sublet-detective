@@ -4,6 +4,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 import { ContactFormValues } from "./contact-form-schema";
 import { FileUploadField } from "./FileUploadField";
+import { OrganizationTypeField } from "./OrganizationTypeField";
 import { Loader2 } from "lucide-react";
 
 interface ContactFormFieldsProps {
@@ -56,6 +57,8 @@ export function ContactFormFields({ form, setupComplete, isSettingUp }: ContactF
           </FormItem>
         )}
       />
+      
+      <OrganizationTypeField form={form} />
       
       <FormField
         control={form.control}

@@ -89,6 +89,8 @@ export function useContactFormSubmit(formType: string, onSuccess?: () => void) {
         company: values.company || '',
         position: values.position || '',
         phone: values.phone || '',
+        organization_type: values.organizationType,
+        organization_other: values.organizationType === "Other" ? values.organizationOther : undefined,
         storagePath: storagePath,
         form_type: formType,
         file_name: file.name,

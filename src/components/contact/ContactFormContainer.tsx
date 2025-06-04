@@ -27,6 +27,8 @@ export function ContactFormContainer({
       fullName: "",
       position: "",
       company: "",
+      organizationType: undefined,
+      organizationOther: "",
       email: "",
       phone: "",
     },
