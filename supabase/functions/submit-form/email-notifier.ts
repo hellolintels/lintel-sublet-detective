@@ -1,4 +1,6 @@
 
+import { sendEmail } from '../_shared/email.ts';
+
 export interface EmailNotificationData {
   full_name: string;
   email: string;
@@ -40,19 +42,17 @@ export async function sendAdminNotification(supabase: any, data: EmailNotificati
   const { subject, body } = buildAdminEmailContent(data);
 
   try {
-    const { error: emailError } = await supabase.functions.invoke('send-email', {
-      body: {
-        to: adminEmail,
-        subject: subject,
-        html: body
-      }
-    });
-
-    if (emailError) {
-      console.error('Email sending error:', emailError);
+    console.log(`Sending admin notification email to: ${adminEmail}`);
+    console.log(`Subject: ${subject}`);
+    
+    const emailResult = await sendEmail(adminEmail, subject, body);
+    
+    if (!emailResult.success) {
+      console.error('Email sending failed:', emailResult.message);
       return false;
     }
 
+    console.log(`Admin notification email sent successfully to: ${adminEmail}`);
     return true;
   } catch (emailErr) {
     console.error('Email function error:', emailErr);

@@ -47,6 +47,11 @@ verify_jwt = false
 include_cross_origin_headers = true
 max_timeout = 15
 
+[functions.send-email]
+verify_jwt = false
+include_cross_origin_headers = true
+max_timeout = 10
+
 [functions.approve-submission]
 verify_jwt = false
 include_cross_origin_headers = true
