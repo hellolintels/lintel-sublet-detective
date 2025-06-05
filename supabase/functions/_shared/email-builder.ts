@@ -134,7 +134,8 @@ export function buildClientConfirmationEmail(contactData: any): string {
 }
 
 export function buildAdminNotificationEmail(submissionData: any): string {
-  const approveUrl = `${Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'lovable.app') || 'https://localhost:5173'}/approve/${submissionData.id}`;
+  const projectRef = Deno.env.get('PROJECT_REF') || 'uejymkggevuvuerldzhv';
+  const approveUrl = `https://${projectRef}.functions.supabase.co/approve-submission?action=approve&id=${submissionData.id}`;
   
   return `
     <!DOCTYPE html>
