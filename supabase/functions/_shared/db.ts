@@ -63,11 +63,11 @@ export async function recordSubmission(
 }
 
 /**
- * Get submission details by ID
+ * Get submission details by ID - Fixed to handle missing submissions
  */
 export async function getSubmission(id: string) {
   try {
-    console.log("Fetching submission:", id);
+    console.log("🔍 Fetching submission with ID:", id);
     
     const supabase = getSupabaseClient();
     
@@ -75,21 +75,22 @@ export async function getSubmission(id: string) {
       .from('pending_submissions')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle(); // Changed from .single() to .maybeSingle()
       
     if (error) {
-      console.error("Error fetching submission:", error);
+      console.error("❌ Database error fetching submission:", error);
       throw new Error(`Database error: ${error.message}`);
     }
     
     if (!data) {
+      console.error(`❌ Submission not found with ID: ${id}`);
       throw new Error(`Submission not found: ${id}`);
     }
     
-    console.log("Submission retrieved:", data.id);
+    console.log("✅ Submission retrieved successfully:", data.id);
     return data;
   } catch (error) {
-    console.error("Error in getSubmission:", error);
+    console.error("❌ Error in getSubmission:", error);
     throw error;
   }
 }
