@@ -72,9 +72,9 @@ serve(async (req) => {
       const contactId = await createContactFromSubmission(submissionId, approvedFilePath);
       console.log("👤 Updated contact with ID:", contactId);
       
-      // Update contact status to approved
-      await updateSubmissionStatus(submissionId, 'approved');
-      console.log("📝 Updated contact status to approved");
+      // Update contact status to pending (changed from 'approved' to 'pending')
+      await updateSubmissionStatus(submissionId, 'pending');
+      console.log("📝 Updated contact status to pending");
       
       responseMessage = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
