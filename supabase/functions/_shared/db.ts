@@ -63,31 +63,31 @@ export async function recordSubmission(
 }
 
 /**
- * Get submission details by ID - Fixed to handle missing submissions
+ * Get contact details by ID - Updated to query contacts table
  */
 export async function getSubmission(id: string) {
   try {
-    console.log("🔍 Fetching submission with ID:", id);
+    console.log("🔍 Fetching contact with ID:", id);
     
     const supabase = getSupabaseClient();
     
     const { data, error } = await supabase
-      .from('pending_submissions')
+      .from('contacts')
       .select('*')
       .eq('id', id)
-      .maybeSingle(); // Changed from .single() to .maybeSingle()
+      .maybeSingle();
       
     if (error) {
-      console.error("❌ Database error fetching submission:", error);
+      console.error("❌ Database error fetching contact:", error);
       throw new Error(`Database error: ${error.message}`);
     }
     
     if (!data) {
-      console.error(`❌ Submission not found with ID: ${id}`);
-      throw new Error(`Submission not found: ${id}`);
+      console.error(`❌ Contact not found with ID: ${id}`);
+      throw new Error(`Contact not found: ${id}`);
     }
     
-    console.log("✅ Submission retrieved successfully:", data.id);
+    console.log("✅ Contact retrieved successfully:", data.id);
     return data;
   } catch (error) {
     console.error("❌ Error in getSubmission:", error);
@@ -96,16 +96,17 @@ export async function getSubmission(id: string) {
 }
 
 /**
- * Update submission status
+ * Update contact status - Updated to work with contacts table
  */
 export async function updateSubmissionStatus(id: string, status: string, errorMessage?: string) {
   try {
-    console.log(`Updating submission ${id} status to: ${status}`);
+    console.log(`Updating contact ${id} status to: ${status}`);
     
     const supabase = getSupabaseClient();
     
     const updateData: any = {
       status,
+      processing_status: status,
       updated_at: new Date().toISOString()
     };
     
@@ -113,17 +114,23 @@ export async function updateSubmissionStatus(id: string, status: string, errorMe
       updateData.error_message = errorMessage;
     }
     
+    // Set approved_for_matching flag when approving
+    if (status === 'approved') {
+      updateData.approved_for_matching = true;
+      updateData.approved_at = new Date().toISOString();
+    }
+    
     const { error } = await supabase
-      .from('pending_submissions')
+      .from('contacts')
       .update(updateData)
       .eq('id', id);
       
     if (error) {
-      console.error("Error updating submission status:", error);
+      console.error("Error updating contact status:", error);
       throw new Error(`Database error: ${error.message}`);
     }
     
-    console.log("Submission status updated successfully");
+    console.log("Contact status updated successfully");
   } catch (error) {
     console.error("Error in updateSubmissionStatus:", error);
     throw error;
@@ -131,39 +138,30 @@ export async function updateSubmissionStatus(id: string, status: string, errorMe
 }
 
 /**
- * Create a contact record from a submission
+ * Create/update contact from submission - Updated since contact already exists
  */
 export async function createContactFromSubmission(submissionId: string, approvedFilePath: string) {
   try {
-    console.log(`Creating contact from submission: ${submissionId}`);
+    console.log(`Updating contact from submission: ${submissionId}`);
     
     const supabase = getSupabaseClient();
     
-    // Get submission
-    const submission = await getSubmission(submissionId);
-    
-    // Create contact with approved status and approved_for_matching flag
-    const contactData = {
-      full_name: submission.full_name,
-      email: submission.email,
-      company: submission.company,
-      position: submission.position,
-      phone: submission.phone,
-      approved_file_path: approvedFilePath,
-      status: "approved",
-      processing_status: "approved", 
-      approved_for_matching: true,
-      form_type: "sample"
-    };
-    
+    // Update the existing contact with approved file path and status
     const { data, error } = await supabase
       .from('contacts')
-      .insert(contactData)
+      .update({
+        approved_file_path: approvedFilePath,
+        status: "approved",
+        processing_status: "approved", 
+        approved_for_matching: true,
+        approved_at: new Date().toISOString()
+      })
+      .eq('id', submissionId)
       .select('id')
       .single();
       
     if (error) {
-      console.error("Error creating contact:", error);
+      console.error("Error updating contact:", error);
       throw new Error(`Database error: ${error.message}`);
     }
     
@@ -171,7 +169,7 @@ export async function createContactFromSubmission(submissionId: string, approved
       throw new Error("No contact ID returned");
     }
     
-    console.log("Contact created successfully with ID:", data.id);
+    console.log("Contact updated successfully with ID:", data.id);
     return data.id;
   } catch (error) {
     console.error("Error in createContactFromSubmission:", error);
@@ -230,7 +228,7 @@ export async function updateContactStatus(id: string, status: string) {
     
     const updateData: any = {
       status,
-      processing_status: status, // Also update the new processing_status column
+      processing_status: status,
       updated_at: new Date().toISOString()
     };
     
